@@ -21,9 +21,9 @@ contracts_df = pd.read_sql(
 for contract_code in contracts_df["id_contract"]:
 
     # === 1. Carpetas ===
-    plots_dir = os.path.join(".", contract_code, "Mortalidad")
-    altura_dir = os.path.join(".", contract_code, "Altura")
-    resumen_dir = os.path.join(".", contract_code, "Resumen")
+    plots_dir = os.path.join("..", contract_code, "Mortalidad")
+    altura_dir = os.path.join("..", contract_code, "Altura")
+    resumen_dir = os.path.join("..", contract_code, "Resumen")
 
     os.makedirs(plots_dir, exist_ok=True)
     os.makedirs(altura_dir, exist_ok=True)

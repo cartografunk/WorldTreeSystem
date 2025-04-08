@@ -1,9 +1,14 @@
 from matplotlib import pyplot as plt, rcParams, os
 from utils.colors import COLOR_PALETTE
 
+# === Constantes de tamaño en cm convertido a pulgadas ===
+CM_TO_INCH = 0.3937
+FIG_WIDTH_CM = 15.56
+FIG_HEIGHT_CM = 10
+FIGSIZE = (FIG_WIDTH_CM * CM_TO_INCH, FIG_HEIGHT_CM * CM_TO_INCH)
+
 # === Paleta de colores ===
-def save_pie_chart(values, labels, title, output_path, colors=None, figsize=(6, 6), fontsize=12, show_preview=False):
-    output_path = os.path.join("outputs", output_path)
+def save_pie_chart(values, labels, title, output_path, colors=None, figsize=FIGSIZE, fontsize=12, show_preview=False):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     if os.path.exists(output_path):
@@ -23,14 +28,14 @@ def save_pie_chart(values, labels, title, output_path, colors=None, figsize=(6, 
         autopct=autopct_format,
         textprops={'fontsize': fontsize, 'color': COLOR_PALETTE['text_dark_gray']}
     )
-    ax.set_title(title, fontsize=fontsize + 2, color='#003366')
+    ax.set_title(title, fontsize=fontsize + 2, color=COLOR_PALETTE['primary_blue'])
     fig.patch.set_alpha(0.0)
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     if show_preview:
         plt.show()
     plt.close()
 
-def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", colors=None, figsize=(10, 6), show_preview=False):
+def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", colors=None, figsize=FIGSIZE, show_preview=False):
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     if os.path.exists(output_path):
@@ -52,7 +57,6 @@ def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", c
             label=label,
             color=colors[idx] if colors else [COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']][idx % 2]
         )
-        # Agregar etiquetas a cada barra
         for bar in bars:
             height = bar.get_height()
             ax.annotate(f'{height:.1f}',
@@ -82,25 +86,26 @@ def save_growth_candle_chart(expected, actual_values, output_path, title="Compar
         return
 
     rcParams.update({'figure.autolayout': True})
-    fig, ax = plt.subplots(figsize=(6, 6))
+    fig, ax = plt.subplots(figsize=FIGSIZE)
 
-    # Posiciones ajustadas más cercanas
-    xpos = [1.2, 1.5]
+    # Posiciones en X con espacio entre grupos
+    xpos = [1, 2]
 
     # === Esperado ===
-    ax.plot([xpos[0], xpos[0]], [expected['Min'], expected['Max']], color=COLOR_PALETTE['primary_blue'], linewidth=1.5)
-    ax.scatter(xpos[0], expected['Min'], color=COLOR_PALETTE['primary_blue'], marker='_', s=80)
-    ax.scatter(xpos[0], expected['Max'], color=COLOR_PALETTE['primary_blue'], marker='_', s=80)
-    ax.scatter(xpos[0], expected['Ideal'], color=COLOR_PALETTE['primary_blue'], s=60, zorder=3, label="Esperado")
+    ax.plot([xpos[0], xpos[0]], [expected['Min'], expected['Max']], color=COLOR_PALETTE['primary_blue'], linewidth=2)
+    ax.scatter(xpos[0], expected['Ideal'], color=COLOR_PALETTE['primary_blue'], s=60, label="Esperado")
+    ax.scatter([xpos[0], xpos[0]], [expected['Min'], expected['Max']], color=COLOR_PALETTE['primary_blue'], s=30)
 
     # === Real (boxplot) ===
     real_data = actual_values['Distribucion']
-    box = ax.boxplot(real_data, positions=[xpos[1]], widths=0.15,
-                    z patch_artist=True, boxprops=dict(facecolor=COLOR_PALETTE['secondary_green'], color=COLOR_PALETTE['secondary_green']),
-                     medianprops=dict(color='white'), whiskerprops=dict(color=COLOR_PALETTE['secondary_green']),
-                     capprops=dict(color=COLOR_PALETTE['secondary_green']), flierprops=dict(markerfacecolor=COLOR_PALETTE['secondary_green'], marker='o', markersize=5, linestyle='none'))
+    ax.boxplot(real_data, positions=[xpos[1]], widths=0.3,
+               patch_artist=True,
+               boxprops=dict(facecolor=COLOR_PALETTE['secondary_green'], color=COLOR_PALETTE['secondary_green']),
+               medianprops=dict(color='white'),
+               whiskerprops=dict(color=COLOR_PALETTE['secondary_green']),
+               capprops=dict(color=COLOR_PALETTE['secondary_green']),
+               flierprops=dict(markerfacecolor=COLOR_PALETTE['secondary_green'], marker='o', markersize=5, linestyle='none'))
 
-    # Etiquetas
     ax.set_xticks(xpos)
     ax.set_xticklabels(["Esperado", "Real"])
     ax.set_ylabel("Diámetro (in)", fontsize=12)

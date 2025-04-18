@@ -1,0 +1,19 @@
+--- a/ForestInventories/Cruises/inventory_catalog.py
++++ b/ForestInventories/Cruises/inventory_catalog.py
+@@ def create_inventory_catalog(df, engine, table_catalog_name):
+-    # --- Paso 8: Guardar en SQL ---
+-    save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
++    # --- Paso 8: Guardar en SQL (pre‑create + bulk append) ---
++    from utils.sql_helpers import prepare_df_for_sql
++    df_cat_sql, cat_dtype = prepare_df_for_sql(df_catalog)
++    # 8a) Crear tabla vacía con esquema
++    df_cat_sql.head(0).to_sql(
++        name=table_catalog_name,
++        con=engine,
++        if_exists="replace",
++        index=False,
++        dtype=cat_dtype
++    )
++    # 8b) Bulk insert de todos los contratos
++    save_inventory_to_sql(df_cat_sql.append(df_catalog, ignore_index=True),
++                          engine, table_catalog_name, if_exists="append")

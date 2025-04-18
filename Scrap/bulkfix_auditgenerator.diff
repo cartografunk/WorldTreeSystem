@@ -1,0 +1,21 @@
+--- a/ForestInventories/Cruises/audit_generator.py
++++ b/ForestInventories/Cruises/audit_generator.py
+@@ def create_audit_table(engine, table_name: str, output_excel_folder=None):
+-    # 12. Guardar resultados
+-    audit_table_name = f"audit_{country_code.lower()}_{year}"
+-    save_inventory_to_sql(audit, engine, audit_table_name, if_exists="replace")
++    # 12. Guardar resultados (pre‑create + bulk append)
++    audit_table_name = f"audit_{country_code.lower()}_{year}"
++    # 12a) Preparar esquema vacío con tipos correctos
++    from utils.sql_helpers import prepare_df_for_sql
++    df_audit_sql, audit_dtype = prepare_df_for_sql(audit)
++    df_audit_sql.head(0).to_sql(
++        name=audit_table_name,
++        con=engine,
++        if_exists="replace",
++        index=False,
++        dtype=audit_dtype
++    )
++    # 12b) Bulk insert de todas las filas de auditoría
++    save_inventory_to_sql(df_audit_sql.append(audit, ignore_index=True),
++                          engine, audit_table_name, if_exists="append")

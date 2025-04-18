@@ -11,14 +11,14 @@ def get_column(df, logical_name):
 
     # Debug 1: Mostrar nombres originales y normalizados
     print(f"\n🔍 Búsqueda detallada para: {logical_name}")
-    print("=== Aliases originales ===")
-    print(posibles)
-    print("=== Aliases normalizados ===")
-    print([clean_column_name(alias) for alias in posibles])
-    print("=== Columnas reales en el DF ===")
-    print(df.columns.tolist())
-    print("=== Columnas normalizadas del DF ===")
-    print([clean_column_name(col) for col in df.columns])
+    #print("=== Aliases originales ===")
+    #print(posibles)
+    #print("=== Aliases normalizados ===")
+    #print([clean_column_name(alias) for alias in posibles])
+    #print("=== Columnas reales en el DF ===")
+    #print(df.columns.tolist())
+    #print("=== Columnas normalizadas del DF ===")
+    #print([clean_column_name(col) for col in df.columns])
 
     # Buscar coincidencias
     for alias in posibles:

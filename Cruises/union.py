@@ -116,6 +116,7 @@ def combine_files(base_path, filter_func=None):
 
             # Extraer metadatos
             metadata = extract_metadata_from_excel(file_path) or {}
+            print(f"   ▶ Metadata extraída: {metadata}")
             contract_code = metadata.get("contract_code")
             farmer_name = metadata.get("farmer_name")
             cruise_date = metadata.get("cruise_date", pd.NaT)
@@ -123,19 +124,18 @@ def combine_files(base_path, filter_func=None):
             # Leer contenido de hoja
             df = read_input_sheet(file_path)
             if df is not None and not df.empty:
-                # Verificar si el renombrado fue exitoso
-                if "tree_number" not in df.columns:
-                    print(f"🛑 Error crítico: Columna 'tree_number' no encontrada en {file}")
-                    continue  # O maneja el error según tu lógica
+                continue
 
                 # Añadir metadatos (sin cambios)
+                meta = extract_metadata_from_excel(file_path)
                 df["contractcode"] = contract_code
                 df["farmername"] = farmer_name
                 df["cruisedate"] = cruise_date
                 df_list.append(df)
+
             else:
                 print(f"   ⚠️ Archivo omitido (sin datos válidos): {file}")
 
     if not df_list:
         return None
-    return pd.concat(df_list, ignore_index=True)
+    return pd.concat(df_list, ignore_index=True) if df_list else None

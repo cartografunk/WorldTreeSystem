@@ -1,6 +1,6 @@
 from utils.libs import os, pd, warnings
 from utils.extractors import extract_metadata_from_excel
-from utils.cleaners import clean_column_name
+from utils.cleaners import clean_column_name, get_column
 
 # Suprime warnings benignos de openpyxl
 warnings.filterwarnings(
@@ -19,10 +19,11 @@ warnings.filterwarnings(
 
 def read_input_sheet(file_path):
     """
-    Lee la hoja 'Input' o 'DataInput' y maneja columnas con acentos/encoding.
-    Versión optimizada para renombrado de columnas.
+    Lee la hoja 'Input' o 'DataInput' y normaliza columnas
+    usando únicamente COLUMN_LOOKUP + get_column.
     """
     try:
+        # 1) Selecciona la hoja correcta
         xls = pd.ExcelFile(file_path)
         sheets = xls.sheet_names
         target = next(
@@ -30,7 +31,7 @@ def read_input_sheet(file_path):
             sheets[0] if sheets else None
         )
 
-        # Leer datos en crudo
+        # 2) Lee el Excel crudo
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             df = pd.read_excel(
@@ -41,35 +42,55 @@ def read_input_sheet(file_path):
                 na_filter=False
             )
 
-        # ========== DEBUG 1: Columnas originales ==========
-        print("\n=== DEBUG read_input_sheet() ===")
-        print(f"📄 Archivo: {os.path.basename(file_path)}")
-        print("🔍 Columnas CRUDAS (originales):", df.columns.tolist())
+        print(f"\n=== DEBUG {os.path.basename(file_path)} ===")
+        print("Columnas originales:", df.columns.tolist())
 
-        # ========== RENOMBRADO CLAVE ==========
-        rename_map = {
-            "# Árbol": "tree_number",
-            "Árbol": "tree_number",
-            "#_arbol": "tree_number",
-            "tree_#": "tree_number",
-            "# arbol": "tree_number",
-            "_arbol": "tree_number",
-            "_arbol": "tree_number",
-            "tree_#": "tree_number"
+        # 3) Limpia todos los nombres de columna con tu normalizador
+        df.columns = [clean_column_name(col) for col in df.columns]
+        print("Columnas limpiadas:", df.columns.tolist())
+
+        # 4) Define aquí los campos lógicos que quieres capturar
+        #    y el nombre interno que les vas a dar
+        campos = {
+            "Tree #": "tree_number",
+            "Stand #": "stand",
+            "Plot #": "plot",
+            "Plot Coordinate": "plot_coordinate",
+            "Status": "status_id",
+            "Species": "species_id",
+            "Defect": "defect_id",
+            "Defect HT (ft)": "defect_ht_ft",
+            "DBH (in)": "dbh_in",
+            "THT (ft)": "tht_ft",
+            "Merch. HT (ft)": "merch_ht_ft",
+            "Pests": "pests_id",
+            "Disease": "disease_id",
+            "Coppiced": "coppiced_id",
+            "Permanent Plot": "permanent_plot_id",
+            "Short Note": "short_note",
+            "ContractCode": "contractcode",
+            "FarmerName": "farmername",
+            "CruiseDate": "cruisedate"
         }
 
-        df = df.rename(columns=lambda col: rename_map.get(col.strip(), col))
+        # 5) Usa get_column para descubrir cada alias, y crea el dict de renombrado
+        rename_dict = {}
+        for logical_name, internal_name in campos.items():
+            try:
+                actual = get_column(df, logical_name)
+                rename_dict[actual] = internal_name
+            except KeyError:
+                # si no lo encuentra, avisas o simplemente sigues
+                print(f"⚠️ No encontré columna lógica '{logical_name}'")
 
-        # Debug crítico
-        print("🔍 Columnas POST-RENOMBRADO:", df.columns.tolist())
-
-        df.columns = [clean_column_name(col) for col in df.columns]
-        print("🔍 Columnas POST-LIMPIEZA:", df.columns.tolist())
+        # 6) Renombra de golpe
+        df = df.rename(columns=rename_dict)
+        print("Columnas tras renombrado:", df.columns.tolist())
 
         return df
 
     except Exception as e:
-        print(f"[ERROR] No se pudo leer {file_path}: {str(e)}")
+        print(f"[ERROR] No se pudo leer {file_path}: {e}")
         return None
 
 def combine_files(base_path, filter_func=None):

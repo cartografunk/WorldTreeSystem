@@ -110,32 +110,48 @@ def combine_files(base_path, filter_func=None):
             file_path = os.path.join(root, file)
             print(f"\n📄 Procesando archivo: {file}")
 
-            # Logging de hojas disponibles
+            # 1) Hojas
             xls = pd.ExcelFile(file_path)
             print(f"   ▶ Hojas encontradas: {xls.sheet_names}")
 
-            # Extraer metadatos
+            # 2) Metadata
             metadata = extract_metadata_from_excel(file_path) or {}
             print(f"   ▶ Metadata extraída: {metadata}")
             contract_code = metadata.get("contract_code")
-            farmer_name = metadata.get("farmer_name")
-            cruise_date = metadata.get("cruise_date", pd.NaT)
+            farmer_name  = metadata.get("farmer_name")
+            cruise_date  = metadata.get("cruise_date", pd.NaT)
 
-            # Leer contenido de hoja
+            # 3) Leer datos de la sección Input
             df = read_input_sheet(file_path)
-            if df is not None and not df.empty:
+            if df is None or df.empty:
+                print(f"   ⚠️ Archivo omitido (sin datos válidos): {file}")
                 continue
 
-                # Añadir metadatos (sin cambios)
-                meta = extract_metadata_from_excel(file_path)
-                df["contractcode"] = contract_code
-                df["farmername"] = farmer_name
-                df["cruisedate"] = cruise_date
-                df_list.append(df)
+            # 4) Validaciones
+            if "tree_number" not in df.columns:
+                print(f"🛑 Error crítico: Columna 'tree_number' no encontrada en {file}")
+                continue
 
-            else:
-                print(f"   ⚠️ Archivo omitido (sin datos válidos): {file}")
+            # 5) Asignar metadata
+            df["contractcode"] = contract_code
+            df["farmername"]   = farmer_name
+            df["cruisedate"]   = cruise_date
+
+            # 6) Debug: comprobar que la columna existe y está poblada
+            print(f"   ▶ Columns after metadata assign: {df.columns.tolist()}")
+            print(f"   ▶ Sample metadata row: {df[['contractcode','farmername','cruisedate']].iloc[0].to_dict()}")
+
+            df_list.append(df)
 
     if not df_list:
+        print("❌ No se encontró ningún archivo válido para combinar.")
         return None
-    return pd.concat(df_list, ignore_index=True) if df_list else None
+
+    # 7) Concatenar y validar
+    combined = pd.concat(df_list, ignore_index=True)
+    print("\n=== FINAL COMBINED METADATA CHECK ===")
+    print("Columns:", combined.columns.tolist())
+    print("Unique contractcodes:", combined["contractcode"].dropna().unique()[:5])
+
+    return combined
+

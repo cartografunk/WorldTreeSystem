@@ -86,14 +86,20 @@ def main():
 
     #  A) Cargar catálogo de agricultores
     df_farmers = pd.read_sql(
-        'SELECT "ContractCode" AS contractcode, '
-            '"FarmerName", "PlantingYear", "#TreesContract" AS Contracted_Trees '
-        'FROM cat_farmers',
+        '''
+        SELECT
+          "ContractCode"    AS contractcode,
+          "FarmerName",
+          "PlantingYear",
+          "#TreesContract"  AS "Contracted_Trees"
+        FROM cat_farmers
+        ''',
         engine
     )
     df_farmers["contractcode"] = df_farmers["contractcode"].str.strip()
+    print("df_farmers columns:", df_farmers.columns.tolist())
 
-    #  B) Agrupar directamente en el DataFrame completo
+    # B) Agrupar directamente en el DataFrame combinado
     audit = (
         df_combined
         .groupby("contractcode", observed=True)
@@ -103,41 +109,42 @@ def main():
             Trees_Sampled=("tree_number", "count")
         )
         .reset_index()
-        .merge(df_farmers, on="contractcode", how="inner")
     )
 
-    print(">>> df_combined columnas:", df_combined.columns.tolist())
-    print(">>> Primeras filas de df_combined:")
-    print(df_combined[['contractcode', 'tree_number', 'dead_tree', 'alive_tree']].head(5))
-
-    # —————— Prueba del groupby ——————
-    audit_test = (
-        df_combined
-        .groupby("contractcode", observed=True)
-        .agg(
-            Total_Deads=("dead_tree", "sum"),
-            Total_Alive=("alive_tree", "sum"),
-            Trees_Sampled=("tree_number", "count")
-        )
-        .reset_index()
+    # C) Hacer merge para traer PlantingYear y Contracted_Trees
+    audit = audit.merge(
+        df_farmers[["contractcode", "FarmerName", "PlantingYear", "Contracted_Trees"]],
+        on="contractcode",
+        how="left"
     )
-    print(">>> Resultado audit_test:")
-    print(audit_test.head(5))
+    print("After merge:", audit.columns.tolist())
+    # → Should include 'contractcode','Total_Deads','Total_Alive','Trees_Sampled',
+    #   'FarmerName','PlantingYear','Contracted_Trees'
 
-    #  C) Calcular métricas y formatear
-    audit["Sample_Size"] = ((audit["Trees_Sampled"] / audit["Contracted_Trees"].replace(0, 1)) * 100).round(1).astype(
-        str) + "%"
-    audit["Mortality"] = ((audit["Total_Deads"] / audit["Trees_Sampled"].replace(0, 1)) * 100).round(1).astype(
-        str) + "%"
-    audit["Survival"] = ((audit["Total_Alive"] / audit["Trees_Sampled"].replace(0, 1)) * 100).round(1).astype(str) + "%"
-    audit["Remaining_Trees"] = audit["Contracted_Trees"] - audit["Total_Alive"]
+    # D) Calcular tus porcentajes
+    audit["Sample_Size"] = (
+            audit["Trees_Sampled"]
+            .div(audit["Contracted_Trees"].replace(0, 1))
+            .mul(100)
+            .round(1)
+            .astype(str) + "%"
+    )
+    audit["Mortality"] = (
+            audit["Total_Deads"]
+            .div(audit["Trees_Sampled"].replace(0, 1))
+            .mul(100)
+            .round(1)
+            .astype(str) + "%"
+    )
+    audit["Survival"] = (
+            audit["Total_Alive"]
+            .div(audit["Trees_Sampled"].replace(0, 1))
+            .mul(100)
+            .round(1)
+            .astype(str) + "%"
+    )
 
-    #  D) Renombrar columnas a estilo report
-    audit = audit.rename(columns={
-        "contractcode": "Contract Code",
-        "FarmerName": "Farmer Name",
-        "PlantingYear": "Planting Year"
-    })
+    print(audit.head())
 
     #  E) Guardar auditoría en SQL y Excel
     audit_table = f"audit_{country_code_audit}_{year_audit}"

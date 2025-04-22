@@ -1,37 +1,37 @@
+# union.py
 from utils.libs import os, pd, warnings
 from utils.extractors import extract_metadata_from_excel
-from utils.cleaners import clean_column_name, get_column
+from utils.cleaners   import clean_column_name, get_column
 
-# Suprime warnings benignos de openpyxl
 warnings.filterwarnings(
     "ignore",
     message="Data Validation extension is not supported and will be removed",
     category=UserWarning,
-    module="openpyxl"
+    module="openpyxl",
 )
 warnings.filterwarnings(
     "ignore",
     message="Conditional Formatting extension is not supported and will be removed",
     category=UserWarning,
-    module="openpyxl"
+    module="openpyxl",
 )
 
 
-def read_input_sheet(file_path):
+# ────────────────────────────────
+#  Hoja INPUT → DataFrame limpio
+# ────────────────────────────────
+def read_input_sheet(file_path: str) -> pd.DataFrame | None:
     """
-    Lee la hoja 'Input' o 'DataInput' y normaliza columnas
-    usando únicamente COLUMN_LOOKUP + get_column.
+    Lee la hoja 'Input' (o 'DataInput') y renombra columnas
+    únicamente con COLUMN_LOOKUP + get_column.
     """
     try:
-        # 1) Selecciona la hoja correcta
-        xls = pd.ExcelFile(file_path)
-        sheets = xls.sheet_names
-        target = next(
-            (s for s in sheets if s.lower().strip() in ("input", "datainput")),
-            sheets[0] if sheets else None
+        xls     = pd.ExcelFile(file_path)
+        target  = next(
+            (s for s in xls.sheet_names if s.lower().strip() in ("input", "datainput")),
+            xls.sheet_names[0],
         )
 
-        # 2) Lee el Excel crudo
         with warnings.catch_warnings():
             warnings.simplefilter("ignore", UserWarning)
             df = pd.read_excel(
@@ -39,68 +39,63 @@ def read_input_sheet(file_path):
                 sheet_name=target,
                 engine="openpyxl",
                 dtype=str,
-                na_filter=False
+                na_filter=False,
             )
 
         print(f"\n=== DEBUG {os.path.basename(file_path)} ===")
         print("Columnas originales:", df.columns.tolist())
 
-        # 3) Limpia todos los nombres de columna con tu normalizador
-        df.columns = [clean_column_name(col) for col in df.columns]
+        # Limpieza bruta
+        df.columns = [clean_column_name(c) for c in df.columns]
         print("Columnas limpiadas:", df.columns.tolist())
 
-        # 4) Define aquí los campos lógicos que quieres capturar
-        #    y el nombre interno que les vas a dar
+        # Campos lógicos → nombres internos
         campos = {
-            "Tree #": "tree_number",
-            "Stand #": "stand",
-            "Plot #": "plot",
-            "Plot Coordinate": "plot_coordinate",
-            "Status": "status_id",
-            "Species": "species_id",
-            "Defect": "defect_id",
-            "Defect HT (ft)": "defect_ht_ft",
-            "DBH (in)": "dbh_in",
-            "THT (ft)": "tht_ft",
-            "Merch. HT (ft)": "merch_ht_ft",
-            "Pests": "pests_id",
-            "Disease": "disease_id",
-            "Coppiced": "coppiced_id",
-            "Permanent Plot": "permanent_plot_id",
-            "Short Note": "short_note",
-            "ContractCode": "contractcode",
-            "FarmerName": "farmername",
-            "CruiseDate": "cruisedate"
+            "Tree #":            "tree_number",
+            "Stand #":           "stand",
+            "Plot #":            "plot",
+            "Plot Coordinate":   "plot_coordinate",
+            "Status":            "status_id",
+            "Species":           "species_id",
+            "Defect":            "defect_id",
+            "Defect HT (ft)":    "defect_ht_ft",
+            "DBH (in)":          "dbh_in",
+            "THT (ft)":          "tht_ft",
+            "Merch. HT (ft)":    "merch_ht_ft",
+            "Pests":             "pests_id",
+            "Disease":           "disease_id",
+            "Coppiced":          "coppiced_id",
+            "Permanent Plot":    "permanent_plot_id",
+            "Short Note":        "short_note",
         }
 
-        # 5) Usa get_column para descubrir cada alias, y crea el dict de renombrado
         rename_dict = {}
-        for logical_name, internal_name in campos.items():
+        for logical, internal in campos.items():
             try:
-                actual = get_column(df, logical_name)
-                rename_dict[actual] = internal_name
+                real = get_column(df, logical)          # usa COLUMN_LOOKUP
+                rename_dict[real] = internal
             except KeyError:
-                # si no lo encuentra, avisas o simplemente sigues
-                print(f"⚠️ No encontré columna lógica '{logical_name}'")
+                print(f"   ⚠️  '{logical}' no presente")
 
-        # 6) Renombra de golpe
         df = df.rename(columns=rename_dict)
         print("Columnas tras renombrado:", df.columns.tolist())
-
         return df
 
     except Exception as e:
-        print(f"[ERROR] No se pudo leer {file_path}: {e}")
+        print(f"[ERROR] {file_path}: {e}")
         return None
 
-def combine_files(base_path, filter_func=None):
+
+# ────────────────────────────────
+#  Recorre carpeta y concatena
+# ────────────────────────────────
+def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
     """
-    Recorre base_path, procesa todos los .xlsx (excluye temporales y combinados),
-    extrae metadatos y concatena DataFrames.
+    Recorre todos los .xlsx, inyecta metadata y concatena.
     """
     df_list = []
 
-    for root, dirs, files in os.walk(base_path):
+    for root, _, files in os.walk(base_path):
         for file in files:
             if file.lower().startswith("~$") or "combined_inventory" in file.lower():
                 continue
@@ -110,48 +105,44 @@ def combine_files(base_path, filter_func=None):
             file_path = os.path.join(root, file)
             print(f"\n📄 Procesando archivo: {file}")
 
-            # 1) Hojas
-            xls = pd.ExcelFile(file_path)
-            print(f"   ▶ Hojas encontradas: {xls.sheet_names}")
+            # ── 1) Metadata desde Summary ─────────────────────────
+            meta = extract_metadata_from_excel(file_path) or {}
+            print("   ▶ Metadata:", meta)
 
-            # 2) Metadata
-            metadata = extract_metadata_from_excel(file_path) or {}
-            print(f"   ▶ Metadata extraída: {metadata}")
-            contract_code = metadata.get("contract_code")
-            farmer_name  = metadata.get("farmer_name")
-            cruise_date  = metadata.get("cruise_date", pd.NaT)
+            contract = meta.get("contract_code")
+            farmer   = meta.get("farmer_name")
+            cdate    = meta.get("cruise_date", pd.NaT)
 
-            # 3) Leer datos de la sección Input
+            # allowed_codes → skip file?
+            if filter_func and not filter_func(contract):
+                print(f"   ⏭️  {contract} no está en allowed_codes")
+                continue
+
+            # ── 2) Hoja Input ─────────────────────────────────────
             df = read_input_sheet(file_path)
             if df is None or df.empty:
-                print(f"   ⚠️ Archivo omitido (sin datos válidos): {file}")
-                continue
+                print("   ⚠️  Sin datos válidos, se omite")
+                continue                                   # ← NO vuelve a faltar
 
-            # 4) Validaciones
-            if "tree_number" not in df.columns:
-                print(f"🛑 Error crítico: Columna 'tree_number' no encontrada en {file}")
-                continue
+            # ── 3) Inyectar metadata y volver a normalizar nombres ─
+            meta_cols = {
+                "contractcode": contract,
+                "farmername":   farmer,
+                "cruisedate":   cdate,
+            }
+            for col, val in meta_cols.items():
+                df[col] = val
 
-            # 5) Asignar metadata
-            df["contractcode"] = contract_code
-            df["farmername"]   = farmer_name
-            df["cruisedate"]   = cruise_date
-
-            # 6) Debug: comprobar que la columna existe y está poblada
-            print(f"   ▶ Columns after metadata assign: {df.columns.tolist()}")
-            print(f"   ▶ Sample metadata row: {df[['contractcode','farmername','cruisedate']].iloc[0].to_dict()}")
-
+            # (los nombres ya están limpios → no es necesario renombrar)
+            print("   ▶ Columnas finales:", df.columns.tolist())
             df_list.append(df)
 
     if not df_list:
-        print("❌ No se encontró ningún archivo válido para combinar.")
+        print("❌ No se encontró ningún archivo válido.")
         return None
 
-    # 7) Concatenar y validar
     combined = pd.concat(df_list, ignore_index=True)
-    print("\n=== FINAL COMBINED METADATA CHECK ===")
+    print("\n=== FINAL COMBINED CHECK ===")
     print("Columns:", combined.columns.tolist())
-    print("Unique contractcodes:", combined["contractcode"].dropna().unique()[:5])
-
+    print("Unique contractcodes:", combined.contractcode.unique()[:5])
     return combined
-

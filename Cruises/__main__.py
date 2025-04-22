@@ -8,8 +8,8 @@ from union import combine_files
 from filters import create_filter_func
 from inventory_importer import save_inventory_to_sql
 from inventory_catalog import create_inventory_catalog
-#from audit_generator import create_audit_table
-#from utils.sql_helpers import prepare_df_for_sql
+from audit_generator import create_audit_table
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -73,90 +73,17 @@ def main():
     df_combined.to_excel(args.output_file, index=False)
     print(f"✅ Archivo combinado guardado en: {args.output_file}")
 
-    # ———————————————————————————————————————
-    # Prepara nombre y carpeta para auditoría
-    match = re.search(r'inventory_(\w{2})_(\d{4})', args.table_name.lower())
-
-    if not match:
-            raise ValueError("❌ 'table_name' no sigue el patrón: inventory_<país>_<año>")
-    country_code_audit = match.group(1)
-    year_audit = match.group(2)
-    output_folder = os.path.dirname(args.output_file)
-    
-
-    #  A) Cargar catálogo de agricultores
-    df_farmers = pd.read_sql(
-        '''
-        SELECT
-          "ContractCode"    AS contractcode,
-          "FarmerName",
-          "PlantingYear",
-          "#TreesContract"  AS "Contracted_Trees"
-        FROM cat_farmers
-        ''',
-        engine
-    )
-    df_farmers["contractcode"] = df_farmers["contractcode"].str.strip()
-    print("df_farmers columns:", df_farmers.columns.tolist())
-
-    # B) Agrupar directamente en el DataFrame combinado
-    audit = (
-        df_combined
-        .groupby("contractcode", observed=True)
-        .agg(
-            Total_Deads=("dead_tree", "sum"),
-            Total_Alive=("alive_tree", "sum"),
-            Trees_Sampled=("tree_number", "count")
-        )
-        .reset_index()
-    )
-
-    # C) Hacer merge para traer PlantingYear y Contracted_Trees
-    audit = audit.merge(
-        df_farmers[["contractcode", "FarmerName", "PlantingYear", "Contracted_Trees"]],
-        on="contractcode",
-        how="left"
-    )
-    print("After merge:", audit.columns.tolist())
-    # → Should include 'contractcode','Total_Deads','Total_Alive','Trees_Sampled',
-    #   'FarmerName','PlantingYear','Contracted_Trees'
-
-    # D) Calcular tus porcentajes
-    audit["Sample_Size"] = (
-            audit["Trees_Sampled"]
-            .div(audit["Contracted_Trees"].replace(0, 1))
-            .mul(100)
-            .round(1)
-            .astype(str) + "%"
-    )
-    audit["Mortality"] = (
-            audit["Total_Deads"]
-            .div(audit["Trees_Sampled"].replace(0, 1))
-            .mul(100)
-            .round(1)
-            .astype(str) + "%"
-    )
-    audit["Survival"] = (
-            audit["Total_Alive"]
-            .div(audit["Trees_Sampled"].replace(0, 1))
-            .mul(100)
-            .round(1)
-            .astype(str) + "%"
-    )
-
-    print(audit.head())
-
-    #  E) Guardar auditoría en SQL y Excel
-    audit_table = f"audit_{country_code_audit}_{year_audit}"
-    save_inventory_to_sql(audit, engine, audit_table, if_exists="replace")
-    if output_folder:
-        audit.to_excel(os.path.join(output_folder, f"{audit_table}.xlsx"), index=False)
-
-    # F) Guardar inventario final en SQL y catálogo
+    # -------------- DESPUÉS de grabar el inventario -----------------
     df_sql, dtype_for_sql = prepare_df_for_sql(df_combined)
-    save_inventory_to_sql(df_sql, engine, args.table_name, if_exists="replace", dtype=dtype_for_sql)
-    create_inventory_catalog(df_combined, engine, f"cat_{args.table_name}")
+    save_inventory_to_sql(df_sql, engine, args.table_name,
+                          if_exists="replace", dtype=dtype_for_sql)
 
+    # -------------- Lanzar auditoría -----------------
+    from pipeline_utils import run_audit  # importa la helper
+    run_audit(engine, args.table_name, args.output_file)
+    # -------------------------------------------------
+
+    create_inventory_catalog(df_combined, engine, f"cat_{args.table_name}")
     print("✅ Proceso completado.")
 
 

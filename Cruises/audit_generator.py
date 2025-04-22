@@ -1,11 +1,11 @@
-from utils.libs import pd
+from utils.libs import pd, os
 from utils.db import get_engine
 from utils.cleaners import get_column
 from utils.sql_helpers import prepare_df_for_sql  # ← importar la normalización SQL :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
 
 from inventory_importer import save_inventory_to_sql
-import os
 
+from utils.sql_helpers_audit import prepare_audit_for_sql
 
 def create_audit_table(engine, table_name: str, output_excel_folder=None):  # 👈 Recibir table_name
     country_code = table_name.split("_")[1].upper()  # Ej: "mx" → "MX"
@@ -60,7 +60,7 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):  # �
     grouped = (df_inventory.groupby(contractcode_col, observed=True).agg(
         Total_Deads=("dead_tree", "sum"),
         Total_Alive=("alive_tree", "sum"),
-        Trees_Sampled=(tree_num_col, "count").res  # Contar árboles únicos por Tree #
+        Trees_Sampled=(tree_num_col, "count")  # Contar árboles únicos por Tree #
     ).reset_index()
                )
 
@@ -91,7 +91,15 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):  # �
 
     # 12. Guardar resultados
     audit_table_name = f"audit_{country_code.lower()}_{year}"
-    save_inventory_to_sql(audit, engine, audit_table_name, if_exists="replace")
+
+    audit_sql, dtype = prepare_audit_for_sql(audit)  #  renombra + ordena + dtypes
+    save_inventory_to_sql(
+        audit_sql,
+        engine,  # ← sigues pasando el Engine como connection_string
+        audit_table_name,
+        if_exists="replace",
+        dtype=dtype  # ← **aquí va el dtype**
+    )
 
     if output_excel_folder:
         output_path = os.path.join(output_excel_folder, f"{audit_table_name}.xlsx")

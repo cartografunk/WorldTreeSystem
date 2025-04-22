@@ -42,12 +42,12 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
                 na_filter=False,
             )
 
-        print(f"\n=== DEBUG {os.path.basename(file_path)} ===")
-        print("Columnas originales:", df.columns.tolist())
+        #print(f"\n=== DEBUG {os.path.basename(file_path)} ===")
+        #print("Columnas originales:", df.columns.tolist())
 
         # Limpieza bruta
         df.columns = [clean_column_name(c) for c in df.columns]
-        print("Columnas limpiadas:", df.columns.tolist())
+        #print("Columnas limpiadas:", df.columns.tolist())
 
         # Campos lógicos → nombres internos
         campos = {
@@ -103,11 +103,11 @@ def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
                 continue
 
             file_path = os.path.join(root, file)
-            print(f"\n📄 Procesando archivo: {file}")
+            #print(f"\n📄 Procesando archivo: {file}")
 
             # ── 1) Metadata desde Summary ─────────────────────────
             meta = extract_metadata_from_excel(file_path) or {}
-            print("   ▶ Metadata:", meta)
+            #print("   ▶ Metadata:", meta)
 
             contract = meta.get("contract_code")
             farmer   = meta.get("farmer_name")
@@ -134,7 +134,7 @@ def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
                 df[col] = val
 
             # (los nombres ya están limpios → no es necesario renombrar)
-            print("   ▶ Columnas finales:", df.columns.tolist())
+            #print("   ▶ Columnas finales:", df.columns.tolist())
             df_list.append(df)
 
     if not df_list:

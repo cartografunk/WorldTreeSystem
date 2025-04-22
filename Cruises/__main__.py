@@ -4,7 +4,7 @@ from utils.libs import argparse, pd
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from catalog_normalizer import normalize_catalogs
-from union import combine_files
+from union import combine_files, read_input_sheet
 from filters import create_filter_func
 from utils.sql_helpers import prepare_df_for_sql
 from inventory_importer import save_inventory_to_sql

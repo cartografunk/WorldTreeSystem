@@ -1,5 +1,5 @@
 # utils/sql_helpers.py
-from sqlalchemy import Text, Float, Numeric, BigInteger
+from sqlalchemy import Text, Float, Numeric, BigInteger, Date
 from utils.libs import pd
 
 # Mapeo de renombrado para que el DataFrame encaje con el esquema SQL final
@@ -37,6 +37,8 @@ RENAMING = {
 # Orden final de columnas en la tabla SQL (idéntico a inventory_us_2025)
 FINAL_ORDER = [
     "Contract Code",
+    "FarmerName",
+    "CruiseDate",
     "Stand#",
     "Plot#",
     "PlotCoordinate",
@@ -61,6 +63,8 @@ FINAL_ORDER = [
 # Tipos explícitos para cada columna en la base de datos
 DTYPES = {
     "Contract Code":       Text(),
+    "FarmerName":          Text(),
+    "CruiseDate":          Date(),
     "Stand#":              Float(),
     "Plot#":               Float(),
     "PlotCoordinate":      Text(),

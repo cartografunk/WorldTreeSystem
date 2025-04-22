@@ -10,7 +10,7 @@ def get_column(df, logical_name):
     posibles = COLUMN_LOOKUP.get(logical_name, [logical_name])
 
     # Debug 1: Mostrar nombres originales y normalizados
-    print(f"\n🔍 Búsqueda detallada para: {logical_name}")
+    #print(f"\n🔍 Búsqueda detallada para: {logical_name}")
     #print("=== Aliases originales ===")
     #print(posibles)
     #print("=== Aliases normalizados ===")
@@ -23,7 +23,7 @@ def get_column(df, logical_name):
     # Buscar coincidencias
     for alias in posibles:
         if alias in df.columns:  # Primero buscar sin normalizar
-            print(f"✅ Coincidencia exacta: '{alias}'")
+            #print(f"✅ Coincidencia exacta: '{alias}'")
             return alias
 
     # Si no hay coincidencia exacta, buscar normalizado
@@ -33,7 +33,7 @@ def get_column(df, logical_name):
     for alias_norm, alias_orig in zip(posibles_normalizados, posibles):
         if alias_norm in df_columns_normalized:
             idx = df_columns_normalized.index(alias_norm)
-            print(f"✅ Coincidencia normalizada: '{alias_orig}' → '{df.columns[idx]}'")
+            #print(f"✅ Coincidencia normalizada: '{alias_orig}' → '{df.columns[idx]}'")
             return df.columns[idx]
 
     raise KeyError(f"❌ Columna '{logical_name}' no encontrada. Aliases probados: {posibles}")
@@ -80,21 +80,20 @@ def clean_cruise_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     Versión con debug mejorado.
     """
     # Paso 0: Debug antes de modificar
-    print("\n=== clean_cruise_dataframe() ===")
-    print("Columnas CRUDAS:", df.columns.tolist())
-    print("Ejemplo de fila cruda:", df.iloc[0].to_dict())  # 👈 ¡Nuevo!
+    #print("\n=== clean_cruise_dataframe() ===")
+    #print("Columnas CRUDAS:", df.columns.tolist())
+    #print("Ejemplo de fila cruda:", df.iloc[0].to_dict())  # 👈 ¡Nuevo!
 
 
     # Debug después de normalizar
-    print("\nColumnas NORMALIZADAS:", df.columns.tolist())
-    print("Ejemplo de fila normalizada:", df.iloc[0].to_dict())  # 👈 ¡Nuevo!
+    #print("\nColumnas NORMALIZADAS:", df.columns.tolist())
+    #print("Ejemplo de fila normalizada:", df.iloc[0].to_dict())  # 👈 ¡Nuevo!
 
     # Eliminar filas vacías (solo si TODAS las columnas son NaN)
     df = df.dropna(how='all').copy()
 
     # Debug después de dropna
-    print("\nColumnas después de dropna:", df.columns.tolist())
-    print("Filas restantes:", len(df))
+    #print("\nColumnas después de dropna:", df.columns.tolist())
+    #print("Filas restantes:", len(df))
 
-    # Resto del proceso...
     return df

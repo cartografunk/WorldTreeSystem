@@ -41,6 +41,16 @@ def save_inventory_to_sql(df, connection_string, table_name, if_exists="append",
         conn = engine.raw_connection()
         cursor = conn.cursor()
 
+        table_full = f'{schema + "." if schema else ""}"{table_name}"'
+
+        # 0) Asegurarnos de que existan las columnas metadata
+        for col_name, col_type in [("farmername", "TEXT"), ("cruisedate", "DATE")]:
+            cursor.execute(
+                f'ALTER TABLE {table_full} '
+                f'ADD COLUMN IF NOT EXISTS "{col_name}" {col_type};'
+            )
+        conn.commit()  # guardamos el DDL
+
         cols = df.columns.tolist()
         cols_quoted = ", ".join([f'"{c}"' for c in cols])
         placeholders = ", ".join(["%s"] * len(cols))

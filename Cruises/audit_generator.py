@@ -32,7 +32,7 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):  # �
     )
 
     # —————— PAUSA PARA DEPURAR ——————
-    print("\n▶︎ COLUMNAS EN df_inventory:", df_inventory.columns.tolist())
+    #print("\n▶︎ COLUMNAS EN df_inventory:", df_inventory.columns.tolist())
     # ————————————————————————————
 
     # 3. Normalizar nombres de columnas clave
@@ -47,9 +47,9 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):  # �
             raise KeyError(f"❌ Columna crítica no encontrada: {col}")
 
     # 5. Calcular dead_tree y alive_tree desde cat_status
-    df_inventory["status_id"] = df_inventory[status_id_col].fillna(0).astype(int)  # Forzar enteros
-    df_inventory["dead_tree"] = df_inventory["status_id"].map(map_dead).fillna(1)  # Default muerto si no existe
-    df_inventory["alive_tree"] = df_inventory["status_id"].map(map_alive).fillna(0)
+    #df_inventory["status_id"] = df_inventory[status_id_col].fillna(0).astype(int)  # Forzar enteros
+    #df_inventory["dead_tree"] = df_inventory["status_id"].map(map_dead).fillna(1)  # Default muerto si no existe
+    #df_inventory["alive_tree"] = df_inventory["status_id"].map(map_alive).fillna(0)
 
     # 6. Leer datos de agricultores (cat_farmers)
     df_farmers = pd.read_sql(

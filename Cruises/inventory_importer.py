@@ -7,7 +7,7 @@ def save_inventory_to_sql(df, connection_string, table_name, if_exists="append",
     """Limpia nombres de columnas y guarda el DataFrame en SQL con tipos opcionales."""
 
     print("\n=== INICIO DE IMPORTACIÓN ===")
-    print("Columnas crudas del archivo:", df.columns.tolist())
+    #print("Columnas crudas del archivo:", df.columns.tolist())
 
 
     def clean_column_name(name):
@@ -26,14 +26,11 @@ def save_inventory_to_sql(df, connection_string, table_name, if_exists="append",
 
     # Aplicar limpieza y verificar
     df.columns = [clean_column_name(col) for col in df.columns]
-    print("Columnas normalizadas:", df.columns.tolist())  # 👈 Debug crucial
+    #print("Columnas normalizadas:", df.columns.tolist())  # 👈 Debug crucial
 
     # Eliminar columnas duplicadas y vacías
     df = df.loc[:, ~df.columns.duplicated()]
     df.dropna(how='all', inplace=True)
-
-    print("Nombre normalizado de '# Árbol':", clean_column_name("# Árbol"))  # Debe imprimir "arbol"
-
 
     try:
         engine = get_engine()

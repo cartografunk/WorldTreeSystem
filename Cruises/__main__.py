@@ -1,8 +1,9 @@
 #!/usr/bin/env python
-
-from utils.libs import argparse, pd
+from Cruises.utils import column_mapper
+from utils.libs import argparse, pd, os
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
+from utils.column_mapper import COLUMN_LOOKUP
 from catalog_normalizer import normalize_catalogs
 from union import combine_files, read_input_sheet
 from filters import create_filter_func
@@ -10,7 +11,9 @@ from utils.sql_helpers import prepare_df_for_sql
 from inventory_importer import save_inventory_to_sql
 from inventory_catalog import create_inventory_catalog
 from audit_pipeline import run_audit
-
+from utils.extractors import extract_metadata_from_excel
+from doyle_calculator import calculate_doyle
+from dead_tree_imputer import add_imputed_dead_rows
 
 def main():
     parser = argparse.ArgumentParser(
@@ -25,67 +28,91 @@ def main():
 
     args = parser.parse_args()
 
-    # Filtro
+    # Crear filtro opcional
     filter_func = None
     if args.allowed_codes and args.allowed_codes != ["ALL"]:
         filter_func = create_filter_func(args.allowed_codes)
 
-    print("📂 Procesando censos en:", args.cruises_path)
+    # Resumen de cada archivo
+    summary = []
+    expected_fields = list(COLUMN_LOOKUP.keys())
+    for root, _, files in os.walk(args.cruises_path):
+        for fname in files:
+            if not fname.lower().endswith('.xlsx') or fname.startswith('~$'):
+                continue
+            path = os.path.join(root, fname)
+            meta = extract_metadata_from_excel(path) or {}
+            contract = meta.get('contract_code', '')
+            farmer = meta.get('farmer_name', '')
+            cdate = meta.get('cruise_date', pd.NaT)
+            df = read_input_sheet(path)
+            if df is None or df.empty:
+                continue
+            matched = sum(1 for logical in expected_fields if _safe_get_column(df, logical))
+            total_trees = len(df)
+            summary.append({
+                'file': fname,
+                'contract': contract,
+                'farmer': farmer,
+                'cruise_date': cdate.date() if not pd.isna(cdate) else '',
+                'matched_columns': matched,
+                'total_trees': total_trees
+            })
+    if summary:
+        df_sum = pd.DataFrame(summary)
+        print("\n=== Resumen de archivos procesados ===")
+        print(df_sum.to_string(index=False))
+    else:
+        print("⚠️ Ningún archivo válido procesado.")
+
+    # Combinar todos los datos
+    print("\n📂 Combinando archivos en DataFrame...")
     df_combined = combine_files(args.cruises_path, filter_func=filter_func)
     if df_combined is None or df_combined.empty:
         print("⚠️ No se encontraron datos combinados.")
         return
 
-    # Limpieza y unidades
+    # Limpieza y conversión de unidades
     df_combined = clean_cruise_dataframe(df_combined)
     df_combined = standardize_units(df_combined)
 
-    # Cálculo de Doyle
-    dbh_col = get_column(df_combined, "DBH (in)")
-    tht_col = get_column(df_combined, "THT (ft)")
-    df_combined["DBH (in)"] = pd.to_numeric(dbh_col, errors="coerce")
-    df_combined["THT (ft)"] = pd.to_numeric(tht_col, errors="coerce")
-    df_combined["doyle_bf"] = ((df_combined["DBH (in)"] - 4) ** 2) * (df_combined["THT (ft)"] / 16)
+    # Cálculo de métricas (Doyle)
+    df_combined = calculate_doyle(df_combined)
 
-    #Obtener engine
+    # Obtener engine
     engine = get_engine()
 
-    # 🧠 Normalizar campos a catálogos
-    catalog_columns = {
-        'Species': 'cat_species',
-        'Defect': 'cat_defect',
-        'Pests': 'cat_pest',
-        'Disease': 'cat_disease',
-        'Coppiced': 'cat_coppiced',
-        'Permanent Plot': 'cat_permanent_plot',
-        'Status': 'cat_status'
-    }
-    df_combined = normalize_catalogs(df_combined, engine, catalog_columns, country_code=args.country_code)
+    #Calcular dead_tree y alive_tree
+    df_combined = calculate_dead_alive(df_combined, engine)
 
-    # 🔁 Agregar columnas dead_tree y alive_tree según cat_status
-    status_lookup = pd.read_sql('SELECT id, "DeadTreeValue", "AliveTree" FROM cat_status', engine)
-    map_dead = status_lookup.set_index("id")["DeadTreeValue"].to_dict()
-    map_alive = status_lookup.set_index("id")["AliveTree"].to_dict()
+    # Subsanar árboles muertos
+    df_combined = add_imputed_dead_rows(
+        df_combined,
+        contract_col="contractcode",
+        plot_col="plot",  # columna interna de número de parcela
+        dead_col="dead_tree"  # columna de árbol muerto (1/0)
+    )
 
-    df_combined["dead_tree"] = df_combined["status_id"].map(map_dead).fillna(0)
-    df_combined["alive_tree"] = df_combined["status_id"].map(map_alive).fillna(0)
-
-    # 💾 Exportar Excel combinado
-    df_combined.to_excel(args.output_file, index=False)
-    print(f"✅ Archivo combinado guardado en: {args.output_file}")
-
-    # -------------- DESPUÉS de grabar el inventario -----------------
+    # Insertar en SQL
     df_sql, dtype_for_sql = prepare_df_for_sql(df_combined)
     save_inventory_to_sql(df_sql, engine, args.table_name,
-                          if_exists="replace", dtype=dtype_for_sql)
+                          if_exists='replace', dtype=dtype_for_sql)
 
-    # -------------- Lanzar auditoría -----------------
+    # Exportar Excel combinado
+    df_combined.to_excel(args.output_file, index=False)
+    print(f"✅ Guardado Excel combinado: {args.output_file}")
+
+    # Ejecutar auditoría y catálogo adicional
     run_audit(engine, args.table_name, args.output_file)
-    # -------------------------------------------------
-
     create_inventory_catalog(df_combined, engine, f"cat_{args.table_name}")
-    print("✅ Proceso completado.")
+    print("✅ Proceso completo.")
 
+def _safe_get_column(df, logical_name):
+    try:
+        get_column(df, logical_name)
+        return True
+    except KeyError:
+        return False
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

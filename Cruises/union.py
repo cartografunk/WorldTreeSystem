@@ -25,6 +25,8 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
     Lee la hoja 'Input' (o 'DataInput') y renombra columnas
     únicamente con COLUMN_LOOKUP + get_column.
     """
+
+    print("📂 Leyendo archivos XLSX...")
     try:
         xls     = pd.ExcelFile(file_path)
         target  = next(
@@ -78,7 +80,7 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
                 print(f"   ⚠️  '{logical}' no presente")
 
         df = df.rename(columns=rename_dict)
-        print("Columnas tras renombrado:", df.columns.tolist())
+        #print("Columnas tras renombrado:", df.columns.tolist())
         return df
 
     except Exception as e:
@@ -142,7 +144,8 @@ def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
         return None
 
     combined = pd.concat(df_list, ignore_index=True)
-    print("\n=== FINAL COMBINED CHECK ===")
-    print("Columns:", combined.columns.tolist())
-    print("Unique contractcodes:", combined.contractcode.unique()[:5])
+    print("📂 Combinación finalizada")
+    #print("\n=== FINAL COMBINED CHECK ===")
+    #print("Columns:", combined.columns.tolist())
+    #print("Unique contractcodes:", combined.contractcode.unique())
     return combined

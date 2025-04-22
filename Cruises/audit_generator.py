@@ -31,6 +31,10 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):  # �
         pd.read_sql_table(f"inventory_{country_code.lower()}_{year}", engine)
     )
 
+    # —————— PAUSA PARA DEPURAR ——————
+    print("\n▶︎ COLUMNAS EN df_inventory:", df_inventory.columns.tolist())
+    # ————————————————————————————
+
     # 3. Normalizar nombres de columnas clave
     status_id_col = get_column(df_inventory, "status_id")  # Nombre real de la columna (str)
     contractcode_col = get_column(df_inventory, "ContractCode")

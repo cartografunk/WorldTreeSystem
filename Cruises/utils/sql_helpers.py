@@ -1,9 +1,11 @@
 # utils/sql_helpers.py
 from sqlalchemy import Text, Float, Numeric, BigInteger
+from utils.libs import pd
 
 # Mapeo de renombrado para que el DataFrame encaje con el esquema SQL final
 RENAMING = {
     "contractcode":            "Contract Code",
+    "contract_code":           "Contract Code",
     "Stand#":                  "Stand#",
     "Plot#":                   "Plot#",
     "PlotCoordinate":          "PlotCoordinate",
@@ -82,14 +84,32 @@ DTYPES = {
 
 def prepare_df_for_sql(df):
     """
-    Renombra y reordena el DataFrame para que encaje con el esquema SQL final.
+    Renombra, reordena y convierte el DataFrame para encajar con el esquema SQL final.
     Devuelve: (df_preparado, dtype_dict) para to_sql.
     """
     # Renombrado de columnas
     df2 = df.rename(columns=RENAMING)
     # Filtrar y reordenar
     cols = [c for c in FINAL_ORDER if c in df2.columns]
-    df2 = df2[cols]
-    # Obtener tipos para to_sql
+    df2 = df2[cols].copy()
+
+    # Convertir columnas enteras (BigInteger)
+    int_cols = [c for c, dtype in DTYPES.items() if isinstance(dtype, BigInteger) and c in df2.columns]
+    for col in int_cols:
+        df2[col] = (
+            df2[col].astype(str)
+                .str.extract(r"(\d+)", expand=False)
+                .pipe(pd.to_numeric, errors='coerce')
+                .fillna(0)
+                .astype(int)
+        )
+
+    # Convertir columnas numéricas (Float y Numeric)
+    num_cols = [c for c, dtype in DTYPES.items()
+                if (isinstance(dtype, (Float, Numeric)) or dtype.__class__.__name__=='Numeric') and c in df2.columns]
+    for col in num_cols:
+        df2[col] = pd.to_numeric(df2[col], errors='coerce')
+
+    # Preparar dict de tipos para to_sql
     dtype_for_sql = {c: DTYPES[c] for c in cols if c in DTYPES}
     return df2, dtype_for_sql

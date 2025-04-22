@@ -6,9 +6,10 @@ from utils.db import get_engine
 from catalog_normalizer import normalize_catalogs
 from union import combine_files
 from filters import create_filter_func
+from utils.sql_helpers import prepare_df_for_sql
 from inventory_importer import save_inventory_to_sql
 from inventory_catalog import create_inventory_catalog
-from Cruises.audit_pipeline import run_audit
+from audit_pipeline import run_audit
 
 
 def main():

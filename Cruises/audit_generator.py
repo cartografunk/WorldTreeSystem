@@ -2,9 +2,7 @@ from utils.libs import pd, os
 from utils.db import get_engine
 from utils.cleaners import get_column
 from utils.sql_helpers import prepare_df_for_sql  # ← importar la normalización SQL :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
-
 from inventory_importer import save_inventory_to_sql
-
 from utils.sql_helpers_audit import prepare_audit_for_sql
 
 def create_audit_table(engine, table_name: str, output_excel_folder=None):  # 👈 Recibir table_name

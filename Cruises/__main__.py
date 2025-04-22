@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from utils.libs import argparse, os, pd, re, unicodedata
+from utils.libs import argparse, pd
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from catalog_normalizer import normalize_catalogs
@@ -8,7 +8,7 @@ from union import combine_files
 from filters import create_filter_func
 from inventory_importer import save_inventory_to_sql
 from inventory_catalog import create_inventory_catalog
-from audit_generator import create_audit_table
+from Cruises.audit_pipeline import run_audit
 
 
 def main():
@@ -79,7 +79,6 @@ def main():
                           if_exists="replace", dtype=dtype_for_sql)
 
     # -------------- Lanzar auditoría -----------------
-    from pipeline_utils import run_audit  # importa la helper
     run_audit(engine, args.table_name, args.output_file)
     # -------------------------------------------------
 

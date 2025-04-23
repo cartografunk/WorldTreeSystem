@@ -36,3 +36,43 @@ COLUMN_LOOKUP= {
         "Vivo", "vivo", "Alive_Value"
     ]
 }
+
+# ──────────────────────────────────────────────────
+# utils/column_mapper.py
+SQL_COLUMNS = {
+    # metadatos
+    "contractcode":      "Contract Code",
+    "farmername":        "FarmerName",
+    "cruisedate":        "CruiseDate",
+    "id":                "id",
+
+    # ubicación
+    "stand":             "Stand#",
+    "plot":              "Plot#",
+    "plot_coordinate":   "PlotCoordinate",
+    "tree_number":       "Tree#",
+
+    # medidas
+    "defect_ht_ft":      "Defect HT(ft)",
+    "dbh_in":            "DBH (in)",
+    "tht_ft":            "THT (ft)",
+    "merch_ht_ft":       "Merch. HT (ft)",
+
+    # libre
+    "short_note":        "Short Note",
+
+    # catálogos
+    "status_id":           "status_id",
+    "species_id":          "cat_species_id",
+    "defect_id":           "cat_defect_id",
+    "pests_id":            "cat_pest_id",
+    "coppiced_id":         "cat_coppiced_id",
+    "permanent_plot_id":   "cat_permanent_plot_id",
+    "disease_id":          "cat_disease_id",
+
+    # flags y métricas
+    "doyle_bf":          "doyle_bf",
+    "dead_tree":         "dead_tree",
+    "alive_tree":        "alive_tree",
+}
+

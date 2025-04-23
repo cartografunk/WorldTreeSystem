@@ -49,33 +49,9 @@ def save_inventory_to_sql(df,
     print("\n=== INICIO DE IMPORTACIÓN ===")
     #print("Columnas crudas del archivo:", df.columns.tolist())
 
-
-    def clean_column_name(name):
-        """Versión mejorada para manejar múltiples casos especiales"""
-        name = str(name)
-        # Paso 1: Eliminar símbolos (#) y espacios ANTES de normalizar
-        name = re.sub(r'[#\s]+', '_', name)  # 👈 ¡Cambio clave!
-        # Paso 2: Normalizar caracteres unicode (ej: Á → A)
-        name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
-        # Paso 3: Eliminar caracteres no alfanuméricos (excepto _)
-        name = re.sub(r'[^\w_]', '', name)
-        # Paso 4: Limpieza final
-        name = name.strip('_').lower()
-        name = re.sub(r'_+', '_', name)
-        return name
-
-    # Aplicar limpieza y verificar
-    df.columns = [clean_column_name(col) for col in df.columns]
-
-    # Si el DataFrame ya viene renombrado con los nombres finales (prepare_df_for_sql),
-    # saltamos la limpieza que transforma 'Stand#' → 'stand', etc.
-
-    if not pre_cleaned:
-        df.columns = [clean_column_name(col) for col in df.columns]
-
-    # Eliminar columnas duplicadas y vacías
+    # AQUI: df ya viene renombrado y ordenado por prepare_df_for_sql,
+    # así que NO lo tocamos más. Si quieres, mú evita duplicados:
     df = df.loc[:, ~df.columns.duplicated()]
-    df.dropna(how='all', inplace=True)
 
     try:
         engine = get_engine()
@@ -104,6 +80,14 @@ def save_inventory_to_sql(df,
         )
 
         data = df.values.tolist()
+
+        # Después de definir `insert_query` y antes de iterar batches:
+        print("➤ Columnas que voy a insertar:", cols_quoted)
+        # Para inspeccionar el esquema real en la BD:
+        from sqlalchemy import inspect
+        insp = inspect(engine)
+        table_cols = [col["name"] for col in insp.get_columns(table_name)]
+        print("➤ Columnas existentes en la tabla:", table_cols)
 
         if progress:
             from tqdm import tqdm  # import ligero, solo si se pide

@@ -135,7 +135,8 @@ def main():
         args.table_name,
         if_exists="append",  # la tabla ya existe
         dtype=dtype_for_sql,
-        progress=True
+        progress=True,
+        pre_cleaned=True
     )
 
     # Exportar Excel combinado

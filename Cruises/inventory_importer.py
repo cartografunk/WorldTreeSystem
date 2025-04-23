@@ -42,7 +42,8 @@ def save_inventory_to_sql(df,
         schema=None,
         dtype=None,
         progress=False,
-        chunksize=1000):
+        chunksize=1000,
+        pre_cleaned=False):
     """Limpia nombres de columnas y guarda el DataFrame en SQL con tipos opcionales."""
 
     print("\n=== INICIO DE IMPORTACIÓN ===")
@@ -65,7 +66,12 @@ def save_inventory_to_sql(df,
 
     # Aplicar limpieza y verificar
     df.columns = [clean_column_name(col) for col in df.columns]
-    #print("Columnas normalizadas:", df.columns.tolist())  # 👈 Debug crucial
+
+    # Si el DataFrame ya viene renombrado con los nombres finales (prepare_df_for_sql),
+    # saltamos la limpieza que transforma 'Stand#' → 'stand', etc.
+
+    if not pre_cleaned:
+        df.columns = [clean_column_name(col) for col in df.columns]
 
     # Eliminar columnas duplicadas y vacías
     df = df.loc[:, ~df.columns.duplicated()]

@@ -20,13 +20,15 @@ warnings.filterwarnings(
 # ────────────────────────────────
 #  Hoja INPUT → DataFrame limpio
 # ────────────────────────────────
+print("📂 Leyendo archivos XLSX...")
+
 def read_input_sheet(file_path: str) -> pd.DataFrame | None:
     """
     Lee la hoja 'Input' (o 'DataInput') y renombra columnas
     únicamente con COLUMN_LOOKUP + get_column.
     """
 
-    print("📂 Leyendo archivos XLSX...")
+
     try:
         xls     = pd.ExcelFile(file_path)
         target  = next(

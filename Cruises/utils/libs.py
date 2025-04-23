@@ -12,6 +12,7 @@ from datetime import datetime
 import os
 import glob
 from pathlib import Path
+from sqlalchemy import inspect
 import argparse
 import re
 

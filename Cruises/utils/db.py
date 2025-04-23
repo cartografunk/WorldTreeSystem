@@ -5,7 +5,7 @@ import pandas as pd
 
 # Conexión
 def get_engine():
-    return create_engine("postgresql+psycopg2://postgres:pauwlonia@localhost:5432/gisdb")
+    return create_engine("postgresql+psycopg2://postgres:pauwlonia@localhost:5432/helloworldtree")
     print("💻 Conectado a SQL")
 
 

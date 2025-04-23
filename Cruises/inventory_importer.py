@@ -1,9 +1,48 @@
 # forest_inventory/inventory_importer.py
-from utils.libs import pd, unicodedata, re  # 👈 Añadir 're' aquí
+from utils.libs import pd, unicodedata, re, inspect
 from utils.db import get_engine
 
+from sqlalchemy import text
 
-def save_inventory_to_sql(df, connection_string, table_name, if_exists="append", schema=None, dtype=None):
+from sqlalchemy import text, inspect
+
+def ensure_table(df, engine, table_name, recreate=False):
+    insp = inspect(engine)
+
+    with engine.begin() as conn:
+        if recreate or not insp.has_table(table_name):
+            # DROP si existía y creamos de nuevo con el esquema del DataFrame
+            if insp.has_table(table_name):
+                conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
+
+            # cabecera vacía → genera la tabla y todos los tipos
+            df.head(0).to_sql(table_name, conn, index=False, if_exists="replace")
+
+            # clave primaria
+            conn.execute(text(
+                f'ALTER TABLE "{table_name}" '
+                f'ADD CONSTRAINT {table_name}_pk PRIMARY KEY (id);'
+            ))
+        else:
+            # tabla ya existe → solo añadimos columnas que falten
+            existing_cols = {c['name'] for c in insp.get_columns(table_name)}
+            for col in df.columns:
+                if col not in existing_cols:
+                    conn.execute(text(
+                        f'ALTER TABLE "{table_name}" '
+                        f'ADD COLUMN "{col}" TEXT'
+                    ))
+
+
+
+def save_inventory_to_sql(df,
+        connection_string,
+        table_name,
+        if_exists="append",
+        schema=None,
+        dtype=None,
+        progress=False,
+        chunksize=1000):
     """Limpia nombres de columnas y guarda el DataFrame en SQL con tipos opcionales."""
 
     print("\n=== INICIO DE IMPORTACIÓN ===")
@@ -54,11 +93,27 @@ def save_inventory_to_sql(df, connection_string, table_name, if_exists="append",
 
         table_full = f'{schema + "." if schema else ""}"{table_name}"'
         insert_query = (
-                    f"INSERT INTO {table_full} ({cols_quoted}) VALUES ({placeholders})"
+            f'INSERT INTO {table_full} ({cols_quoted}) VALUES ({placeholders}) '
+            f'ON CONFLICT (id) DO NOTHING'
         )
 
         data = df.values.tolist()
-        cursor.executemany(insert_query, data)
+
+        if progress:
+            from tqdm import tqdm  # import ligero, solo si se pide
+            iterator = tqdm(
+                range(0, len(data), chunksize),
+                desc=f"Insertando → {table_name}",
+                unit="filas",
+                ncols=80
+            )
+        else:
+            iterator = range(0, len(data), chunksize)
+
+        for start in iterator:
+            batch = data[start:start + chunksize]
+            cursor.executemany(insert_query, batch)
+
         conn.commit()
         cursor.close()
         conn.close()

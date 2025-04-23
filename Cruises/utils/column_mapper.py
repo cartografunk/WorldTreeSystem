@@ -2,7 +2,7 @@
 
 COLUMN_LOOKUP= {
     "Stand #": ["Stand #", "# Posición", "_posicion_"],
-    "Plot #": ["Plot #", "# Parcela", "_parcela"],
+    "Plot #": ["Plot #", "# Parcela", "_parcela", "plot"],
     "Plot Coordinate": ["Plot Coordinate", "Coordenadas de la Parcela", "Plot Cooridnate", "Plot Cooridinate", "coordenadas_de_la_parcela"],
     "Tree #": ["Tree #", "# Árbol", "# Arbol", "_arbol", "tree", "tree_#", "arbol", "#_arbol", "tree_number", "_árbol", "árbol", "#_árbol"],
     "Status": ["Status", "Condicion", "condicion"],

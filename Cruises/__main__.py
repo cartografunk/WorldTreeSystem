@@ -1,19 +1,23 @@
 #!/usr/bin/env python
 from Cruises.utils import column_mapper
-from utils.libs import argparse, pd, os
+from utils.libs import argparse, pd, os, inspect
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from utils.column_mapper import COLUMN_LOOKUP
 from catalog_normalizer import normalize_catalogs
 from union import combine_files, read_input_sheet
 from filters import create_filter_func
+from inventory_importer import ensure_table
 from utils.sql_helpers import prepare_df_for_sql
 from inventory_importer import save_inventory_to_sql
 from inventory_catalog import create_inventory_catalog
 from audit_pipeline import run_audit
 from utils.extractors import extract_metadata_from_excel
 from doyle_calculator import calculate_doyle
+from dead_alive_calculator import calculate_dead_alive
 from dead_tree_imputer import add_imputed_dead_rows
+from filldown import forward_fill_headers
+from tree_id import split_by_id_validity
 
 def main():
     parser = argparse.ArgumentParser(
@@ -25,6 +29,11 @@ def main():
     parser.add_argument("--table_name", required=True,
                         help="Nombre de la tabla SQL en la que se almacenará el inventario, por ejemplo 'inventory_gt_2025'.")
     parser.add_argument("--country_code", required=True, help="Código de país, por ejemplo GT, US, etc.")
+    parser.add_argument(
+        "--recreate_table",
+        action="store_true",
+        help="Drop & recreate table before bulk-insert"
+    )
 
     args = parser.parse_args()
 
@@ -93,10 +102,41 @@ def main():
         dead_col="dead_tree"  # columna de árbol muerto (1/0)
     )
 
+    df_combined = forward_fill_headers(df_combined)
+
+    #Crear IDs de árbol
+    df_good, df_bad = split_by_id_validity(df_combined)
+
+    if not df_bad.empty:
+        print(f"⚠️  {len(df_bad)} filas ignoradas por ID inválido.")
+
+        # columnas que EXISTEN en df_bad (evita KeyError)
+        diag_cols = [c for c in ("contractcode", "plot", "tree_number", "tree") if c in df_bad.columns]
+        print(df_bad[diag_cols].head().to_string(index=False))
+
+        bad_report = args.output_file.replace(".xlsx", "_bad_rows.xlsx")
+        df_bad.to_excel(bad_report, index=False)
+        print(f"📄 Reporte de filas excluidas → {bad_report}")
+
     # Insertar en SQL
-    df_sql, dtype_for_sql = prepare_df_for_sql(df_combined)
-    save_inventory_to_sql(df_sql, engine, args.table_name,
-                          if_exists='replace', dtype=dtype_for_sql)
+    df_sql, dtype_for_sql = prepare_df_for_sql(df_good)
+    assert "id" in df_sql.columns          #  ✅  ya no fallará
+
+    ensure_table(
+        df_sql,
+        engine,
+        args.table_name,
+        recreate=args.recreate_table
+    )
+
+    save_inventory_to_sql(
+        df_sql,
+        engine,
+        args.table_name,
+        if_exists="append",  # la tabla ya existe
+        dtype=dtype_for_sql,
+        progress=True
+    )
 
     # Exportar Excel combinado
     df_combined.to_excel(args.output_file, index=False)

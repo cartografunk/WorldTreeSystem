@@ -5,48 +5,20 @@ from utils.schema import COLUMNS
 
 
 def get_column(df, logical_name):
-    """
-    Dado un nombre lógico (p.ej. 'Tree #', 'Status', 'Plot #', etc.),
-    busca en schema.COLUMNS la entrada que lo contenga en su lista de aliases
-    y devuelve el nombre exacto de la columna en `df.columns`.
-    """
+    internal_name = COLUMN_LOOKUP.get(logical_name)
+    if not internal_name:
+        raise KeyError(f"'{logical_name}' no encontrado en COLUMN_LOOKUP")
 
-    # 1) encuentra la definición en schema.COLUMNS
-
-    schema_entry = None
-
-    for col in COLUMNS:
-
-        if (logical_name == col["key"]
-            or logical_name == col["sql_name"]
-            or logical_name in col["aliases"]):
-            schema_entry = col
-            break
-
-    if schema_entry is None:
-        raise KeyError(f"❌ No hay entrada de esquema para '{logical_name}'")
-
-    # 2) intenta coincidencia exacta contra df.columns
-    df_cols = list(df.columns)
-    for candidate in [schema_entry["key"], schema_entry["sql_name"]] + schema_entry["aliases"]:
-        if candidate in df_cols:
+    for candidate in [internal_name, logical_name]:
+        if candidate in df.columns:
             return candidate
 
-    # 3) intenta coincidencia normalizada
-    normalized_df = {clean_column_name(c): c for c in df_cols}
+    normalized_df_cols = {clean_column_name(col): col for col in df.columns}
+    normalized_internal = clean_column_name(internal_name)
+    if normalized_internal in normalized_df_cols:
+        return normalized_df_cols[normalized_internal]
 
-    for candidate in [schema_entry["key"], schema_entry["sql_name"]] + schema_entry["aliases"]:
-        norm = clean_column_name(candidate)
-        if norm in normalized_df:
-                return normalized_df[norm]
-
-
-    raise KeyError(
-        f"❌ Columna lógica '{logical_name}' no encontrada en DataFrame. "
-        f"Probados: key='{schema_entry['key']}', sql_name='{schema_entry['sql_name']}', "
-        f"aliases={schema_entry['aliases']}"
-    )
-
+    raise KeyError(f"'{logical_name}' → '{internal_name}' no existe en DataFrame")
 
 def clean_column_name(name: str) -> str:
     """Normaliza nombres preservando compatibilidad con UTF-8."""

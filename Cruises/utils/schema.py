@@ -1,5 +1,4 @@
 # WorldTreeSystem/Cruises/utils/schema.py
-
 from sqlalchemy import Text, Float, SmallInteger, Numeric, Date
 
 # 1) Lista única de tu “esquema” con nombre interno, SQL y tipos
@@ -83,10 +82,9 @@ COLUMNS = [
         "dtype": Text(),
     },
     {
-        "key": "status_id",
+        "key": "Status",
+        "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición"],
         "sql_name": "status_id",
-        "aliases": ["status_id", "EstadoID"],
-        "dtype": SmallInteger(),
     },
     {
         "key": "species_id",

@@ -5,7 +5,7 @@ from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from utils.column_mapper import COLUMN_LOOKUP
 from utils.sql_helpers import prepare_df_for_sql
-from utils.schema import COLUMNS
+from utils.catalog_normalizer import normalize_catalog_column
 
 from catalog_normalizer import normalize_catalogs
 from union import combine_files, read_input_sheet
@@ -87,12 +87,20 @@ def main():
     # Limpieza y conversión de unidades
     df_combined = clean_cruise_dataframe(df_combined)
     df_combined = standardize_units(df_combined)
-
     # Cálculo de métricas (Doyle)
     df_combined = calculate_doyle(df_combined)
+    # Normalizar 'Status' → status_id
+    df_combined = normalize_catalogs(
+        df_combined,
+        engine,
+        logical_keys=["Status", "Species", "Defect", "Disease", "Pests", "Coppiced", "Permanent Plot"],
+        country_code=args.country_code
+    )
 
     # Obtener engine
     engine = get_engine()
+
+
 
     #Calcular dead_tree y alive_tree
     df_combined = calculate_dead_alive(df_combined, engine)

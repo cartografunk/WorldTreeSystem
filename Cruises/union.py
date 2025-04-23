@@ -1,9 +1,8 @@
 # union.py
 from utils.libs import os, pd, warnings
 from utils.extractors import extract_metadata_from_excel
-from utils.cleaners   import clean_column_name, get_column
-from utils.schema import COLUMNS
-from utils.column_mapper import COLUMN_LOOKUP
+from utils.cleaners import clean_column_name, get_column
+from utils.column_mapper import SQL_COLUMNS
 
 warnings.filterwarnings(
     "ignore",
@@ -18,10 +17,6 @@ warnings.filterwarnings(
     module="openpyxl",
 )
 
-
-# ────────────────────────────────
-#  Hoja INPUT → DataFrame limpio
-# ────────────────────────────────
 print("📂 Leyendo archivos XLSX...")
 
 def read_input_sheet(file_path: str) -> pd.DataFrame | None:
@@ -48,43 +43,20 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
                 na_filter=False,
             )
 
-        #print(f"\n=== DEBUG {os.path.basename(file_path)} ===")
-        #print("Columnas originales:", df.columns.tolist())
-
         # Limpieza bruta
         df.columns = [clean_column_name(c) for c in df.columns]
         #print("Columnas limpiadas:", df.columns.tolist())
 
-        # Campos lógicos → nombres internos
-        campos = {
-            "Tree #":            "tree_number",
-            "Stand #":           "stand",
-            "Plot #":            "plot",
-            "Plot Coordinate":   "plot_coordinate",
-            "Status":            "status_id",
-            "Species":           "species_id",
-            "Defect":            "defect_id",
-            "Defect HT (ft)":    "defect_ht_ft",
-            "DBH (in)":          "dbh_in",
-            "THT (ft)":          "tht_ft",
-            "Merch. HT (ft)":    "merch_ht_ft",
-            "Pests":             "pests_id",
-            "Disease":           "disease_id",
-            "Coppiced":          "coppiced_id",
-            "Permanent Plot":    "permanent_plot_id",
-            "Short Note":        "short_note",
-        }
-
         rename_dict = {}
-        for logical, internal in campos.items():
+        for logical, internal in SQL_COLUMNS.items():
             try:
-                real = get_column(df, logical)          # usa COLUMN_LOOKUP
-                rename_dict[real] = internal
+                real = get_column(df, logical)
+                rename_dict[real] = logical  # usando internal keys del schema
             except KeyError:
                 print(f"   ⚠️  '{logical}' no presente")
 
         df = df.rename(columns=rename_dict)
-        #print("Columnas tras renombrado:", df.columns.tolist())
+
         return df
 
     except Exception as e:
@@ -92,13 +64,7 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
         return None
 
 
-# ────────────────────────────────
-#  Recorre carpeta y concatena
-# ────────────────────────────────
 def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
-    """
-    Recorre todos los .xlsx, inyecta metadata y concatena.
-    """
     df_list = []
 
     for root, _, files in os.walk(base_path):
@@ -109,38 +75,29 @@ def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
                 continue
 
             file_path = os.path.join(root, file)
-            #print(f"\n📄 Procesando archivo: {file}")
-
-            # ── 1) Metadata desde Summary ─────────────────────────
             meta = extract_metadata_from_excel(file_path) or {}
-            #print("   ▶ Metadata:", meta)
 
             contract = meta.get("contract_code")
-            farmer   = meta.get("farmer_name")
-            cdate    = meta.get("cruise_date", pd.NaT)
+            farmer = meta.get("farmer_name")
+            cdate = meta.get("cruise_date", pd.NaT)
 
-            # allowed_codes → skip file?
             if filter_func and not filter_func(contract):
                 print(f"   ⏭️  {contract} no está en allowed_codes")
                 continue
 
-            # ── 2) Hoja Input ─────────────────────────────────────
             df = read_input_sheet(file_path)
             if df is None or df.empty:
                 print("   ⚠️  Sin datos válidos, se omite")
-                continue                                   # ← NO vuelve a faltar
+                continue
 
-            # ── 3) Inyectar metadata y volver a normalizar nombres ─
             meta_cols = {
                 "contractcode": contract,
-                "farmername":   farmer,
-                "cruisedate":   cdate,
+                "farmername": farmer,
+                "cruisedate": cdate,
             }
             for col, val in meta_cols.items():
                 df[col] = val
 
-            # (los nombres ya están limpios → no es necesario renombrar)
-            #print("   ▶ Columnas finales:", df.columns.tolist())
             df_list.append(df)
 
     if not df_list:
@@ -149,7 +106,4 @@ def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
 
     combined = pd.concat(df_list, ignore_index=True)
     print("📂 Combinación finalizada")
-    #print("\n=== FINAL COMBINED CHECK ===")
-    #print("Columns:", combined.columns.tolist())
-    #print("Unique contractcodes:", combined.contractcode.unique())
     return combined

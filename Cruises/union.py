@@ -2,6 +2,8 @@
 from utils.libs import os, pd, warnings
 from utils.extractors import extract_metadata_from_excel
 from utils.cleaners   import clean_column_name, get_column
+from utils.schema import COLUMNS
+from utils.column_mapper import COLUMN_LOOKUP
 
 warnings.filterwarnings(
     "ignore",

@@ -1,42 +1,51 @@
 # utils/cleaners.py
 from utils.libs import pd, unicodedata, re
 from utils.column_mapper import COLUMN_LOOKUP
+from utils.schema import COLUMNS
 
 
 def get_column(df, logical_name):
     """
-    Versión con debug detallado.
+    Dado un nombre lógico (p.ej. 'Tree #', 'Status', 'Plot #', etc.),
+    busca en schema.COLUMNS la entrada que lo contenga en su lista de aliases
+    y devuelve el nombre exacto de la columna en `df.columns`.
     """
-    posibles = COLUMN_LOOKUP.get(logical_name, [logical_name])
 
-    # Debug 1: Mostrar nombres originales y normalizados
-    #print(f"\n🔍 Búsqueda detallada para: {logical_name}")
-    #print("=== Aliases originales ===")
-    #print(posibles)
-    #print("=== Aliases normalizados ===")
-    #print([clean_column_name(alias) for alias in posibles])
-    #print("=== Columnas reales en el DF ===")
-    #print(df.columns.tolist())
-    #print("=== Columnas normalizadas del DF ===")
-    #print([clean_column_name(col) for col in df.columns])
+    # 1) encuentra la definición en schema.COLUMNS
 
-    # Buscar coincidencias
-    for alias in posibles:
-        if alias in df.columns:  # Primero buscar sin normalizar
-            #print(f"✅ Coincidencia exacta: '{alias}'")
-            return alias
+    schema_entry = None
 
-    # Si no hay coincidencia exacta, buscar normalizado
-    posibles_normalizados = [clean_column_name(alias) for alias in posibles]
-    df_columns_normalized = [clean_column_name(col) for col in df.columns]
+    for col in COLUMNS:
 
-    for alias_norm, alias_orig in zip(posibles_normalizados, posibles):
-        if alias_norm in df_columns_normalized:
-            idx = df_columns_normalized.index(alias_norm)
-            #print(f"✅ Coincidencia normalizada: '{alias_orig}' → '{df.columns[idx]}'")
-            return df.columns[idx]
+        if (logical_name == col["key"]
+            or logical_name == col["sql_name"]
+            or logical_name in col["aliases"]):
+            schema_entry = col
+            break
 
-    raise KeyError(f"❌ Columna '{logical_name}' no encontrada. Aliases probados: {posibles}")
+    if schema_entry is None:
+        raise KeyError(f"❌ No hay entrada de esquema para '{logical_name}'")
+
+    # 2) intenta coincidencia exacta contra df.columns
+    df_cols = list(df.columns)
+    for candidate in [schema_entry["key"], schema_entry["sql_name"]] + schema_entry["aliases"]:
+        if candidate in df_cols:
+            return candidate
+
+    # 3) intenta coincidencia normalizada
+    normalized_df = {clean_column_name(c): c for c in df_cols}
+
+    for candidate in [schema_entry["key"], schema_entry["sql_name"]] + schema_entry["aliases"]:
+        norm = clean_column_name(candidate)
+        if norm in normalized_df:
+                return normalized_df[norm]
+
+
+    raise KeyError(
+        f"❌ Columna lógica '{logical_name}' no encontrada en DataFrame. "
+        f"Probados: key='{schema_entry['key']}', sql_name='{schema_entry['sql_name']}', "
+        f"aliases={schema_entry['aliases']}"
+    )
 
 
 def clean_column_name(name: str) -> str:

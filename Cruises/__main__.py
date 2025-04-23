@@ -1,14 +1,17 @@
 #!/usr/bin/env python
-from Cruises.utils import column_mapper
+
 from utils.libs import argparse, pd, os, inspect
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from utils.column_mapper import COLUMN_LOOKUP
+from utils.sql_helpers import prepare_df_for_sql
+from utils.schema import COLUMNS
+
 from catalog_normalizer import normalize_catalogs
 from union import combine_files, read_input_sheet
 from filters import create_filter_func
 from inventory_importer import ensure_table
-from utils.sql_helpers import prepare_df_for_sql
+
 from inventory_importer import save_inventory_to_sql
 from inventory_catalog import create_inventory_catalog
 from audit_pipeline import run_audit

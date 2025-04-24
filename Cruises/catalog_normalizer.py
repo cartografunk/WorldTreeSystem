@@ -1,5 +1,5 @@
 # NUEVA VERSIÓN – catalog_normalizer.py
-from utils.libs import pd
+from utils.libs import pd, tqdm
 from utils.schema import COLUMNS
 from utils.cleaners import get_column, clean_column_name
 from sqlalchemy import text
@@ -26,17 +26,30 @@ def parse_catalog_value(val: str):
         return val_str.split(')', 1)[1].strip()
     return val_str
 
+def find_catalog_entry(logical_key: str):
+    logical_key_cf = logical_key.strip().casefold()
+    for col in COLUMNS:
+        if "catalog" not in col:
+            continue
+        keys_to_match = [col["key"], col["sql_name"]] + col.get("aliases", [])
+        if any(logical_key_cf == k.strip().casefold() for k in keys_to_match):
+            return col
+    return None
+
+
 
 def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], country_code='GT') -> pd.DataFrame:
     config = PAIS_CONFIG.get(country_code.upper(), {"col": "nombre"})
     field = config["col"]
     df_result = df.copy()
 
+    results = []
+
     with engine.begin() as conn:
-        for logical in logical_keys:
-            col_entry = next((c for c in COLUMNS if c["key"] == logical and "catalog" in c), None)
+        for logical in tqdm(logical_keys, desc="🔁 Normalizando catálogos", ncols=90):
+            col_entry = find_catalog_entry(logical)
             if not col_entry:
-                print(f"⚠️ Lógica '{logical}' no está registrada como campo de catálogo en schema.")
+                results.append((logical, "⚠️ No registrado en schema"))
                 continue
 
             table = col_entry["catalog"]
@@ -45,10 +58,8 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
             try:
                 raw_col = get_column(df_result, logical)
             except KeyError:
-                print(f"⚠️ Columna '{logical}' no encontrada en el DataFrame.")
+                results.append((logical, "❌ No encontrada en DataFrame"))
                 continue
-
-            print(f"\n🔁 Normalizando: {logical} → {table} ({field})")
 
             unique_vals = df_result[raw_col].dropna().unique()
             val_map = {}
@@ -71,7 +82,6 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
                     val_map[raw_val] = catalog_dict[lookup_val]
                     continue
 
-                # Consulta directa
                 result = conn.execute(
                     text(f"SELECT id FROM {table} WHERE {field} = :val"),
                     {"val": parsed_val}
@@ -82,19 +92,20 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
                     catalog_dict[lookup_val] = existing_id
                     continue
 
-                # Insertar si no existe
                 result = conn.execute(
-                    text(f"""
-                        INSERT INTO {table} ({field}) VALUES (:val) RETURNING id
-                    """),
+                    text(f"""INSERT INTO {table} ({field}) VALUES (:val) RETURNING id"""),
                     {"val": parsed_val}
                 )
                 new_id = result.scalar()
                 val_map[raw_val] = new_id
                 catalog_dict[lookup_val] = new_id
-                print(f"🆕 Insertado '{parsed_val}' en {table} → id {new_id}")
 
             df_result[dest_col] = df_result[raw_col].map(val_map)
-            print(f"✅ Columna '{dest_col}' asignada en el DataFrame")
+            results.append((logical, f"✅ '{dest_col}' asignada"))
+
+    print("\n📋 Resumen de normalización de catálogos:")
+    for logical, result in results:
+        print(f" • {logical:<15} → {result}")
 
     return df_result
+

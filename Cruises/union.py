@@ -38,15 +38,19 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
                 na_filter=False,
             )
 
+        # Limpieza básica de columnas
         df.columns = [clean_column_name(c) for c in df.columns]
 
+        # Renombrar columnas que están definidas como "input"
         rename_dict = {}
         for col in COLUMNS:
+            if col.get("source") != "input":
+                continue
             try:
-                real_col = get_column(df, col["key"])  # ← key es 'tree_number', etc.
-                rename_dict[real_col] = col["key"]  # usamos la clave interna
+                real = get_column(df, col["key"])
+                rename_dict[real] = col["key"]
             except KeyError:
-                print(f"   ⚠️  '{col['key']}' no presente")
+                pass  # omitir advertencias si no es input
 
         df = df.rename(columns=rename_dict)
         return df

@@ -16,6 +16,8 @@ from sqlalchemy import inspect
 import argparse
 import re
 
+from tqdm import tqdm
+
 import unicodedata
 import warnings
 

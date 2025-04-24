@@ -39,3 +39,6 @@ def inspect_tables(engine, table_dict):
 
         except Exception as e:
             print(f"⚠️ Error consultando {sql_tabla}: {e}")
+
+
+

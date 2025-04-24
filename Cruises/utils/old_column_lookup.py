@@ -76,3 +76,11 @@ SQL_COLUMNS = {
     "alive_tree":        "alive_tree",
 }
 
+COLUMN_LOOKUP= {
+    "Species": ["Species", "Especie", "especie"],
+    "Defect": ["Defect", "Defecto", "defecto"],
+    "Pests": ["Pests", "Plagas", "plagas"],
+    "Disease": ["Disease", "Enfermedadas", "enfermedadas"],
+    "Coppiced": ["Coppiced", "Poda Basal", "poda_basal"],
+    "Permanent Plot": ["Permanent Plot", "Parcela Permanente", "parcela_permanente"],
+    ],

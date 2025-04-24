@@ -1,5 +1,6 @@
 # WorldTreeSystem/Cruises/utils/schema.py
 from sqlalchemy import Text, Float, SmallInteger, Numeric, Date
+from utils.normalizers import clean_column_name
 
 # 1) Lista única de tu “esquema” con nombre interno, SQL y tipos
 COLUMNS = [
@@ -143,3 +144,21 @@ COLUMNS = [
         "dtype": Float(),
     },
 ]
+
+def rename_columns_using_schema(df):
+    rename_map = {}
+
+    for col_def in COLUMNS:
+        logical = col_def["key"]
+        for alias in [col_def["sql_name"]] + col_def.get("aliases", []):
+            if alias in df.columns:
+                rename_map[alias] = logical
+            elif clean_column_name(alias) in [clean_column_name(c) for c in df.columns]:
+                matched = [
+                    c for c in df.columns if clean_column_name(c) == clean_column_name(alias)
+                ]
+                if matched:
+                    rename_map[matched[0]] = logical
+
+    df = df.rename(columns=rename_map)
+    return df

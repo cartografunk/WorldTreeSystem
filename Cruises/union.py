@@ -1,8 +1,9 @@
 # union.py
 from utils.libs import os, pd, warnings
 from utils.extractors import extract_metadata_from_excel
-from utils.cleaners import clean_column_name, get_column
-from utils.column_mapper import SQL_COLUMNS
+from utils.schema import COLUMNS
+from utils.cleaners import get_column
+from utils.normalizers import clean_column_name
 
 warnings.filterwarnings(
     "ignore",
@@ -20,15 +21,9 @@ warnings.filterwarnings(
 print("📂 Leyendo archivos XLSX...")
 
 def read_input_sheet(file_path: str) -> pd.DataFrame | None:
-    """
-    Lee la hoja 'Input' (o 'DataInput') y renombra columnas
-    únicamente con COLUMN_LOOKUP + get_column.
-    """
-
-
     try:
-        xls     = pd.ExcelFile(file_path)
-        target  = next(
+        xls = pd.ExcelFile(file_path)
+        target = next(
             (s for s in xls.sheet_names if s.lower().strip() in ("input", "datainput")),
             xls.sheet_names[0],
         )
@@ -43,20 +38,17 @@ def read_input_sheet(file_path: str) -> pd.DataFrame | None:
                 na_filter=False,
             )
 
-        # Limpieza bruta
         df.columns = [clean_column_name(c) for c in df.columns]
-        #print("Columnas limpiadas:", df.columns.tolist())
 
         rename_dict = {}
-        for logical, internal in SQL_COLUMNS.items():
+        for col in COLUMNS:
             try:
-                real = get_column(df, logical)
-                rename_dict[real] = logical  # usando internal keys del schema
+                real_col = get_column(df, col["key"])  # ← key es 'tree_number', etc.
+                rename_dict[real_col] = col["key"]  # usamos la clave interna
             except KeyError:
-                print(f"   ⚠️  '{logical}' no presente")
+                print(f"   ⚠️  '{col['key']}' no presente")
 
         df = df.rename(columns=rename_dict)
-
         return df
 
     except Exception as e:
@@ -90,13 +82,9 @@ def combine_files(base_path: str, filter_func=None) -> pd.DataFrame | None:
                 print("   ⚠️  Sin datos válidos, se omite")
                 continue
 
-            meta_cols = {
-                "contractcode": contract,
-                "farmername": farmer,
-                "cruisedate": cdate,
-            }
-            for col, val in meta_cols.items():
-                df[col] = val
+            df["contractcode"] = contract
+            df["farmername"]   = farmer
+            df["cruisedate"]   = cdate
 
             df_list.append(df)
 

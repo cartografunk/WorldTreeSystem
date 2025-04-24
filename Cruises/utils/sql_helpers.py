@@ -7,7 +7,12 @@ from utils.schema import COLUMNS
 # Construye FINAL_ORDER y DTYPES desde schema
 SQL_COLUMNS = { col["key"]: col["sql_name"] for col in COLUMNS }
 FINAL_ORDER = [ col["sql_name"] for col in COLUMNS ]
-DTYPES      = { col["sql_name"]: col["dtype"] for col in COLUMNS }
+DTYPES = {
+    col["sql_name"]: col["dtype"]
+    for col in COLUMNS
+    if "dtype" in col
+}
+
 
 def prepare_df_for_sql(df):
     # 1) renombrar internals → SQL

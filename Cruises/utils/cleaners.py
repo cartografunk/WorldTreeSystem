@@ -1,38 +1,36 @@
 # utils/cleaners.py
 from utils.libs import pd, unicodedata, re
-from utils.column_mapper import COLUMN_LOOKUP
 from utils.schema import COLUMNS
+from utils.normalizers import clean_column_name
 
+def get_column(df, logical_name: str) -> str:
+    """
+    Devuelve el nombre real de la columna en el DataFrame `df` que corresponde al
+    campo lógico `logical_name`, usando los alias definidos en schema.py
+    """
+    # 1. Buscar la definición en schema
+    for entry in COLUMNS:
+        if logical_name == entry["key"] or logical_name == entry["sql_name"] or logical_name in entry["aliases"]:
+            candidates = [entry["key"], entry["sql_name"]] + entry.get("aliases", [])
+            break
+    else:
+        raise KeyError(f"❌ '{logical_name}' no está definido en schema")
 
-def get_column(df, logical_name):
-    internal_name = COLUMN_LOOKUP.get(logical_name)
-    if not internal_name:
-        raise KeyError(f"'{logical_name}' no encontrado en COLUMN_LOOKUP")
-
-    for candidate in [internal_name, logical_name]:
+    # 2. Coincidencia exacta
+    for candidate in candidates:
         if candidate in df.columns:
             return candidate
 
+    # 3. Coincidencia por normalización
     normalized_df_cols = {clean_column_name(col): col for col in df.columns}
-    normalized_internal = clean_column_name(internal_name)
-    if normalized_internal in normalized_df_cols:
-        return normalized_df_cols[normalized_internal]
+    for candidate in candidates:
+        cleaned = clean_column_name(candidate)
+        if cleaned in normalized_df_cols:
+            return normalized_df_cols[cleaned]
 
-    raise KeyError(f"'{logical_name}' → '{internal_name}' no existe en DataFrame")
-
-def clean_column_name(name: str) -> str:
-    """Normaliza nombres preservando compatibilidad con UTF-8."""
-    name = str(name)
-    # Normalizar caracteres unicode (ej: Á → A + ´)
-    name = unicodedata.normalize("NFKD", name)
-    # Eliminar símbolos y espacios
-    name = re.sub(r'[^\w\s]', '', name)
-    # Reemplazar espacios con guiones bajos
-    name = re.sub(r'\s+', '_', name)
-    # Eliminar diacríticos (acentos) y convertir a minúsculas
-    name = name.encode("ascii", "ignore").decode("ascii")
-    return name.strip().lower()
-
+    raise KeyError(
+        f"❌ No se encontró una columna para '{logical_name}'. Aliases probados: {candidates}"
+    )
 
 def standardize_units(df):
     """

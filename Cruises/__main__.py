@@ -5,7 +5,6 @@ from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from utils.column_mapper import COLUMN_LOOKUP
 from utils.sql_helpers import prepare_df_for_sql
-from utils.catalog_normalizer import normalize_catalog_column
 
 from catalog_normalizer import normalize_catalogs
 from union import combine_files, read_input_sheet
@@ -84,12 +83,13 @@ def main():
         print("⚠️ No se encontraron datos combinados.")
         return
 
-    # Limpieza y conversión de unidades
+    # Obtener engine
+    engine = get_engine()
+
+    # Limpieza general de columnas y forward fill
     df_combined = clean_cruise_dataframe(df_combined)
-    df_combined = standardize_units(df_combined)
-    # Cálculo de métricas (Doyle)
-    df_combined = calculate_doyle(df_combined)
-    # Normalizar 'Status' → status_id
+
+    # Normalizar catálogos a ID (incluye status_id)
     df_combined = normalize_catalogs(
         df_combined,
         engine,
@@ -97,25 +97,27 @@ def main():
         country_code=args.country_code
     )
 
-    # Obtener engine
-    engine = get_engine()
+    # Convertir unidades ya con campos normalizados
+    df_combined = standardize_units(df_combined)
 
+    # Calcular volumen Doyle
+    df_combined = calculate_doyle(df_combined)
 
-
-    #Calcular dead_tree y alive_tree
+    # Calcular árboles vivos/muertos usando status_id
     df_combined = calculate_dead_alive(df_combined, engine)
 
     # Subsanar árboles muertos
     df_combined = add_imputed_dead_rows(
         df_combined,
         contract_col="contractcode",
-        plot_col="plot",  # columna interna de número de parcela
-        dead_col="dead_tree"  # columna de árbol muerto (1/0)
+        plot_col="plot",
+        dead_col="dead_tree"
     )
 
+    # Completar encabezados repetidos
     df_combined = forward_fill_headers(df_combined)
 
-    #Crear IDs de árbol
+    # Crear IDs de árbol
     df_good, df_bad = split_by_id_validity(df_combined)
 
     if not df_bad.empty:

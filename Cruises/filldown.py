@@ -2,7 +2,7 @@
 from utils.libs import pd
 
 HEADER_COLS = [
-    "stand", "plot", "permanent_plot_id", "short_note",
+    "stand", "plot", "cat_permanent_plot_id", "short_note",
     "contractcode", "farmername", "cruisedate",
     "plot_coordinate", "status_id"
 ]

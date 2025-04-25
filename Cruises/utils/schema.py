@@ -88,10 +88,23 @@ COLUMNS = [
     "catalog_field": "id"
   },
   {
+    "key": "status_id", "sql_name": "status_id",
+    "aliases": ["status_id", "Condicion"],
+    "dtype": "SMALLINT",
+    "source": "calculated"
+  },
+  {
     "key": "species_id", "sql_name": "cat_species_id",
     "aliases": ["species_id", "Especie"],
     "dtype": "SMALLINT",
     "source": "calculated"
+  },
+  {
+    "key": "Species", "sql_name": "cat_species_id",
+    "aliases": ["Species", "Especie", "especie"],
+    "source": "input",
+    "catalog_table": "cat_species",
+    "catalog_field": "id"
   },
   {
     "key": "defect_id", "sql_name": "cat_defect_id",
@@ -141,14 +154,7 @@ COLUMNS = [
     "dtype": "FLOAT",
     "source": "calculated"
   },
-  {
-    "key": "Species", "sql_name": "cat_species_id",
-    "aliases": ["Species", "Especie", "especie"],
-    "source": "input",
-    "catalog_table": "cat_species",
-    "catalog_field": "id"
-  },
-  {
+    {
     "key": "Defect", "sql_name": "cat_defect_id",
     "aliases": ["Defect", "Defecto", "defecto"],
     "source": "input",

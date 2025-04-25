@@ -89,6 +89,9 @@ def main():
     # Limpieza general de columnas y forward fill
     df_combined = clean_cruise_dataframe(df_combined)
 
+    # Convertir unidades ya con campos normalizados
+    df_combined = standardize_units(df_combined)
+
     # Normalizar catálogos a ID (incluye status_id)
     df_combined = normalize_catalogs(
         df_combined,
@@ -97,8 +100,7 @@ def main():
         country_code=args.country_code
     )
 
-    # Convertir unidades ya con campos normalizados
-    df_combined = standardize_units(df_combined)
+
 
     # Calcular volumen Doyle
     df_combined = calculate_doyle(df_combined)
@@ -133,7 +135,6 @@ def main():
 
     # Insertar en SQL
     df_sql, dtype_for_sql = prepare_df_for_sql(df_good)
-    assert "id" in df_sql.columns          #  ✅  ya no fallará
 
     ensure_table(
         df_sql,

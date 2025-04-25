@@ -135,13 +135,15 @@ def main():
 
     # Insertar en SQL
     df_sql, dtype_for_sql = prepare_df_for_sql(df_good)
-
+    df_sql = df_sql.loc[:, ~df_sql.columns.duplicated()]
     ensure_table(
         df_sql,
         engine,
         args.table_name,
         recreate=args.recreate_table
     )
+
+    df_sql = df_sql.replace({pd.NA: None})
 
     save_inventory_to_sql(
         df_sql,

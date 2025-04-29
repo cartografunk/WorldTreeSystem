@@ -1,10 +1,13 @@
-#filldown.py
 from utils.libs import pd
+from utils.schema import COLUMNS
 
+# Extraer HEADER_COLS desde schema.py
 HEADER_COLS = [
-    "stand", "plot", "cat_permanent_plot_id", "short_note",
-    "contractcode", "farmername", "cruisedate",
-    "plot_coordinate", "status_id"
+    col["key"] for col in COLUMNS
+    if col.get("source") in ("metadata", "input") and col["key"] in (
+        "stand", "plot", "Permanent Plot", "short_note",
+        "contractcode", "farmername", "cruisedate", "plot_coordinate", "Status"
+    )
 ]
 
 def forward_fill_headers(df: pd.DataFrame,
@@ -16,9 +19,11 @@ def forward_fill_headers(df: pd.DataFrame,
     cols = cols or HEADER_COLS
     df_filled = df.copy()
 
-    df_filled[cols] = (
-        df_filled[cols]
-        .replace("", pd.NA)       # cadenas vacías → NA
+    cols_existing = [col for col in cols if col in df_filled.columns]
+
+    df_filled[cols_existing] = (
+        df_filled[cols_existing]
+        .replace("", pd.NA)
         .ffill()
         .bfill()
     )

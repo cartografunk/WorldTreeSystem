@@ -19,10 +19,12 @@ def ensure_table(df, engine, table_name, recreate=False):
 
             df.head(0).to_sql(table_name, conn, index=False, if_exists="replace")
 
-            conn.execute(text(
-                f'ALTER TABLE "{table_name}" '
-                f'ADD CONSTRAINT {table_name}_pk PRIMARY KEY (id);'
-            ))
+            # sólo añadimos PK si existe la columna id
+            if 'id' in df.columns:
+                conn.execute(text(
+                    f'ALTER TABLE "{table_name}" '
+                    f'ADD CONSTRAINT {table_name}_pk PRIMARY KEY (id)'
+                ))
         else:
             existing_cols = {c['name'] for c in insp.get_columns(table_name)}
             for col in df.columns:
@@ -65,20 +67,27 @@ def save_inventory_to_sql(df,
         placeholders = ", ".join(["%s"] * len(cols))
 
         table_full = f'{schema + "." if schema else ""}"{table_name}"'
+
+        from sqlalchemy import inspect, text
+        insp = inspect(engine)
+        existing = [c["name"] for c in insp.get_columns(table_name, schema=schema)]
+
+        conflict = ' ON CONFLICT (id) DO NOTHING' if 'id' in existing else ''
         insert_query = (
-            f'INSERT INTO {table_full} ({cols_quoted}) VALUES ({placeholders}) '
-            f'ON CONFLICT (id) DO NOTHING'
-        )
+            f'INSERT INTO {table_full} ({cols_quoted}) '
+            f'VALUES ({placeholders})'
+            f'{conflict}'
+            )
 
         data = df.values.tolist()
 
         # Después de definir `insert_query` y antes de iterar batches:
-        print("➤ Columnas que voy a insertar:", cols_quoted)
+        #print("➤ Columnas que voy a insertar:", cols_quoted)
         # Para inspeccionar el esquema real en la BD:
         from sqlalchemy import inspect
         insp = inspect(engine)
         table_cols = [col["name"] for col in insp.get_columns(table_name)]
-        print("➤ Columnas existentes en la tabla:", table_cols)
+        #print("➤ Columnas existentes en la tabla:", table_cols)
 
         if progress:
             from tqdm import tqdm  # import ligero, solo si se pide
@@ -99,8 +108,8 @@ def save_inventory_to_sql(df,
         cursor.close()
         conn.close()
 
-        print(f"✅ Bulk insert completado: '{table_name}' ({len(data)} filas)")
+        print(f"✅ Bulk insert completado: \n '{table_name}' ({len(data)} filas)")
     except Exception as e:
-        print(f"❌ Error al realizar bulk insert: {str(e)}")
+        print(f"❌ Error al realizar bulk insert: \n {str(e)}")
 
         raise

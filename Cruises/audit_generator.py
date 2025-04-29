@@ -1,110 +1,70 @@
-from utils.libs import pd, os
-from utils.db import get_engine
+# — imports al inicio del archivo —
+from utils.schema import rename_columns_using_schema
+from utils.sql_helpers import prepare_df_for_sql
 from utils.cleaners import get_column
-from utils.sql_helpers import prepare_df_for_sql  # ← importar la normalización SQL :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}
-from inventory_importer import save_inventory_to_sql
-from utils.sql_helpers_audit import prepare_audit_for_sql
+from inventory_importer import save_inventory_to_sql, ensure_table
+from utils.libs import pd, os
 
-def create_audit_table(engine, table_name: str, output_excel_folder=None):  # 👈 Recibir table_name
-    country_code = table_name.split("_")[1].upper()  # Ej: "mx" → "MX"
-    year = table_name.split("_")[2]                 # Ej: "2025a"
-    inventory_table_name = table_name               # 👈 Usar el nombre real
+def create_audit_table(engine, table_name: str, output_excel_folder=None):
+    country_code = table_name.split("_")[1].upper()
+    year = table_name.split("_")[2]
+    inventory_table_name = table_name
     audit_table_name = f"audit_{country_code.lower()}_{year}"
 
-    """
-    Genera una tabla de auditoría a partir de datos de inventario y catálogos.
-    - country_code: Código de país (ej: 'GT', 'US')
-    - year: Año del inventario (ej: '2025')
-    """
-    # 1. Leer datos del catálogo de estados (cat_status)
-    status_lookup = pd.read_sql("SELECT id, \"DeadTreeValue\", \"AliveTree\" FROM cat_status", engine)
+    # 1. Leer e renombrar inventario
+    df_inventory_raw = pd.read_sql_table(f"inventory_{country_code.lower()}_{year}", engine)
+    df_inventory = rename_columns_using_schema(df_inventory_raw)
 
-    # Convertir IDs a enteros para evitar problemas de tipo float vs int
-    status_lookup["id"] = status_lookup["id"].astype(int)
-
-    # Crear diccionarios de mapeo
-    map_dead = status_lookup.set_index("id")["DeadTreeValue"].to_dict()
-    map_alive = status_lookup.set_index("id")["AliveTree"].to_dict()
-
-    # 2. Leer tabla y aplicar esquema SQL
-    df_inventory, _ = prepare_df_for_sql(
-        pd.read_sql_table(f"inventory_{country_code.lower()}_{year}", engine)
-    )
-
-    # —————— PAUSA PARA DEPURAR ——————
-    #print("\n▶︎ COLUMNAS EN df_inventory:", df_inventory.columns.tolist())
-    # ————————————————————————————
-
-    # 3. Normalizar nombres de columnas clave
-    status_id_col = get_column(df_inventory, "status_id")  # Nombre real de la columna (str)
-    contractcode_col = get_column(df_inventory, "ContractCode")
-    tree_num_col = get_column(df_inventory, "Tree#")
-
-
-    # 4. Validar existencia de columnas
-    for col in [status_id_col, contractcode_col, tree_num_col]:
-        if col not in df_inventory.columns:
-            raise KeyError(f"❌ Columna crítica no encontrada: {col}")
-
-    # 5. Calcular dead_tree y alive_tree desde cat_status
-    #df_inventory["status_id"] = df_inventory[status_id_col].fillna(0).astype(int)  # Forzar enteros
-    #df_inventory["dead_tree"] = df_inventory["status_id"].map(map_dead).fillna(1)  # Default muerto si no existe
-    #df_inventory["alive_tree"] = df_inventory["status_id"].map(map_alive).fillna(0)
-
-    # 6. Leer datos de agricultores (cat_farmers)
-    df_farmers = pd.read_sql(
-        'SELECT "ContractCode", "FarmerName", "PlantingYear", "#TreesContract" AS "Contracted_Trees" FROM cat_farmers',
+    # 2. Leer y renombrar farmers
+    df_farmers_raw = pd.read_sql(
+        'SELECT contractcode, farmername, planting_year, contracted_trees FROM cat_farmers',
         engine
     )
-    df_farmers["ContractCode"] = df_farmers["ContractCode"].str.strip()
 
-    # 7. Agrupar datos de inventario
-    grouped = (df_inventory.groupby(contractcode_col, observed=True).agg(
-        Total_Deads=("dead_tree", "sum"),
-        Total_Alive=("alive_tree", "sum"),
-        Trees_Sampled=(tree_num_col, "count")  # Contar árboles únicos por Tree #
+    # 3. Obtener los nombres de columna normalizados
+    contractcode_col = get_column(df_inventory, "contractcode")
+    tree_num_col    = get_column(df_inventory, "tree_number")
+
+    # 4. Agrupar inventario
+    grouped = df_inventory.groupby(contractcode_col, observed=True).agg(
+        total_deads  =("dead_tree",  "sum"),
+        total_alive  =("alive_tree", "sum"),
+        trees_sampled=(tree_num_col,"count")
     ).reset_index()
-               )
 
-    # 8. Combinar con datos de agricultores
-    audit = pd.merge(
-        df_farmers.rename(columns={"ContractCode": contractcode_col}),
-        grouped,
-        on=contractcode_col,
-        how="inner"
+    # 5. Merge inventario + farmers
+    audit = pd.merge(df_farmers_raw, grouped, on="contractcode", how="inner")
+
+    # 6. Cálculos y formateo
+    audit["sample_size"]    = audit["trees_sampled"] / audit["contracted_trees"].replace(0,1)
+    audit["mortality"]      = audit["total_deads"]   / audit["trees_sampled"].replace(0,1)
+    audit["survival"]       = audit["total_alive"]   / audit["trees_sampled"].replace(0,1)
+    audit["remaining_trees"]= audit["contracted_trees"] - audit["total_alive"]
+
+    for col in ["sample_size","mortality","survival"]:
+        audit[col] = (audit[col] * 100).round(1).astype(str) + "%"
+
+    # 6a. Crear id secuencial para clave primaria
+    audit = audit.reset_index(drop=True)
+    audit.insert(0, "id", audit.index + 1)
+
+    # 7. Preparar e insertar
+    audit = rename_columns_using_schema(audit)
+    audit_sql, dtype = prepare_df_for_sql(audit)
+    ensure_table(
+        audit_sql,  # 1. el DataFrame
+        engine,  # 2. la instancia Engine
+        audit_table_name,  # 3. el nombre de la tabla
+        recreate=True  # opcionalmente fuerza recreación
     )
 
-    # 9. Cálculos finales (manejo de división por cero)
-    audit["Sample_Size"] = (audit["Trees_Sampled"] / audit["Contracted_Trees"].replace(0, 1)) 
-    audit["Mortality"] = (audit["Total_Deads"] / audit["Trees_Sampled"].replace(0, 1)) 
-    audit["Survival"] = (audit["Total_Alive"] / audit["Trees_Sampled"].replace(0, 1)) 
-    audit["Remaining_Trees"] = audit["Contracted_Trees"] - audit["Total_Alive"]
+    save_inventory_to_sql(audit_sql, engine, audit_table_name, if_exists="append", dtype=dtype)
 
-    # 10. Formatear porcentajes
-    for col in ["Sample_Size", "Mortality", "Survival"]:
-        audit[col] = audit[col].round(1).astype(str) + "%"
-
-    # 11. Renombrar columnas para reporte
-    audit.rename(columns={
-        contractcode_col: "Contract Code",
-        "FarmerName": "Farmer Name",
-        "PlantingYear": "Planting Year"
-    }, inplace=True)
-
-    # 12. Guardar resultados
-    audit_table_name = f"audit_{country_code.lower()}_{year}"
-
-    audit_sql, dtype = prepare_audit_for_sql(audit)  #  renombra + ordena + dtypes
-    save_inventory_to_sql(
-        audit_sql,
-        engine,  # ← sigues pasando el Engine como connection_string
-        audit_table_name,
-        if_exists="replace",
-        dtype=dtype  # ← **aquí va el dtype**
-    )
-
+    # 8. Exportar a Excel si corresponde
     if output_excel_folder:
         output_path = os.path.join(output_excel_folder, f"{audit_table_name}.xlsx")
-        audit.to_excel(output_path, index=False)
+        audit_sql.to_excel(output_path, index=False)
+        print(f"📁 Excel exportado en: \n {output_path}")
 
+    print(f"✅ Auditoría completada: \n {audit_table_name}")
     return audit

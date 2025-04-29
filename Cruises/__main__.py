@@ -62,7 +62,7 @@ def main():
             matched = sum(1 for logical in expected_fields if _safe_get_column(df, logical))
             total_trees = len(df)
             summary.append({
-                'file': fname,
+                #'file': fname,
                 'contract': contract,
                 'farmer': farmer,
                 'cruise_date': cdate.date() if not pd.isna(cdate) else '',
@@ -89,6 +89,9 @@ def main():
     # Limpieza general de columnas y forward fill
     df_combined = clean_cruise_dataframe(df_combined)
 
+    # Completar encabezados repetidos
+    df_combined = forward_fill_headers(df_combined)
+
     # Convertir unidades ya con campos normalizados
     df_combined = standardize_units(df_combined)
 
@@ -99,8 +102,6 @@ def main():
         logical_keys=["Status", "Species", "Defect", "Disease", "Pests", "Coppiced", "Permanent Plot"],
         country_code=args.country_code
     )
-
-
 
     # Calcular volumen Doyle
     df_combined = calculate_doyle(df_combined)
@@ -116,9 +117,6 @@ def main():
         dead_col="dead_tree"
     )
 
-    # Completar encabezados repetidos
-    df_combined = forward_fill_headers(df_combined)
-
     # Crear IDs de árbol
     df_good, df_bad = split_by_id_validity(df_combined)
 
@@ -132,6 +130,17 @@ def main():
         bad_report = args.output_file.replace(".xlsx", "_bad_rows.xlsx")
         df_bad.to_excel(bad_report, index=False)
         print(f"📄 Reporte de filas excluidas → {bad_report}")
+
+    #Chequeo de duplicados
+    duplicated_ids = df_good[df_good['id'].duplicated(keep=False)].copy()
+
+    if not duplicated_ids.empty:
+        print(f"\n🚨 Detectados {duplicated_ids.shape[0]} registros con IDs duplicados reales.")
+        print(duplicated_ids[['id', 'contractcode', 'plot', 'tree_number']].head(20))
+        duplicated_ids.to_csv("duplicated_ids_found.csv", index=False)
+        print("📄 Exportados duplicados a duplicated_ids_found.csv")
+    else:
+        print("\n✅ No hay IDs duplicados reales. Todo OK.")
 
     # Insertar en SQL
     df_sql, dtype_for_sql = prepare_df_for_sql(df_good)

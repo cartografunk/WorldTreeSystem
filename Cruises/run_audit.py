@@ -1,69 +1,75 @@
-#!/usr/bin/env python
-
 from pathlib import Path
 from utils.libs import pd
-from utils.db import get_engine
-from inventory_importer import save_inventory_to_sql
+from utils.extractors import extract_metadata_from_folder
+from utils.schema import rename_columns_using_schema
+from utils.sql_helpers import prepare_df_for_sql
+from inventory_importer import ensure_table, save_inventory_to_sql
 
+def create_audit_table(engine, inventory_table_name, folder=None):
+    # Leer tabla base
+    df = pd.read_sql_table(inventory_table_name, engine)
 
-def create_audit_table(engine, table_name, output_excel_folder=None):
-    parts = table_name.split("_")
-    if len(parts) != 3:
-        raise ValueError("El nombre de la tabla debe ser del tipo: inventory_<país>_<año>")
-
-    country_code = parts[1].upper()
-    year = parts[2]
-    inventory_catalog = f"cat_inventory_{country_code.lower()}_{year}"
-    audit_table = f"audit_{country_code.lower()}_{year}"
-
-    df_inventory = pd.read_sql_table(table_name, engine)
-    df_catalog = pd.read_sql_table(inventory_catalog, engine)
-    allowed_contracts = df_catalog["ContractCode"].unique()
-    df_inventory = df_inventory[df_inventory["ContractCode"].isin(allowed_contracts)]
-
+    # Unir con status
     df_status = pd.read_sql('SELECT id, "DeadTreeValue", "AliveTree" FROM cat_status', engine)
-    df_merged = pd.merge(df_inventory, df_status, left_on="status_id", right_on="id", how="left")
+    df_merged = pd.merge(df, df_status, left_on="status_id", right_on="id", how="left")
 
-    grouped = df_merged.groupby("ContractCode").agg(
-        Total_Deads=("DeadTreeValue", "sum"),
-        Total_Alive=("AliveTree", "sum"),
-        Trees_Sampled=("ContractCode", "count")
+    # Agrupar por contrato
+    grouped = df_merged.groupby("contractcode").agg(
+        total_deads=("dead_tree", "sum"),
+        total_alive=("alive_tree", "sum"),
+        trees_sampled=("contractcode", "count")
     ).reset_index()
 
-    df_farmers = pd.read_sql('SELECT "ContractCode", "FarmerName", "PlantingYear", "#TreesContract" FROM cat_farmers', engine)
-    df_farmers.rename(columns={"#TreesContract": "Contracted_Trees"}, inplace=True)
+    # Unir con datos del productor
+    df_farmers = pd.read_sql(
+        'SELECT contract_code, farmer_name, planting_year, "#TreesContract" FROM cat_farmers',
+        engine
+    )
+    df_farmers.rename(columns={"#TreesContract": "contracted_trees"}, inplace=True)
 
-    audit = pd.merge(df_farmers, grouped, on="ContractCode", how="inner")
-    audit.fillna({"Total_Deads": 0, "Total_Alive": 0, "Trees_Sampled": 0}, inplace=True)
+    audit = pd.merge(df_farmers, grouped, left_on="contract_code", right_on="contractcode", how="inner")
+    audit.fillna({"total_deads": 0, "total_alive": 0, "trees_sampled": 0}, inplace=True)
 
-    audit["Sample Size"] = (audit["Trees_Sampled"] / audit["Contracted_Trees"]).fillna(0)
-    audit["Mortality"] = (audit["Total_Deads"] / audit["Trees_Sampled"]).replace([float("inf"), float("nan")], 0)
-    audit["Survival"] = (audit["Total_Alive"] / audit["Trees_Sampled"]).replace([float("inf"), float("nan")], 0)
-    audit["Remaining Trees"] = audit["Contracted_Trees"] - audit["Total_Alive"]
+    # Cálculo de métricas
+    audit["sample_size"] = (audit["trees_sampled"] / audit["contracted_trees"]).fillna(0)
+    audit["mortality"] = (audit["total_deads"] / audit["trees_sampled"]).replace([float("inf"), float("nan")], 0)
+    audit["survival"] = (audit["total_alive"] / audit["trees_sampled"]).replace([float("inf"), float("nan")], 0)
+    audit["remaining_trees"] = audit["contracted_trees"] - audit["total_alive"]
 
-    audit.rename(columns={
-        "FarmerName": "Farmer Name",
-        "ContractCode": "Contract Code",
-        "PlantingYear": "Planting Year",
-        "Trees_Sampled": "Trees Sampled",
-        "Total_Deads": "Total Deads",
-        "Total_Alive": "Total Alive",
-        "Contracted_Trees": "Contracted Trees"
-    }, inplace=True)
+    # Formato de % como texto
+    audit["sample_size"] = (audit["sample_size"] * 100).round(1).astype(str) + "%"
+    audit["mortality"] = (audit["mortality"] * 100).round(1).astype(str) + "%"
+    audit["survival"] = (audit["survival"] * 100).round(1).astype(str) + "%"
 
-    audit["Sample Size"] = (audit["Sample Size"] * 100).round(1).astype(str) + "%"
-    audit["Mortality"] = (audit["Mortality"] * 100).round(1).astype(str) + "%"
-    audit["Survival"] = (audit["Survival"] * 100).round(1).astype(str) + "%"
+    # Renombrar columnas con schema
+    audit = rename_columns_using_schema(audit)
 
-    save_inventory_to_sql(audit, engine, audit_table, if_exists="replace")
-    print(f"✅ Tabla de auditoría guardada en SQL: {audit_table}")
+    # Preparar para SQL
+    df_sql, dtype_for_sql = prepare_df_for_sql(audit)
 
-    if output_excel_folder:
-        output_path = Path(output_excel_folder) / f"{audit_table}.xlsx"
-        audit.to_excel(output_path, index=False)
-        print(f"📁 Exportada también a Excel: {output_path}")
+    # Año desde metadata
+    metadata = extract_metadata_from_folder(folder)
+    cruise_date = metadata.get("cruise_date")
+    if not cruise_date:
+        raise ValueError("CruiseDate no encontrado en metadata.")
+    year = cruise_date.year
 
-    return audit
+    # Nombre de tabla dinámico
+    country_code = inventory_table_name.split("_")[1].lower()
+    table_name = f"audit_{country_code}_{year}"
+
+    # Crear y guardar tabla
+    ensure_table(df_sql, table_name, engine, dtype_for_sql, overwrite=True)
+    save_inventory_to_sql(df_sql, table_name, engine, dtype_for_sql)
+
+    # Exportar a Excel si hay folder
+    if folder:
+        output_path = Path(folder) / f"{table_name}.xlsx"
+        df_sql.to_excel(output_path, index=False)
+        print(f"📁 Exportada a Excel: {output_path}")
+
+    print(f"✅ Auditoría guardada en SQL: {table_name}")
+
 
 
 if __name__ == "__main__":

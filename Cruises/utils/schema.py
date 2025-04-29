@@ -1,10 +1,11 @@
 # WorldTreeSystem/Cruises/utils/schema.py
 from sqlalchemy import Float, SmallInteger, Text, Date, Numeric
+from utils.normalizers import clean_column_name
 
 COLUMNS = [
   {
     "key": "contractcode", "sql_name": "Contract Code",
-    "aliases": ["ContractCode", "contractcode", "contract_code"],
+    "aliases": ["ContractCode", "contractcode", "contract_code", "Contract Code"],
     "dtype": "TEXT",
     "source": "metadata"
   },

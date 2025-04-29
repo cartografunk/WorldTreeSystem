@@ -2,7 +2,7 @@
 
 from utils.libs import pd
 from utils.db import get_engine
-from inventory_importer import save_inventory_to_sql
+from inventory_importer import save_inventory_to_sql, ensure_table
 
 
 def create_inventory_catalog(df, engine, table_catalog_name):
@@ -37,24 +37,30 @@ def create_inventory_catalog(df, engine, table_catalog_name):
     # --- Paso 5: Traer datos de cat_farmers ---
     query = '''
         SELECT 
-            "ContractCode", 
-            "PlantingYear", 
-            "#TreesContract" AS TreesContract 
+            "contractcode", 
+            "planting_year", 
+            "treescontract" AS TreesContract 
         FROM cat_farmers
     '''
     # En inventory_catalog.py, antes del merge:
-    df_farmers = pd.read_sql('SELECT "ContractCode" AS contractcode, "FarmerName" FROM cat_farmers', engine)
+    df_farmers = pd.read_sql('SELECT "contractcode" AS contractcode, "farmername" FROM cat_farmers', engine)
 
     # --- Paso 6: Unir datos ---
     df_catalog = pd.merge(df_catalog, df_farmers, on="contractcode", how="left")
 
     # --- Paso 7: Ordenar columnas ---
-    order = ["path", "ContractCode", "farmername", "cruisedate", "PlantingYear", "TreesContract", "TreesSampled"]
+    order = ["path", "contractcode", "farmername", "cruisedate", "planting_year", "trees_contract", "TreesSampled"]
     order = [col for col in order if col in df_catalog.columns]
     df_catalog = df_catalog[order]
 
     # --- Paso 8: Guardar en SQL ---
+    ensure_table(
+        df_catalog,  # 1. el DataFrame
+        engine,  # 2. la instancia Engine
+        table_catalog_name,  # 3. el nombre de la tabla
+        recreate=True  # opcionalmente fuerza recreación
+    )
     save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
-    print(f"✅ Catálogo guardado: {table_catalog_name}")
+    print(f"✅ Catálogo guardado: \n {table_catalog_name}")
 
     return df_catalog

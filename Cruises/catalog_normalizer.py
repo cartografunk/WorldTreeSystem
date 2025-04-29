@@ -32,7 +32,7 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
     field = config["col"]
     df_result = df.copy()
 
-    print("=== Resumen de archivos procesados ===")
+    print("=== Resumen de archivos normalizados ===")
 
     with engine.begin() as conn:
         for logical in logical_keys:

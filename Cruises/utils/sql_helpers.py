@@ -32,6 +32,8 @@ def prepare_df_for_sql(df):
                 df2[col] = pd.to_numeric(df2[col], errors='coerce').fillna(0).astype(int)
             elif isinstance(dtype, (Float, Numeric)):
                 df2[col] = pd.to_numeric(df2[col], errors='coerce')
+            elif isinstance(dtype, Date):
+                df2[col] = df2[col].where(df2[col].notna(), None)
 
     dtype_for_sql = {col: DTYPES[col] for col in df2.columns if col in DTYPES}
 

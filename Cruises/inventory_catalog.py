@@ -23,6 +23,18 @@ def create_inventory_catalog(df, engine, table_catalog_name):
     if "path" in df.columns:
         cols_base.insert(0, "path")  # Añadir "path" al inicio si existe
 
+    # --- Paso 2.5: Filtrar filas basura (sin tree_number y status_id) ---
+    for col in ["tree_number", "status_id"]:
+        if col not in df.columns:
+            df[col] = pd.NA
+
+    mask_empty = df["tree_number"].isna() & df["status_id"].isna()
+    if mask_empty.sum() > 0:
+        print(f"🧹 Filtradas {mask_empty.sum()} filas vacías sin tree_number ni status_id")
+        df_blanks = df[mask_empty]
+        df_blanks.to_csv("filas_basura_catalog.csv", index=False)
+    df = df[~mask_empty]
+
     # --- Paso 3: Crear DataFrame del catálogo ---
     try:
         df_catalog = df[cols_base].drop_duplicates(subset=["contractcode"]).copy()

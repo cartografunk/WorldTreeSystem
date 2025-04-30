@@ -36,7 +36,7 @@ COLUMNS = [
   {
     "key": "plot", "sql_name": "Plot#",
     "aliases": ["Plot #", "# Parcela", "_parcela", "plot"],
-    "dtype": "FLOAT",
+    "dtype": "TEXT",
     "source": "input"
   },
   {

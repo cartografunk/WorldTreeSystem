@@ -1,13 +1,14 @@
 #!/usr/bin/env python
-
+print("🌎 Hello World Tree!")
 from utils.libs import argparse, pd, os, inspect
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from utils.column_mapper import COLUMN_LOOKUP
 from utils.sql_helpers import prepare_df_for_sql
+from utils.summary import generate_summary
 
 from catalog_normalizer import normalize_catalogs
-from union import combine_files, read_input_sheet
+from union import combine_files, read_metadata_and_input
 from filters import create_filter_func
 from inventory_importer import ensure_table
 
@@ -21,7 +22,10 @@ from dead_tree_imputer import add_imputed_dead_rows
 from filldown import forward_fill_headers
 from tree_id import split_by_id_validity
 
+print("🌎 Iniciando...")
+
 def main():
+
     parser = argparse.ArgumentParser(
         description="Procesa inventario forestal: combina, limpia, normaliza y guarda en SQL."
     )
@@ -44,37 +48,6 @@ def main():
     if args.allowed_codes and args.allowed_codes != ["ALL"]:
         filter_func = create_filter_func(args.allowed_codes)
 
-    # Resumen de cada archivo
-    summary = []
-    expected_fields = list(COLUMN_LOOKUP.keys())
-    for root, _, files in os.walk(args.cruises_path):
-        for fname in files:
-            if not fname.lower().endswith('.xlsx') or fname.startswith('~$'):
-                continue
-            path = os.path.join(root, fname)
-            meta = extract_metadata_from_excel(path) or {}
-            contract = meta.get('contract_code', '')
-            farmer = meta.get('farmer_name', '')
-            cdate = meta.get('cruise_date', pd.NaT)
-            df = read_input_sheet(path)
-            if df is None or df.empty:
-                continue
-            matched = sum(1 for logical in expected_fields if _safe_get_column(df, logical))
-            total_trees = len(df)
-            summary.append({
-                #'file': fname,
-                'contract': contract,
-                'farmer': farmer,
-                'cruise_date': cdate.date() if not pd.isna(cdate) else '',
-                'matched_columns': matched,
-                'total_trees': total_trees
-            })
-    if summary:
-        df_sum = pd.DataFrame(summary)
-        print("\n=== Resumen de archivos procesados ===")
-        print(df_sum.to_string(index=False))
-    else:
-        print("⚠️ Ningún archivo válido procesado.")
 
     # Combinar todos los datos
     print("\n📂 Combinando archivos en DataFrame...")
@@ -82,6 +55,13 @@ def main():
     if df_combined is None or df_combined.empty:
         print("⚠️ No se encontraron datos combinados.")
         return
+
+    df_sum = generate_summary(args.cruises_path)
+    if not df_sum.empty:
+        print("\n=== Resumen de archivos procesados ===")
+        print(df_sum.to_string(index=False))
+    else:
+        print("⚠️ Ningún archivo válido procesado.")
 
     # Obtener engine
     engine = get_engine()

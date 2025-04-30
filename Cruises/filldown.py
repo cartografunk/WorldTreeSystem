@@ -13,18 +13,24 @@ HEADER_COLS = [
 def forward_fill_headers(df: pd.DataFrame,
                          cols: list[str] | None = None) -> pd.DataFrame:
     """
-    Aplica fill-down (ffill + bfill) a las columnas de encabezado.
-    Devuelve una copia del DataFrame con valores heredados.
+    Aplica fill-down (ffill + bfill) solo a filas que no estén completamente vacías.
+    Las filas vacías permanecen intactas.
     """
     cols = cols or HEADER_COLS
     df_filled = df.copy()
 
-    cols_existing = [col for col in cols if col in df_filled.columns]
+    # Asegurar que solo use columnas existentes
+    existing = [col for col in cols if col in df_filled.columns]
 
-    df_filled[cols_existing] = (
-        df_filled[cols_existing]
+    # Crear máscara de filas que tienen al menos un valor en esas columnas
+    mask_non_empty = df_filled[existing].replace("", pd.NA).notna().any(axis=1)
+
+    # Solo aplicar fill a esas filas
+    df_filled.loc[mask_non_empty, existing] = (
+        df_filled.loc[mask_non_empty, existing]
         .replace("", pd.NA)
         .ffill()
         .bfill()
     )
+
     return df_filled

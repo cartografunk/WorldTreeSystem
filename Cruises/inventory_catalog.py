@@ -53,13 +53,19 @@ def create_inventory_catalog(df, engine, table_catalog_name):
     order = [col for col in order if col in df_catalog.columns]
     df_catalog = df_catalog[order]
 
+    # --- Paso 7.5: Limpiar NaT para campos datetime ---
+    for col in df_catalog.select_dtypes(include=["datetime64[ns]"]):
+        df_catalog[col] = df_catalog[col].where(df_catalog[col].notna(), None)
+
     # --- Paso 8: Guardar en SQL ---
     ensure_table(
-        df_catalog,  # 1. el DataFrame
-        engine,  # 2. la instancia Engine
-        table_catalog_name,  # 3. el nombre de la tabla
-        recreate=True  # opcionalmente fuerza recreación
+        df_catalog,
+        engine,
+        table_catalog_name,
+        recreate=True
     )
+    save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
+
     save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
     print(f"✅ Catálogo guardado: \n {table_catalog_name}")
 

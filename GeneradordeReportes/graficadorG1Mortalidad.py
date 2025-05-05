@@ -1,6 +1,6 @@
-from utils.db import get_engine
-from utils.colors import COLOR_PALETTE
-from utils.plot import save_pie_chart
+from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.plot import save_pie_chart
 import pandas as pd
 import os
 

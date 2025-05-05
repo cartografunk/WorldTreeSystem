@@ -1,5 +1,5 @@
 from matplotlib import pyplot as plt, rcParams, os
-from utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.colors import COLOR_PALETTE
 
 # === Constantes de tamaño en cm convertido a pulgadas ===
 CM_TO_INCH = 0.3937

@@ -70,56 +70,48 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
 from tqdm import tqdm
 import os
 
-def combine_files(base_path: str, filter_func=None):
-    # 1) recoger todas las rutas de interés en una sola lista
+def combine_files(base_path, filter_func=None):
+    df_list = []
     all_files = []
     for root, _, files in os.walk(base_path):
         for f in files:
             if (
-                f.lower().endswith(".xlsx")
-                and not f.startswith("~$")
-                and "combined_inventory" not in f.lower()
+              f.lower().endswith(".xlsx")
+              and not f.startswith("~$")
+              and "combined_inventory" not in f.lower()
             ):
                 all_files.append(os.path.join(root, f))
-
     if not all_files:
         print("❌ No se encontró ningún archivo válido.")
         return None
 
     print("⚙️ Iniciando procesamiento de archivos...")
-    df_list = []
-
-    # 2) un único tqdm sobre esa lista
-    for path in tqdm(all_files, desc="⚙️ Procesando archivos", unit="archivo"):
+    for path in tqdm(all_files, unit="archivo"):
         file = os.path.basename(path)
         df, meta = read_metadata_and_input(path)
         if df is None or df.empty:
             tqdm.write(f"   ⚠️  Sin datos válidos en {file}")
             continue
 
-        contract = meta.get("contract_code")
-        if filter_func and not filter_func(contract):
-            tqdm.write(f"   ⏭️  {contract} no está en allowed_codes")
-            continue
-
-        # filtrar filas vacías
-        for col in ("tree_number","Status"):
+        # ensure tree_number/Status exist, coerce blanks → NA
+        for col in ("tree_number", "Status"):
             df[col] = df.get(col, pd.NA)
+            df[col] = df[col].replace("", pd.NA)
+
+        # filter out rows where BOTH are empty
         mask = df["tree_number"].isna() & df["Status"].isna()
         if mask.any():
             tqdm.write(f"   🧹 {mask.sum()} filas vacías en {file}")
-            df = df[~mask]
+            df = df.loc[~mask]
 
-        # metadatos
-        df["contractcode"] = contract
+        # attach your metadata
+        df["contractcode"] = meta.get("contract_code")
         df["farmername"]   = meta.get("farmer_name")
         df["cruisedate"]   = meta.get("cruise_date", pd.NaT)
 
         df_list.append(df)
 
-    # 3) concatenar
     combined = pd.concat(df_list, ignore_index=True)
     print("📂 Combinación finalizada")
     print(f"🌳 Total de árboles combinados: {len(combined):,}")
     return combined
-

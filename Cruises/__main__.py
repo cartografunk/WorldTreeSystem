@@ -107,7 +107,9 @@ def main():
         diag_cols = [c for c in ("contractcode", "plot", "tree_number", "tree") if c in df_bad.columns]
         print(df_bad[diag_cols].head().to_string(index=False))
 
-        bad_report = args.output_file.replace(".xlsx", "_bad_rows.xlsx")
+        # Nombre del archivo en la raíz del repo
+        bad_report = f"bad_rows_{args.table_name}.xlsx"
+        # Guardar el Excel (UTF-8 ya viene soportado)
         df_bad.to_excel(bad_report, index=False)
         print(f"📄 Reporte de filas excluidas → {bad_report}")
 

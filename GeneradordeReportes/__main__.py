@@ -1,4 +1,5 @@
 # __main__.py
+print("🌎 Hello World Tree!")
 
 import argparse
 from GeneradordeReportes.utils.db import get_engine
@@ -7,6 +8,7 @@ from GeneradordeReportes.report_writer import crear_reporte
 from Cruises.utils.schema import COLUMNS
 
 def main():
+    print("🌎 Iniciando...")
     parser = argparse.ArgumentParser(
         description="Generar reportes .docx para contratos de inventario."
     )

@@ -1,4 +1,3 @@
-# report_writer.py
 import os
 from docx.shared import Pt
 from docx import Document
@@ -59,7 +58,8 @@ def crear_reporte(code: str, country: str, year: int) -> str:
             print(f"⚠️ Imagen no encontrada: {img}")
 
     if df_sanidad is not None:
-        doc.add_paragraph("Distribución de Plagas, Defectos y Enfermedades", style='Heading 2')
+        # Usamos add_heading para evitar KeyError si 'Heading 2' no existe en estilos
+        doc.add_heading("Distribución de Plagas, Defectos y Enfermedades", level=2)
         table = doc.add_table(rows=1, cols=len(df_sanidad.columns))
         table.style = 'Table Grid'
 
@@ -84,7 +84,6 @@ def crear_reporte(code: str, country: str, year: int) -> str:
     return out_path
 
 
-
 if __name__ == '__main__':
-    # Prueba rápida con un contrato de ejemplo
-    crear_reporte('CR0030')
+    # Ejemplo de uso: pasar country y year
+    crear_reporte('CR0030', 'cr', 2025)

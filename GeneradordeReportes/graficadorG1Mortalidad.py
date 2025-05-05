@@ -32,7 +32,7 @@ def generar_mortalidad(contract_code: str, country: str, year: int, output_root:
             labels=["Muertos", "Vivos"],
             title=f"Mortalidad - {contract_code}",
             output_path=resumen_file,
-            colors=[COLOR_PALETTE['accent_red'], COLOR_PALETTE['secondary_green']],
+            colors=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['secondary_green']],
             figsize=(7, 7),
             fontsize=13
         )

@@ -8,3 +8,16 @@ def guardar_figura(path, fig, facecolor='white'):
     else:
         print(f"⚠️ Ya existe y no se sobreescribió: {path}")
     plt.close(fig)
+
+
+def get_region_language(country_code: str = "CR") -> str:
+    """
+    Retorna 'es' para CR, GT, MX; 'en' para US; por defecto 'es'.
+    """
+    mapping = {
+        "CR": "es",
+        "GT": "es",
+        "MX": "es",
+        "US": "en",
+    }
+    return mapping.get(country_code.upper(), "es")

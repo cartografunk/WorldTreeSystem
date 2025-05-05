@@ -1,5 +1,5 @@
-from utils.libs import pd, os
-from utils.db import get_engine
+from GeneradordeReportes.utils.libs import pd, os
+from GeneradordeReportes.utils.db import get_engine
 
 
 def generar_tabla_sanidad(contract_code: str, output_root: str = "outputs"):

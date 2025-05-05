@@ -1,6 +1,6 @@
 from sqlalchemy import text
-from utils.db     import get_engine
-from utils.helpers import get_region_language
+from GeneradordeReportes.utils.db     import get_engine
+from GeneradordeReportes.utils.helpers import get_region_language
 
 # Bloques dinámicos: traducciones y SQL
 DYNAMIC_BLOCKS = {

@@ -2,13 +2,13 @@
 import os
 from docx import Document
 from docx.shared import Inches
-from utils.db import get_engine
-from utils.helpers import get_region_language
-from utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
-from graficadorG1Mortalidad import generar_mortalidad
-from graficadorG2Altura import generar_altura
-from graficadorG3Crecimiento import generar_crecimiento
-from graficadorG4DefectosyPlagas import generar_tabla_sanidad
+from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.helpers import get_region_language
+from GeneradordeReportes.utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
+from GeneradordeReportes.graficadorG1Mortalidad import generar_mortalidad
+from GeneradordeReportes.graficadorG2Altura import generar_altura
+from GeneradordeReportes.graficadorG3Crecimiento import generar_crecimiento
+from GeneradordeReportes.graficadorG4DefectosyPlagas import generar_tabla_sanidad
 
 # Rutas de plantilla y salidas
 BASE_DIR    = os.path.dirname(__file__)
@@ -41,7 +41,7 @@ def crear_reporte(code: str) -> str:
         (generar_mortalidad, 'mortalidad'),
         (generar_altura,     'altura'),
         (generar_crecimiento,'crecimiento'),
-        (generar_reporte_plagas_defectos, 'plagas_defectos'),
+        (generar_tabla_sanidad, 'plagas_defectos'),
     ]:
         path = os.path.join(tmp_dir, f"{name}.png")
         fn(code, save_path=path)

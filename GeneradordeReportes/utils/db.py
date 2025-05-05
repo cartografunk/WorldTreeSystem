@@ -1,7 +1,7 @@
 # GeneradordeReportes/utils/db.py
 
 from sqlalchemy import create_engine
-from utils.libs import pd
+from GeneradordeReportes.utils.libs import pd
 
 
 def get_engine():

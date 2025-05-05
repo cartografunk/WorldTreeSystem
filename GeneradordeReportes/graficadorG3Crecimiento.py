@@ -1,7 +1,7 @@
-from utils.libs import pd, os
-from utils.db import get_engine
-from utils.plot import save_growth_candle_chart
-from utils.crecimiento_esperado import df_referencia
+from GeneradordeReportes.utils.libs import pd, os
+from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.plot import save_growth_candle_chart
+from GeneradordeReportes.utils.crecimiento_esperado import df_referencia
 from datetime import datetime
 
 def generar_crecimiento(contract_code: str, output_root: str = "outputs"):

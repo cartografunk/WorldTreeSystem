@@ -1,7 +1,7 @@
-from utils.db import get_engine
-from utils.colors import COLOR_PALETTE
-from utils.plot import save_pie_chart
-import pandas as pd
+from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.plot import save_pie_chart
+from GeneradordeReportes.utils.libs import pd
 import os
 
 def generar_mortalidad(contract_code: str, output_root: str = "outputs"):

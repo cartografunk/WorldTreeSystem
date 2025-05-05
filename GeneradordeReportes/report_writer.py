@@ -1,5 +1,6 @@
 # report_writer.py
 import os
+from docx.shared import Pt
 from docx import Document
 from docx.shared import Inches
 from GeneradordeReportes.utils.db import get_engine
@@ -9,6 +10,7 @@ from GeneradordeReportes.graficadorG1Mortalidad import generar_mortalidad
 from GeneradordeReportes.graficadorG2Altura import generar_altura
 from GeneradordeReportes.graficadorG3Crecimiento import generar_crecimiento
 from GeneradordeReportes.graficadorG4DefectosyPlagas import generar_tabla_sanidad
+
 
 # Rutas de plantilla y salidas
 BASE_DIR    = os.path.dirname(__file__)
@@ -21,55 +23,66 @@ os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(IMG_TMP_DIR, exist_ok=True)
 
 
-def crear_reporte(code: str) -> str:
-    """
-    Genera un .docx con texto dinámico y gráficas para un contrato.
-
-    Args:
-        code: Código de contrato (ej. 'CR0030').
-    Returns:
-        Ruta al archivo .docx generado.
-    """
-    # Conexión a la base de datos usando utils/libs.py
+def crear_reporte(code: str, country: str, year: int) -> str:
     engine = get_engine()
 
-    # 1) Generar gráficas y guardarlas
-    tmp_dir = os.path.join(IMG_TMP_DIR, code)
-    os.makedirs(tmp_dir, exist_ok=True)
-    imgs = []
-    for fn, name in [
-        (generar_mortalidad, 'mortalidad'),
-        (generar_altura,     'altura'),
-        (generar_crecimiento,'crecimiento'),
-        (generar_tabla_sanidad, 'plagas_defectos'),
-    ]:
-        path = os.path.join(tmp_dir, f"{name}.png")
-        fn(code, save_path=path)
-        imgs.append(path)
+    # Generar gráficas y tabla
+    generar_mortalidad(code, country, year)
+    generar_altura(code, country, year)
+    generar_crecimiento(code, country, year)
+    df_sanidad = generar_tabla_sanidad(code, country, year)
 
-    # 2) Texto dinámico
+
+    resumen_dir = os.path.join("outputs", code, "Resumen")
+    imgs = [
+        os.path.join(resumen_dir, f"G1_Mortality_{code}.png"),
+        os.path.join(resumen_dir, f"G2_Altura_{code}.png"),
+        os.path.join(resumen_dir, f"G3_Crecimiento_{code}.png"),
+    ]
+
+    # Texto dinámico
     values = fetch_dynamic_values()
     paragraphs = format_paragraphs(values)
 
-    # 3) Montar documento a partir de la plantilla
+    # Documento base
     doc = Document(TEMPLATE)
-
-    # Insertar párrafos dinámicos
     for p in paragraphs:
         doc.add_paragraph(p)
     doc.add_page_break()
 
-    # Insertar imágenes de gráficas
+    # Insertar imágenes
     for img in imgs:
-        doc.add_picture(img, width=Inches(6))
-        doc.add_page_break()
+        if os.path.exists(img):
+            doc.add_picture(img, width=Inches(6.125))  # 15.56 cm ≈ 6.125 in
+            doc.add_page_break()
+        else:
+            print(f"⚠️ Imagen no encontrada: {img}")
 
-    # 4) Guardar documento final
+    if df_sanidad is not None:
+        doc.add_paragraph("Distribución de Plagas, Defectos y Enfermedades", style='Heading 2')
+        table = doc.add_table(rows=1, cols=len(df_sanidad.columns))
+        table.style = 'Table Grid'
+
+        # Encabezados en negritas
+        hdr_cells = table.rows[0].cells
+        for i, col_name in enumerate(df_sanidad.columns):
+            run = hdr_cells[i].paragraphs[0].add_run(str(col_name))
+            run.bold = True
+            run.font.size = Pt(10)
+
+        # Rellenar filas
+        for _, row in df_sanidad.iterrows():
+            row_cells = table.add_row().cells
+            for i, cell in enumerate(row):
+                row_cells[i].text = str(cell)
+
+    # Guardar documento
     out_name = f"Reporte_{code}.docx"
     out_path = os.path.join(OUTPUT_DIR, out_name)
     doc.save(out_path)
     print(f"✅ Reporte creado: {out_path}")
     return out_path
+
 
 
 if __name__ == '__main__':

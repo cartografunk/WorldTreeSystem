@@ -16,7 +16,7 @@ def generar_crecimiento(contract_code: str, country: str, year: int, output_root
     # === 1. Año de siembra y edad ===
     query_edad = f"""
     SELECT DISTINCT "Año de Siembra"
-    FROM public.cat_{country}_inventory{year}
+    FROM public.cat_inventory_{country}_{year}
     WHERE "id_contract" = '{contract_code}' AND "Año de Siembra" IS NOT NULL
     """
     df_siembra = pd.read_sql(query_edad, engine)

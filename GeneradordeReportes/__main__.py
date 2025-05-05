@@ -44,7 +44,7 @@ def main():
 
     for code in contracts_df[contract_field]:
         print(f"\n🟢 Procesando contrato: {code}")
-        crear_reporte(code)
+        crear_reporte(code, args.country, args.year)
 
 
 if __name__ == "__main__":

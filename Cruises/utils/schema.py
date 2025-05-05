@@ -1,6 +1,6 @@
 # WorldTreeSystem/Cruises/utils/schema.py
 from sqlalchemy import Float, SmallInteger, Text, Date, Numeric
-from utils.normalizers import clean_column_name
+from .normalizers import clean_column_name
 
 COLUMNS = [
   {

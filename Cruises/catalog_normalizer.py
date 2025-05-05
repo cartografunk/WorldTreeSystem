@@ -1,8 +1,9 @@
 # NUEVA VERSIÓN – catalog_normalizer.py
-from utils.libs import pd
-from utils.schema import COLUMNS
-from utils.cleaners import get_column, clean_column_name
+from .utils.libs import pd
+from .utils.schema import COLUMNS
+from .utils.cleaners import get_column, clean_column_name
 from sqlalchemy import text
+
 
 PAIS_CONFIG = {
     "GT": {"col": "nombre"},

@@ -27,7 +27,7 @@ def get_table_names(country_code: str = "cr", year: str = "2025", schema: str = 
     Returns:
         Dict con claves descriptivas y nombres de tabla completos.
     """
-    suffix = f"{country_code}_inventory_{year}"
+    suffix = f"inventory_{country_code}_{year}"
     return {
         "Catálogo Contratos": f"{schema}.cat_{suffix}",
         "Inventario Detalle": f"{schema}.{suffix}"

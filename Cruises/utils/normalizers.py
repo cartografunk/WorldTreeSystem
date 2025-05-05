@@ -1,5 +1,8 @@
 # utils/normalizers.py
-from utils.libs import re, unicodedata
+# En tu normalizer:
+import re
+import unicodedata
+
 
 def clean_column_name(name):
     name = str(name)

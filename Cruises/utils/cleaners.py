@@ -1,7 +1,7 @@
 # utils/cleaners.py
-from utils.libs import pd, unicodedata, re
-from utils.schema import COLUMNS
-from utils.normalizers import clean_column_name
+from .libs import pd, unicodedata, re
+from .schema import COLUMNS
+from .normalizers import clean_column_name
 
 def get_column(df, logical_name: str) -> str:
     """

@@ -8,7 +8,7 @@ from utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
 from graficadorG1Mortalidad import generar_mortalidad
 from graficadorG2Altura import generar_altura
 from graficadorG3Crecimiento import generar_crecimiento
-from graficadorG4DefectosyPlagas import generar_reporte_plagas_defectos
+from graficadorG4DefectosyPlagas import generar_tabla_sanidad
 
 # Rutas de plantilla y salidas
 BASE_DIR    = os.path.dirname(__file__)

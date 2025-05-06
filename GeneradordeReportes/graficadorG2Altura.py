@@ -4,9 +4,13 @@ from GeneradordeReportes.utils.colors import COLOR_PALETTE
 from GeneradordeReportes.utils.plot import save_bar_chart
 from GeneradordeReportes.utils.helpers import get_inventory_table_name
 from GeneradordeReportes.utils.helpers import get_sql_column
+from GeneradordeReportes.utils.helpers import get_region_language
+from GeneradordeReportes.utils.text_templates import text_templates
+from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES
 
-def generar_altura(contract_code: str, country: str, year: int, output_root: str = "outputs"):
-    engine = get_engine()
+
+def generar_altura(contract_code: str, country: str, year: int, engine, output_root: str = "outputs"):
+
 
     resumen_dir = os.path.join(output_root, contract_code, "Resumen")
     os.makedirs(resumen_dir, exist_ok=True)
@@ -49,13 +53,34 @@ def generar_altura(contract_code: str, country: str, year: int, output_root: str
     }
 
     resumen_file = os.path.join(resumen_dir, f"G2_Altura_{contract_code}.png")
-    save_bar_chart(
-        x_labels=plots,
-        series=series,
-        title=f"Distribución de Altura - {contract_code}",
-        output_path=resumen_file,
-        ylabel="Altura promedio (ft)",
-        xlabel="Parcela",
-        colors=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']]
-    )
-    print(f"📊 Gráfico resumen de altura guardado: {resumen_file}")
+    
+    if not os.path.exists(resumen_file):
+        lang = get_region_language(country)
+        title = text_templates["chart_titles"]["height"][lang].format(code=contract_code)
+        xlabel = text_templates["chart_axes"]["height_x"][lang]
+        ylabel = text_templates["chart_axes"]["height_y"][lang]
+    
+    if not os.path.exists(resumen_file):
+        lang   = get_region_language(country)
+        # Título y ejes
+        title  = text_templates["chart_titles"]["height"][lang].format(code=contract_code)
+        xlabel = text_templates["chart_axes"]["height_x"][lang]
+        ylabel = text_templates["chart_axes"]["height_y"][lang]
+        # Series traducidas
+        keys   = text_templates["chart_series"]["height"][lang]
+        vals   = [altura_total, altura_comercial]
+        series = dict(zip(keys, vals))
+
+        save_bar_chart(
+            x_labels=plots,
+            series=series,
+            title=title,
+            output_path=resumen_file,
+            xlabel=xlabel,
+            ylabel=ylabel,
+            colors=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']],
+            figsize=(EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES)
+        )
+        print(f"📊 Gráfico resumen de altura guardado: {resumen_file}")
+    else:
+        print(f"⚠️ Ya existe: {resumen_file}")

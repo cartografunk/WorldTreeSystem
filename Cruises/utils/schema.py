@@ -213,3 +213,4 @@ def rename_columns_using_schema(df):
     return df
 
 ('Status', 'Species', 'Defect', 'Disease', 'Pests', 'Coppiced', 'Permanent Plot')
+

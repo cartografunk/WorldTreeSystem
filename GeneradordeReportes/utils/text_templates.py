@@ -40,5 +40,37 @@ text_templates = {
             "en": "Contracted Trees: {contract_trees}",
         },
     },
-    # ... puedes agregar summary, conclusion, etc.
+    "chart_titles":{
+        "mortality":{
+            "es": "Mortalidad",
+            "en": "Mortality",
+        },
+        "height": {
+            "es": "Distribución de Alturas - {code}",
+            "en": "Height distribution - {code}",
+        }
+    },
+    # Etiquetas para los gráficos
+    "chart_labels": {
+        "mortality": {
+            "es": ["Muertos", "Vivos"],
+            "en": ["Dead", "Alive"],
+        },
+        "height": {
+            "es": ["<2 m", "2–5 m", ">5 m"],  # ejemplo
+            "en": ["<2 m", "2–5 m", ">5 m"],
+        },
+    },
+    # Etiquetas de ejes para gráficos
+    "chart_axes": {
+        "height_x": {
+            "es": "Parcela",
+            "en": "Plot",
+        },
+        "height_y": {
+            "es": "Altura promedio (ft)",
+            "en": "Average height (ft)",
+        },
+    },
 }
+

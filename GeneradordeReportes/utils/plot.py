@@ -2,10 +2,10 @@ from matplotlib import pyplot as plt, rcParams, os
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
 
 # === Constantes de tamaño en cm convertido a pulgadas ===
-CM_TO_INCH = 0.3937
-FIG_WIDTH_CM = 15.56
-FIG_HEIGHT_CM = 10
-FIGSIZE = (FIG_WIDTH_CM * CM_TO_INCH, FIG_HEIGHT_CM * CM_TO_INCH)
+from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES
+FIGSIZE = (EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES)
+
+
 
 # === Paleta de colores ===
 def save_pie_chart(values, labels, title, output_path, colors=None, figsize=FIGSIZE, fontsize=12, show_preview=False):
@@ -30,6 +30,7 @@ def save_pie_chart(values, labels, title, output_path, colors=None, figsize=FIGS
     )
     ax.set_title(title, fontsize=fontsize + 2, color=COLOR_PALETTE['primary_blue'])
     fig.patch.set_alpha(0.0)
+    print(f"📐 Tamaño final del gráfico: {fig.get_size_inches()} pulgadas")
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     if show_preview:
         plt.show()
@@ -73,6 +74,7 @@ def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", c
     ax.legend()
     fig.patch.set_alpha(0.0)
     plt.tight_layout()
+    print(f"📐 Tamaño final del gráfico: {fig.get_size_inches()} pulgadas")
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     if show_preview:
         plt.show()
@@ -113,6 +115,7 @@ def save_growth_candle_chart(expected, actual_values, output_path, title="Compar
     fig.patch.set_alpha(0.0)
     ax.grid(True, linestyle="--", alpha=0.4)
     plt.tight_layout()
+    print(f"📐 Tamaño final del gráfico: {fig.get_size_inches()} pulgadas")
     plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
     if show_preview:
         plt.show()

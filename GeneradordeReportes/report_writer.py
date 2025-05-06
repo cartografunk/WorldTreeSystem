@@ -9,6 +9,8 @@ from GeneradordeReportes.graficadorG1Mortalidad import generar_mortalidad
 from GeneradordeReportes.graficadorG2Altura import generar_altura
 from GeneradordeReportes.graficadorG3Crecimiento import generar_crecimiento
 from GeneradordeReportes.graficadorG4DefectosyPlagas import generar_tabla_sanidad
+from GeneradordeReportes.utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
+from GeneradordeReportes.utils.docx_helpers import render_title, render_intro_and_table
 
 # Rutas de plantilla y salidas
 BASE_DIR = os.path.dirname(__file__)
@@ -57,38 +59,42 @@ def add_intro_table(
     doc.add_paragraph()
 
 
-def crear_reporte(code: str, country: str, year: int) -> str:
+def crear_reporte(code: str, country: str, year: int, engine) -> str:
     engine = get_engine()
     # Generación de gráficas y tabla de sanidad
-    generar_mortalidad(code, country, year)
-    generar_altura(code, country, year)
-    generar_crecimiento(code, country, year)
-    df_sanidad = generar_tabla_sanidad(code, country, year)
+    generar_mortalidad(code, country, year, engine)
+    generar_altura(code, country, year, engine)
+    generar_crecimiento(code, country, year, engine)
+    df_sanidad = generar_tabla_sanidad(code, country, year, engine)
 
     # Crear documento
     doc = Document(TEMPLATE)
-    add_titulo(doc, year)
+    #1 Título
+    render_title(doc, country, year)
 
     # Valores dinámicos
     values = fetch_dynamic_values()
     farmer_name = values.get('farmername', '')
     contract_trees = values.get('contract_trees', 0)
 
-    # Tabla de introducción bilingüe
-    add_intro_table(
-        doc,
-        farmer_name,
-        code,
-        code,
-        year,
-        contract_trees
-    )
+    # 2) Tabla de introducción justo después del título
+    datos = {
+        "farmercode": values.get("farmercode", code),
+        "contractcode": values.get("contractcode", code),
+        "planting_year": values.get("planting_year", year),
+        "contract_trees": contract_trees,
+        }
+    render_intro_and_table(
+         doc,
+         country,
+         farmer_name,
+         datos
+        )
 
-    # Texto dinámico adicional
-    paragraphs = format_paragraphs(values)
-    for p in paragraphs:
-        doc.add_paragraph(p)
-    doc.add_page_break()
+    # 3) Texto dinámico adicional (sin saltos de página antes)
+    
+    for paragraph in format_paragraphs(values):
+             doc.add_paragraph(paragraph)
 
     # Insertar gráficas
     resumen_dir = os.path.join(BASE_DIR, 'outputs', code, 'Resumen')

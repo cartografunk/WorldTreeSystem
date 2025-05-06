@@ -5,8 +5,7 @@ from GeneradordeReportes.utils.crecimiento_esperado import df_referencia
 from GeneradordeReportes.utils.helpers import get_inventory_table_name
 from datetime import datetime
 
-def generar_crecimiento(contract_code: str, country: str, year: int, output_root: str = "outputs"):
-    engine = get_engine()
+def generar_crecimiento(contract_code: str, country: str, year: int, engine, output_root: str = "outputs"):
 
     resumen_dir = os.path.join(output_root, contract_code, "Resumen")
     os.makedirs(resumen_dir, exist_ok=True)

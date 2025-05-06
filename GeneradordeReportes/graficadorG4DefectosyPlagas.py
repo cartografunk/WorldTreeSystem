@@ -2,8 +2,7 @@ from GeneradordeReportes.utils.libs import pd, os
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.helpers import get_inventory_table_name
 
-def generar_tabla_sanidad(contract_code: str, country: str, year: int, output_root: str = "outputs"):
-    engine = get_engine()
+def generar_tabla_sanidad(contract_code: str, country: str, year: int, engine, output_root: str = "outputs"):
 
     output_dir = os.path.join(output_root, contract_code, "Resumen")
     os.makedirs(output_dir, exist_ok=True)

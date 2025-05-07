@@ -1,136 +1,138 @@
-import os
-import argparse
-from docx.shared import Pt, Inches
+from GeneradordeReportes.utils.libs import pd, os
 from docx import Document
-from docx.enum.text import WD_PARAGRAPH_ALIGNMENT
-from GeneradordeReportes.utils.db import get_engine
+from docx.shared import Pt, Inches
+from docx.enum.text import WD_PARAGRAPH_ALIGNMENT  # 👈 Importación faltante
+from docx2pdf import convert
 from GeneradordeReportes.utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
+from GeneradordeReportes.utils.docx_helpers import render_title, render_intro_and_table
 from GeneradordeReportes.graficadorG1Mortalidad import generar_mortalidad
 from GeneradordeReportes.graficadorG2Altura import generar_altura
 from GeneradordeReportes.graficadorG3Crecimiento import generar_crecimiento
 from GeneradordeReportes.graficadorG4DefectosyPlagas import generar_tabla_sanidad
-from GeneradordeReportes.utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
-from GeneradordeReportes.utils.docx_helpers import render_title, render_intro_and_table
+import argparse
 
-# Rutas de plantilla y salidas
-BASE_DIR = os.path.dirname(__file__)
-TEMPLATE = os.path.join(BASE_DIR, 'templates', 'Template.docx')
-OUTPUT_DIR = os.path.join(BASE_DIR, 'outputs', 'reports')
-IMG_TMP_DIR = os.path.join(OUTPUT_DIR, 'temp_images')
+# Configuración de rutas
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+TEMPLATE = os.path.join(BASE_DIR, "GeneradordeReportes", "templates", "Template.docx")
+OUTPUT_DIR = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs", "reports")
+IMG_TMP_DIR = os.path.join(BASE_DIR, "GeneradordeReportes", "temp_images")
 
-# Crear directorios de salida si no existen
+# Crear directorios necesarios
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 os.makedirs(IMG_TMP_DIR, exist_ok=True)
 
-def add_titulo(doc: Document, year: int):
-    """Agrega el título centrado con el año del reporte."""
-    p = doc.add_paragraph()
-    run = p.add_run(f'Reporte {year}')
-    run.bold = True
-    run.font.size = Pt(16)
-    p.alignment = WD_PARAGRAPH_ALIGNMENT.CENTER
-
-
-def add_intro_table(
-    doc: Document,
-    farmer_name: str,
-    producer_code: str,
-    contract_code: str,
-    planting_year: int,
-    contract_trees: int
-):
-    """Crea una tabla bilingüe de introducción (español / inglés) con metadatos."""
-    table = doc.add_table(rows=5, cols=2)
-    table.style = 'Table Grid'
-
-    datos = [
-        (f'Estimado productor: {farmer_name}', f'Dear Producer: {farmer_name}'),
-        (f'Código de productor: {producer_code}', f'Producer Code: {producer_code}'),
-        (f'Contrato: {contract_code}', f'Contract: {contract_code}'),
-        (f'Año de plantación: {planting_year}', f'Planting Year: {planting_year}'),
-        (f'Árboles contratados: {contract_trees}', f'Contracted Trees: {contract_trees}')
-    ]
-
-    for idx, (es, en) in enumerate(datos):
-        row = table.rows[idx]
-        row.cells[0].text = es
-        row.cells[1].text = en
-
-    doc.add_paragraph()
-
 
 def crear_reporte(code: str, country: str, year: int, engine) -> str:
-    engine = get_engine()
-    # Generación de gráficas y tabla de sanidad
-    generar_mortalidad(code, country, year, engine)
-    generar_altura(code, country, year, engine)
-    generar_crecimiento(code, country, year, engine)
+    """Función principal para generar el reporte completo"""
+
+    # 1. Generación de gráficas
+    output_root = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")  # 👈 Ruta unificada
+    paths = {
+        'G1': generar_mortalidad(code, country, year, engine, output_root=output_root),
+        'G2': generar_altura(code, country, year, engine, output_root=output_root),
+        'G3': generar_crecimiento(code, country, year, engine, output_root=output_root),
+    }
+
+    # 2. Validación de gráficas generadas
+    for key, path in paths.items():
+        if not path or not os.path.isfile(path):
+            raise FileNotFoundError(f"Gráfica {key} no generada: {path}")
+
+    # 3. Generar tabla de sanidad
     df_sanidad = generar_tabla_sanidad(code, country, year, engine)
 
-    # Crear documento
+    # 4. Crear documento Word
     doc = Document(TEMPLATE)
-    #1 Título
+
+    # 5. Sección de título
     render_title(doc, country, year)
 
-    # Valores dinámicos
+    # 6. Sección introductoria
     values = fetch_dynamic_values()
-    farmer_name = values.get('farmername', '')
-    contract_trees = values.get('contract_trees', 0)
-
-    # 2) Tabla de introducción justo después del título
     datos = {
         "farmercode": values.get("farmercode", code),
         "contractcode": values.get("contractcode", code),
         "planting_year": values.get("planting_year", year),
-        "contract_trees": contract_trees,
-        }
+        "contract_trees": values.get("contract_trees", 0),
+    }
     render_intro_and_table(
-         doc,
-         country,
-         farmer_name,
-         datos
-        )
+        doc,
+        country,
+        farmer_name=values.get("farmername", ""),
+        datos=datos,
+        code=code
+    )
 
-    # 3) Texto dinámico adicional (sin saltos de página antes)
-    
+    # 7. Texto dinámico
     for paragraph in format_paragraphs(values):
-             doc.add_paragraph(paragraph)
+        doc.add_paragraph(paragraph)
 
-    # Insertar gráficas
-    resumen_dir = os.path.join(BASE_DIR, 'outputs', code, 'Resumen')
-    imgs = [
-        os.path.join(resumen_dir, f'G1_Mortality_{code}.png'),
-        os.path.join(resumen_dir, f'G2_Altura_{code}.png'),
-        os.path.join(resumen_dir, f'G3_Crecimiento_{code}.png')
+    # — 8) Insertar solo las imágenes G1-G3
+    resumen_dir = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs", code, "Resumen")
+    grafs = [
+        ("G1", "G1_Mortality_", "Mortalidad"),
+        ("G2", "G2_Altura_", "Altura"),
+        ("G3", "G3_Crecimiento_", "Crecimiento"),
     ]
-    for img in imgs:
-        if os.path.exists(img):
-            doc.add_picture(img, width=Inches(6.125))
+
+    for key, prefix, title in grafs:
+        img_path = os.path.join(resumen_dir, f"{prefix}{code}.png")
+        if os.path.exists(img_path):
+            # Añadir título antes de la imagen
+            doc.add_heading(f"Gráfico {key}: {title}", level=2)
+            doc.add_picture(img_path, width=Inches(6.125))
+            # Añadir descripción opcional (si es necesario)
+            doc.add_paragraph(f"Figura {key} - {title} del contrato {code}")
             doc.add_page_break()
         else:
-            print(f'⚠️ Imagen no encontrada: {img}')
+            print(f"⚠️ Gráfica {key} no encontrada: {img_path}")
 
-    # Tabla de sanidad
-    if df_sanidad is not None:
+    # 9. Tabla de sanidad
+    if df_sanidad is not None and not df_sanidad.empty:
         doc.add_heading('Distribución de Plagas, Defectos y Enfermedades', level=2)
-        table = doc.add_table(rows=1, cols=len(df_sanidad.columns))
-        table.style = 'Table Grid'
+        table = doc.add_table(rows=1, cols=len(df_sanidad.columns), style='Table Grid')
+
+        # Encabezados
         hdr_cells = table.rows[0].cells
-        for i, col in enumerate(df_sanidad.columns):
-            run = hdr_cells[i].paragraphs[0].add_run(str(col))
+        for idx, col_name in enumerate(df_sanidad.columns):
+            run = hdr_cells[idx].paragraphs[0].add_run(str(col_name))
             run.bold = True
             run.font.size = Pt(10)
+
+        # Datos
         for _, row in df_sanidad.iterrows():
             cells = table.add_row().cells
-            for i, cell in enumerate(row):
-                cells[i].text = str(cell)
+            for idx, val in enumerate(row):
+                cells[idx].text = str(val)
+    else:
+        print(f"⚠️ No hay datos de sanidad para {code}")
 
-    # Guardar archivo
-    out_name = f'Reporte_{code}.docx'
+    import time
+
+    def guardar_documento(doc, out_path: str, intentos=3):
+        for i in range(intentos):
+            try:
+                doc.save(out_path)
+                return True
+            except PermissionError:
+                print(f"⚠️ Error de permisos (intento {i + 1}/{intentos}). Cerrando Word...")
+                time.sleep(2)
+                # Forzar cierre de Word
+                try:
+                    import win32com.client
+                    word = win32com.client.Dispatch("Word.Application")
+                    word.Quit()
+                except:
+                    pass
+        return False
+
+    # En tu código:
+    out_name = f"Reporte_{code}.docx"
     out_path = os.path.join(OUTPUT_DIR, out_name)
-    doc.save(out_path)
-    print(f'✅ Reporte creado: {out_path}')
-    return out_path
+    if guardar_documento(doc, out_path):
+        print(f"✅ Reporte creado: {out_path}")
+    else:
+        print(f"❌ Error crítico: No se pudo guardar {out_path}")
 
 
 if __name__ == '__main__':

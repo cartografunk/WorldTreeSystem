@@ -1,12 +1,9 @@
 # utils/config.py
+import os
 
-DB_CONFIG = {
-    "host": "localhost",
-    "port": "5432",
-    "user": "postgres",
-    "password": "pauwlonia",
-    "dbname": "gisdb"
-}
+# Añade esto al archivo existente
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 
 EXPORT_DPI = 300
 EXPORT_FORMAT = "png"

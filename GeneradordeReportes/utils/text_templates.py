@@ -72,5 +72,13 @@ text_templates = {
             "en": "Average height (ft)",
         },
     },
+
+    "chart_series": {  # 👈 Sección nueva
+            "height": {
+                "es": ["Altura Total", "Altura Comercial"],
+                "en": ["Total Height", "Merchantable Height"]
+            }
+        },
+
 }
 

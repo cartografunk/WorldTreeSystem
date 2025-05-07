@@ -1,14 +1,22 @@
-from matplotlib import pyplot as plt, rcParams, os
+import os
+from matplotlib import pyplot as plt, rcParams
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.config import EXPORT_DPI, EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES
 
-# === Constantes de tamaño en cm convertido a pulgadas ===
-from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES
+# Constantes de tamaño en cm convertido a pulgadas
 FIGSIZE = (EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES)
 
 
+def _print_size_cm(fig):
+    """Imprime dimensiones de la figura en centímetros."""
+    width_in, height_in = fig.get_size_inches()
+    width_cm = width_in * 2.54
+    height_cm = height_in * 2.54
+    print(f"📐 Tamaño final del gráfico: {width_cm:.1f}×{height_cm:.1f} cm")
 
-# === Paleta de colores ===
+
 def save_pie_chart(values, labels, title, output_path, colors=None, figsize=FIGSIZE, fontsize=12, show_preview=False):
+    """Genera y guarda un gráfico de pastel con altura fija."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     if os.path.exists(output_path):
@@ -16,27 +24,36 @@ def save_pie_chart(values, labels, title, output_path, colors=None, figsize=FIGS
         return
 
     def autopct_format(pct):
-        return '' if pct == 0 or pct == 100 else (f"{pct:.0f}%" if pct.is_integer() else f"{pct:.1f}%")
+        return '' if pct in (0, 100) else (f"{pct:.0f}%" if pct.is_integer() else f"{pct:.1f}%")
 
     rcParams.update({'figure.autolayout': True})
     fig, ax = plt.subplots(figsize=figsize)
-    wedges, texts, autotexts = ax.pie(
+    ax.pie(
         values,
         labels=labels,
-        colors=colors if colors else [COLOR_PALETTE['secondary_green'], COLOR_PALETTE['primary_blue']],
+        colors=colors or [COLOR_PALETTE['secondary_green'], COLOR_PALETTE['primary_blue']],
         startangle=90,
         autopct=autopct_format,
         textprops={'fontsize': fontsize, 'color': COLOR_PALETTE['text_dark_gray']}
     )
     ax.set_title(title, fontsize=fontsize + 2, color=COLOR_PALETTE['primary_blue'])
     fig.patch.set_alpha(0.0)
-    print(f"📐 Tamaño final del gráfico: {fig.get_size_inches()} pulgadas")
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    _print_size_cm(fig)
+
+    fig.set_size_inches(*FIGSIZE)
+    fig.savefig(
+        output_path,
+        dpi=EXPORT_DPI,
+        facecolor='white',
+        bbox_inches=None
+    )
     if show_preview:
         plt.show()
-    plt.close()
+    plt.close(fig)
+
 
 def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", colors=None, figsize=FIGSIZE, show_preview=False):
+    """Genera y guarda un gráfico de barras con altura fija."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     if os.path.exists(output_path):
@@ -44,27 +61,32 @@ def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", c
         return
 
     bar_width = 0.35
-    x = range(len(x_labels))
+    x = list(range(len(x_labels)))
 
     rcParams.update({'figure.autolayout': True})
     fig, ax = plt.subplots(figsize=figsize)
 
     for idx, (label, data) in enumerate(series.items()):
-        offset = (idx - len(series)/2) * bar_width + bar_width/2
+        offset = (idx - len(series) / 2) * bar_width + bar_width / 2
         bars = ax.bar(
             [i + offset for i in x],
             data,
             width=bar_width,
             label=label,
-            color=colors[idx] if colors else [COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']][idx % 2]
+            color=(colors[idx] if colors else [COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']][idx % 2])
         )
         for bar in bars:
             height = bar.get_height()
-            ax.annotate(f'{height:.1f}',
-                        xy=(bar.get_x() + bar.get_width() / 2, height),
-                        xytext=(0, 3),
-                        textcoords="offset points",
-                        ha='center', va='bottom', fontsize=9, color=COLOR_PALETTE['text_dark_gray'])
+            ax.annotate(
+                f"{height:.1f}",
+                xy=(bar.get_x() + bar.get_width() / 2, height),
+                xytext=(0, 3),
+                textcoords="offset points",
+                ha='center',
+                va='bottom',
+                fontsize=9,
+                color=COLOR_PALETTE['text_dark_gray']
+            )
 
     ax.set_xticks(x)
     ax.set_xticklabels(x_labels)
@@ -74,13 +96,22 @@ def save_bar_chart(x_labels, series, title, output_path, ylabel="", xlabel="", c
     ax.legend()
     fig.patch.set_alpha(0.0)
     plt.tight_layout()
-    print(f"📐 Tamaño final del gráfico: {fig.get_size_inches()} pulgadas")
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    _print_size_cm(fig)
+
+    fig.set_size_inches(*FIGSIZE)
+    fig.savefig(
+        output_path,
+        dpi=EXPORT_DPI,
+        facecolor='white',
+        bbox_inches=None
+    )
     if show_preview:
         plt.show()
-    plt.close()
+    plt.close(fig)
+
 
 def save_growth_candle_chart(expected, actual_values, output_path, title="Comparativa de Crecimiento", show_preview=False):
+    """Genera y guarda un gráfico tipo candlestick comparativo de crecimiento."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
 
     if os.path.exists(output_path):
@@ -90,23 +121,23 @@ def save_growth_candle_chart(expected, actual_values, output_path, title="Compar
     rcParams.update({'figure.autolayout': True})
     fig, ax = plt.subplots(figsize=FIGSIZE)
 
-    # Posiciones en X con espacio entre grupos
     xpos = [1, 2]
-
-    # === Esperado ===
     ax.plot([xpos[0], xpos[0]], [expected['Min'], expected['Max']], color=COLOR_PALETTE['primary_blue'], linewidth=2)
     ax.scatter(xpos[0], expected['Ideal'], color=COLOR_PALETTE['primary_blue'], s=60, label="Esperado")
     ax.scatter([xpos[0], xpos[0]], [expected['Min'], expected['Max']], color=COLOR_PALETTE['primary_blue'], s=30)
 
-    # === Real (boxplot) ===
     real_data = actual_values['Distribucion']
-    ax.boxplot(real_data, positions=[xpos[1]], widths=0.3,
-               patch_artist=True,
-               boxprops=dict(facecolor=COLOR_PALETTE['secondary_green'], color=COLOR_PALETTE['secondary_green']),
-               medianprops=dict(color='white'),
-               whiskerprops=dict(color=COLOR_PALETTE['secondary_green']),
-               capprops=dict(color=COLOR_PALETTE['secondary_green']),
-               flierprops=dict(markerfacecolor=COLOR_PALETTE['secondary_green'], marker='o', markersize=5, linestyle='none'))
+    ax.boxplot(
+        real_data,
+        positions=[xpos[1]],
+        widths=0.3,
+        patch_artist=True,
+        boxprops=dict(facecolor=COLOR_PALETTE['secondary_green'], color=COLOR_PALETTE['secondary_green']),
+        medianprops=dict(color='white'),
+        whiskerprops=dict(color=COLOR_PALETTE['secondary_green']),
+        capprops=dict(color=COLOR_PALETTE['secondary_green']),
+        flierprops=dict(markerfacecolor=COLOR_PALETTE['secondary_green'], marker='o', markersize=5, linestyle='none')
+    )
 
     ax.set_xticks(xpos)
     ax.set_xticklabels(["Esperado", "Real"])
@@ -115,8 +146,15 @@ def save_growth_candle_chart(expected, actual_values, output_path, title="Compar
     fig.patch.set_alpha(0.0)
     ax.grid(True, linestyle="--", alpha=0.4)
     plt.tight_layout()
-    print(f"📐 Tamaño final del gráfico: {fig.get_size_inches()} pulgadas")
-    plt.savefig(output_path, dpi=300, bbox_inches='tight', facecolor='white')
+    _print_size_cm(fig)
+
+    fig.set_size_inches(*FIGSIZE)
+    fig.savefig(
+        output_path,
+        dpi=EXPORT_DPI,
+        facecolor='white',
+        bbox_inches=None
+    )
     if show_preview:
         plt.show()
-    plt.close()
+    plt.close(fig)

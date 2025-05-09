@@ -42,14 +42,19 @@ DYNAMIC_BLOCKS = {
     }
 }
 
-def fetch_dynamic_values():
+def fetch_dynamic_values(code: str):
     engine = get_engine()
     values = {}
     with engine.connect() as conn:
         for key, info in DYNAMIC_BLOCKS.items():
-            row = conn.execute(text(info["sql"])).scalar_one()
-            values[key] = int(row) if key.startswith("count_") else float(row)
+            sql_raw = info["sql"].format(code=code)
+            row = conn.execute(text(sql_raw)).scalar_one_or_none()
+            if row is None:
+                print(f"⚠️ No se encontró valor para {key}")
+                continue
+            values[key] = int(row) if key.startswith("count_") else row
     return values
+
 
 def format_paragraphs(values):
     lang = get_region_language()

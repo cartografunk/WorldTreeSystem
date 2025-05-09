@@ -24,8 +24,8 @@ text_templates = {
     # Ahora cada plantilla incluye su placeholder
     "cells_right": {
         "farmercode": {
-            "es": "Código de productor: {farmercode}",
-            "en": "Producer Code: {farmercode}",
+            "es": "Código de productor: {farmer_number}",
+            "en": "Producer Code: {farmer_number}",
         },
         "contractcode": {
             "es": "Contrato: {contractcode}",
@@ -36,8 +36,8 @@ text_templates = {
             "en": "Planting Year: {planting_year}",
         },
         "contract_trees": {
-            "es": "Árboles contratados: {contract_trees}",
-            "en": "Contracted Trees: {contract_trees}",
+            "es": "Árboles contratados: {trees_contract}",
+            "en": "Contracted Trees: {trees_contract}",
         },
     },
     "chart_titles":{
@@ -46,7 +46,7 @@ text_templates = {
             "en": "Mortality",
         },
         "height": {
-            "es": "Distribución de Alturas - {code}",
+            "es": "Alturas - {code}",
             "en": "Height distribution - {code}",
         }
     },
@@ -68,8 +68,8 @@ text_templates = {
             "en": "Plot",
         },
         "height_y": {
-            "es": "Altura promedio (ft)",
-            "en": "Average height (ft)",
+            "es": "Altura (m)",
+            "en": "Height (ft)",
         },
     },
 

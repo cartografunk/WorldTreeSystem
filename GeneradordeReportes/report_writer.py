@@ -57,9 +57,9 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     values = fetch_dynamic_values()
     datos = {
         "farmercode": values.get("farmercode", code),
-        "contractcode": values.get("contractcode", code),
+        "contractcode": values.get("contractcode", farmer_number),
         "planting_year": values.get("planting_year", year),
-        "contract_trees": values.get("contract_trees", 0),
+        "contract_trees": values.get("contract_trees", trees_contract),
     }
     # —— Obtener nombre real del productor ——
     with engine.connect() as conn:

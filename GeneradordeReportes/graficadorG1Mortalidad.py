@@ -1,5 +1,5 @@
 from GeneradordeReportes.utils.db import get_engine
-from GeneradordeReportes.utils.helpers import get_region_language, get_inventory_table_name, get_sql_column
+from GeneradordeReportes.utils.helpers import get_region_language, get_inventory_table_name, get_sql_column, resolve_column
 from GeneradordeReportes.utils.text_templates import text_templates
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
 from GeneradordeReportes.utils.plot import save_pie_chart
@@ -10,23 +10,24 @@ def generar_mortalidad(contract_code: str, country: str, year: int,
                        engine=None,
                        output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
     engine = engine or get_engine()
+    table_name = get_inventory_table_name(country, year)
     resumen_dir = os.path.join(output_root, contract_code, "Resumen")
     os.makedirs(resumen_dir, exist_ok=True)
 
     table_name = get_inventory_table_name(country, year)
 
     # Obtener nombres de columna correctos según el esquema
-    col_code = 'contractcode' # devuelve "contractcode"
-    col_alive = get_sql_column("alive_tree")
-    col_dead = get_sql_column("dead_tree")
+    col_code = resolve_column(engine, table_name, "contractcode")
+    col_alive = resolve_column(engine, table_name, "alive_tree")
+    col_dead = resolve_column(engine, table_name, "dead_tree")
 
     query = f"""
-    SELECT
-      SUM("{col_dead}") AS muertos,
-      SUM("{col_alive}") AS vivos
-    FROM public.{table_name}
-    WHERE {col_code} = %(code)s
-    """
+        SELECT
+          SUM("{col_dead}")   AS muertos,
+          SUM("{col_alive}")  AS vivos
+        FROM public.{table_name}
+        WHERE "{col_code}" = %(code)s
+        """
     df = pd.read_sql(query, engine, params={"code": contract_code})
 
     # Verificar datos
@@ -49,7 +50,7 @@ def generar_mortalidad(contract_code: str, country: str, year: int,
         title=title,
         output_path=resumen_file,
         colors=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['secondary_green']],
-        figsize=(EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES)
+        figsize=(8.5 / 2.54, 5.8 / 2.54)
     )
     print(f"📊 Gráfico de mortalidad guardado: {resumen_file}")
     return resumen_file

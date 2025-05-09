@@ -1,6 +1,8 @@
+#utils/crecimiento_esperado.py
+
 import pandas as pd
 
-df_referencia = pd.DataFrame({
+df_dbh = pd.DataFrame({
     "Año": [1, 2, 3, 4,5,6,7,8,9,10],
     "Min": [6, 8, 10, 13,17,22,26,31,36,40],
     "Ideal": [8, 9.5, 13, 16,20.5,25.5,29.5,34.5,39.5,43.5],

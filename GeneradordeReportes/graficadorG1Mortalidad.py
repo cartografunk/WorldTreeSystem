@@ -43,6 +43,9 @@ def generar_mortalidad(contract_code: str, country: str, year: int,
     title = text_templates["chart_titles"]["mortality"][lang].format(code=contract_code)
     labels = text_templates["chart_labels"]["mortality"][lang]
 
+    pic_width_in = 8.5 / 2.54
+    pic_height_in = 5.8 / 2.54
+
     # Generar gráfico
     save_pie_chart(
         values=[muertos, vivos],

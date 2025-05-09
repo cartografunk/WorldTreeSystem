@@ -1,69 +1,104 @@
-from GeneradordeReportes.utils.libs import pd, os
+# GeneradordeReportes/graficadorG3Crecimiento.py
+
+from GeneradordeReportes.utils.libs import plt, rcParams, os, pd
+import numpy as np
 from GeneradordeReportes.utils.db import get_engine
-from GeneradordeReportes.utils.plot import save_growth_candle_chart
-from GeneradordeReportes.utils.crecimiento_esperado import df_referencia
-from GeneradordeReportes.utils.helpers import get_inventory_table_name
-from datetime import datetime
-from GeneradordeReportes.utils.config import BASE_DIR
+from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.config import BASE_DIR, EXPORT_DPI
+from GeneradordeReportes.utils.plot import FIGSIZE, _print_size_cm
+from GeneradordeReportes.utils.helpers import (
+    get_inventory_table_name,
+    resolve_column
+)
+from GeneradordeReportes.utils.crecimiento_esperado import df_dbh
 
-def generar_crecimiento(contract_code: str, country: str, year: int, engine, output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
-    engine = get_engine()
-    resumen_dir = os.path.join(output_root, contract_code, "Resumen")
-    os.makedirs(resumen_dir, exist_ok=True)
+def generar_crecimiento(contract_code: str, country: str, year: int,
+                        engine=None,
+                        output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
+    # 1) Setup
+    year = int(year)
+    engine = engine or get_engine()
+    inv_table = get_inventory_table_name(country, year)
 
-    table_name = get_inventory_table_name(country, year)
+    # 2) Resolver columnas
+    plot_col  = resolve_column(engine, inv_table, "plot")
+    dbh_col   = resolve_column(engine, inv_table, "DBH (in)")
+    code_col  = resolve_column(engine, inv_table, "contractcode")
 
-    # 1) Año de siembra
-    query_edad = f"""
-    SELECT DISTINCT "Año de Siembra"
-    FROM public.cat_inventory_{country}_{year}
-    WHERE "id_contract" = '{contract_code}' AND "Año de Siembra" IS NOT NULL
-    """
-    df_siembra = pd.read_sql(query_edad, engine)
-    if df_siembra.empty:
-        print(f"⚠️ No hay año de siembra para {contract_code}.")
-        return None
+    # 3) Leer DBH por parcela (filtrando outliers)
+    sql = f'''
+        SELECT "{plot_col}" AS plot, "{dbh_col}" AS dbh
+        FROM public.{inv_table}
+        WHERE "{code_col}" = %(code)s
+          AND "{dbh_col}" IS NOT NULL
+          AND "{dbh_col}" BETWEEN 1 AND 50
+    '''
+    df = pd.read_sql(sql, engine, params={"code": contract_code})
 
-    año_siembra = df_siembra["Año de Siembra"].iloc[0]
-    edad = datetime.now().year - año_siembra
+    if df.empty:
+        print(f"⚠️ Sin datos de DBH para {contract_code}.")
+        return
 
-    # 2) Datos esperados
-    fila_ref = df_referencia[df_referencia["Año"] == edad]
-    if fila_ref.empty:
-        print(f"⚠️ No hay datos de crecimiento esperado para edad {edad} años.")
-        return None
+    # 4) Año de plantación y edad
+    meta = "masterdatabase.contract_tree_information"
+    mc = resolve_column(engine, meta, "contractcode")
+    py = resolve_column(engine, meta, "planting_year")
+    plant = pd.read_sql(f'''
+        SELECT "{py}" AS planting_year
+        FROM {meta}
+        WHERE "{mc}" = %(code)s
+    ''', engine, params={"code": contract_code})
+    if plant.empty or plant.iloc[0,0] is None:
+        print(f"⚠️ No hay año de plantación para {contract_code}.")
+        return
+    age = year - int(plant.iloc[0,0])
 
-    expected = {
-        "Min":   fila_ref["Min"].values[0],
-        "Max":   fila_ref["Max"].values[0],
-        "Ideal": fila_ref["Ideal"].values[0]
-    }
+    # 5) Valores esperados de DBH
+    ref = df_dbh[df_dbh["Año"] == age]
+    if ref.empty:
+        print(f"⚠️ No hay referencia de DBH para edad {age}.")
+        return
+    exp_min   = float(ref["Min"].iloc[0])
+    exp_ideal = float(ref["Ideal"].iloc[0])
+    exp_max   = float(ref["Max"].iloc[0])
 
-    # 3) Datos reales (DBH)
-    df_dbh = pd.read_sql(f"""
-        SELECT "DBH (in)"
-        FROM public.{table_name}
-        WHERE "Contract Code" = '{contract_code}' AND "DBH (in)" IS NOT NULL
-    """, engine)
-    if df_dbh.empty:
-        print(f"⚠️ No hay datos de DBH (in) para contrato {contract_code}.")
-        return None
-
-    distribucion = df_dbh["DBH (in)"].tolist()
-    actual = {
-        "Distribucion": distribucion,
-        "Min":          min(distribucion),
-        "Max":          max(distribucion),
-        "Ideal":        sum(distribucion) / len(distribucion)
-    }
-
-    # 4) Guardar gráfico comparativo
-    output_file = os.path.join(resumen_dir, f"G3_Crecimiento_{contract_code}.png")
-    save_growth_candle_chart(
-        expected, actual,
-        output_path=output_file,
-        title=f"Crecimiento - {contract_code}"
+    # 6) Agrupar por plot y media de DBH
+    grp = (
+        df.groupby("plot")["dbh"]
+          .mean()
+          .reset_index(name="dbh_mean")
+          .sort_values("dbh_mean")
     )
-    print(f"🌱 Gráfico de crecimiento guardado en {output_file}")
+    plots = grp["plot"].astype(str).tolist()
+    x     = np.arange(len(plots))
 
-    return output_file
+    # 7) Plot de barras
+    rcParams.update({"figure.autolayout": True})
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.bar(x, grp["dbh_mean"], 0.6,
+           color=COLOR_PALETTE["secondary_green"], label="DAP promedio")
+    ax.hlines(exp_min,   -0.5, len(x)-0.5, linestyle="--",
+              color=COLOR_PALETTE["primary_blue"], label="DAP mínimo esperado")
+    ax.hlines(exp_ideal, -0.5, len(x)-0.5, linestyle="-.",
+              color=COLOR_PALETTE["primary_blue"],  label="DAP ideal esperado")
+    ax.hlines(exp_max,   -0.5, len(x)-0.5, linestyle=":",
+              color=COLOR_PALETTE["primary_blue"], label="DAP máximo esperado")
+
+    ax.set_title(f"DAP Promedio por Parcela – {contract_code}", fontsize=11,
+                 color=COLOR_PALETTE["primary_blue"])
+    ax.set_ylabel("DAP (cm)", fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels('')
+    ax.grid(axis="y", linestyle="--", alpha=0.3)
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0, frameon=False, fontsize=6)
+
+    # 8) Guardar
+    out_dir = os.path.join(output_root, contract_code, "Resumen")
+    os.makedirs(out_dir, exist_ok=True)
+    out_png = os.path.join(out_dir, f"G3_Crecimiento_{contract_code}.png")
+    _print_size_cm(fig)
+    fig.savefig(out_png, dpi=EXPORT_DPI, facecolor=None)
+    plt.close(fig)
+
+    print(f"🌱 Gráfico de crecimiento (DBH) guardado: {out_png}")
+    return out_png

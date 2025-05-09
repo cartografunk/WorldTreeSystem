@@ -40,7 +40,6 @@ def save_pie_chart(values, labels, title, output_path, colors=None, figsize=FIGS
     fig.patch.set_alpha(0.0)
     _print_size_cm(fig)
 
-    fig.set_size_inches(*FIGSIZE)
     fig.savefig(
         output_path,
         dpi=EXPORT_DPI,

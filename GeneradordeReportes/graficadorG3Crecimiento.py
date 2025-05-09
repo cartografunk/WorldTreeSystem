@@ -25,13 +25,16 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     dbh_col   = resolve_column(engine, inv_table, "DBH (in)")
     code_col  = resolve_column(engine, inv_table, "contractcode")
 
-    # 3) Leer DBH por parcela
+    # 3) Leer DBH por parcela (filtrando outliers)
     sql = f'''
         SELECT "{plot_col}" AS plot, "{dbh_col}" AS dbh
         FROM public.{inv_table}
-        WHERE "{code_col}" = %(code)s AND "{dbh_col}" IS NOT NULL
+        WHERE "{code_col}" = %(code)s
+          AND "{dbh_col}" IS NOT NULL
+          AND "{dbh_col}" BETWEEN 1 AND 50
     '''
     df = pd.read_sql(sql, engine, params={"code": contract_code})
+
     if df.empty:
         print(f"⚠️ Sin datos de DBH para {contract_code}.")
         return

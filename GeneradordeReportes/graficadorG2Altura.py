@@ -39,6 +39,13 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
         WHERE "{code_col}" = %(code)s
     """
     df = pd.read_sql(sql, engine, params={"code": contract_code})
+
+    #omitir atípicos
+    df = df[
+        (df["tht"].between(1, 100)) &
+        (df["mht"].between(1, 100))
+        ]
+
     if df.empty:
         print(f"⚠️ Sin datos de altura para {contract_code}.")
         return
@@ -100,9 +107,12 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     ax.bar(x - w/2, df_group["tht_mean"], width=w, label="Altura total (m)", color=COLOR_PALETTE['primary_blue'], alpha=0.8)
     ax.bar(x + w/2, df_group["mht_mean"], width=w, label="Altura comercial (m)", color=COLOR_PALETTE['secondary_green'], alpha=0.8)
 
-    # 9) Líneas horizontales esperadas
-    ax.hlines(exp_min, xmin=-w, xmax=n-1 + w, linestyles='--', color=COLOR_PALETTE['accent_yellow'], label="Mínimo esperado")
-    ax.hlines(exp_max, xmin=-w, xmax=n-1 + w, linestyles=':',  color=COLOR_PALETTE['secondary_green'], label="Máximo esperado")
+    # 9) Líneas horizontales esperadas (solo si hay referencia)
+    if has_reference:
+        ax.hlines(exp_min, xmin=-w, xmax=n - 1 + w, linestyles='--',
+                  color=COLOR_PALETTE['accent_yellow'], label="Mínimo esperado")
+        ax.hlines(exp_max, xmin=-w, xmax=n - 1 + w, linestyles=':',
+                  color=COLOR_PALETTE['secondary_green'], label="Máximo esperado")
 
     # 10) Configuración de ejes
     ax.set_title(title, fontsize=11, color=COLOR_PALETTE['primary_blue'])

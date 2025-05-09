@@ -5,31 +5,33 @@ from GeneradordeReportes.utils.helpers import get_region_language
 # Bloques dinámicos: traducciones y SQL
 DYNAMIC_BLOCKS = {
     "avg_height_live": {
-        "es": "Altura promedio de árboles vivos: {value:.2f} m",
-        "en": "Average height of live trees: {value:.2f} m",
-        "sql": '''
-            SELECT AVG("Merch. HT (ft)") * 0.3048 AS value
-            FROM public.inventory_cr_2025
-            WHERE alive_tree = 1;
-        '''
+    "es": "Altura promedio de árboles vivos: {value:.2f} m",
+    "en": "Average height of live trees: {value:.2f} m",
+    "sql": '''
+        SELECT AVG("Merch. HT (ft)") * 0.3048 AS value
+        FROM public.inventory_cr_2025
+        WHERE alive_tree = 1 AND "Merch. HT (ft)" BETWEEN 1 AND 100;
+    '''
     },
     "count_over_2m": {
-        "es": "Número de árboles con altura ≥ 2 m: {value:d}",
-        "en": "Number of trees with height ≥ 2 m: {value:d}",
-        "sql": '''
-            SELECT COUNT(*) AS value
-            FROM public.inventory_cr_2025
-            WHERE "Merch. HT (ft)" * 0.3048 >= 2;
-        '''
+    "es": "Número de árboles con altura ≥ 2 m: {value:d}",
+    "en": "Number of trees with height ≥ 2 m: {value:d}",
+    "sql": '''
+        SELECT COUNT(*) AS value
+        FROM public.inventory_cr_2025
+        WHERE "Merch. HT (ft)" BETWEEN 1 AND 100
+          AND "Merch. HT (ft)" * 0.3048 >= 2;
+    '''
     },
     "avg_dbh": {
-        "es": "Diámetro promedio (DBH): {value:.2f} cm",
-        "en": "Average diameter (DBH): {value:.2f} cm",
-        "sql": '''
-            SELECT AVG("DBH (in)") * 2.54 AS value
-            FROM public.inventory_cr_2025
-            WHERE alive_tree = 1;
-        '''
+    "es": "Diámetro promedio (DBH): {value:.2f} cm",
+    "en": "Average diameter (DBH): {value:.2f} cm",
+    "sql": '''
+        SELECT AVG("DBH (in)") * 2.54 AS value
+        FROM public.inventory_cr_2025
+        WHERE alive_tree = 1
+          AND "DBH (in)" BETWEEN 1 AND 50;
+    '''
     },
     "count_defects": {
         "es": "Árboles con defecto registrado: {value:d}",

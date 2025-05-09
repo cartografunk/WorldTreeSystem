@@ -36,8 +36,8 @@ text_templates = {
             "en": "Planting Year: {planting_year}",
         },
         "contract_trees": {
-            "es": "Árboles contratados: {trees_contract}",
-            "en": "Contracted Trees: {trees_contract}",
+            "es": "Árboles contratados: {contract_trees}",
+            "en": "Contracted Trees: {contract_trees}",
         },
     },
     "chart_titles":{

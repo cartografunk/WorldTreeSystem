@@ -61,11 +61,13 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     # 5) Calcular edad y valores esperados
     age = year - planting_year
     expected = df_altura[df_altura["Año"] == age]
-    if expected.empty:
+    has_reference = not expected.empty
+
+    if has_reference:
+        exp_min = expected["Min"].iloc[0]
+        exp_max = expected["Max"].iloc[0]
+    else:
         print(f"⚠️ No hay valores esperados para la edad {age}.")
-        return
-    exp_min = expected["Min"].iloc[0]
-    exp_max = expected["Max"].iloc[0]
 
     # 6) Agrupar por plot y calcular promedio
     df_group = (
@@ -95,8 +97,8 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     # 8) Plot de barras agrupadas
     rcParams.update({"figure.autolayout": True})
     fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.bar(x - w/2, df_group["tht_mean"], width=w, label="THT_promedio (ft)", color=COLOR_PALETTE['primary_blue'], alpha=0.8)
-    ax.bar(x + w/2, df_group["mht_mean"], width=w, label="MHT_promedio (ft)", color=COLOR_PALETTE['secondary_green'], alpha=0.8)
+    ax.bar(x - w/2, df_group["tht_mean"], width=w, label="Altura total (m)", color=COLOR_PALETTE['primary_blue'], alpha=0.8)
+    ax.bar(x + w/2, df_group["mht_mean"], width=w, label="Altura comercial (m)", color=COLOR_PALETTE['secondary_green'], alpha=0.8)
 
     # 9) Líneas horizontales esperadas
     ax.hlines(exp_min, xmin=-w, xmax=n-1 + w, linestyles='--', color=COLOR_PALETTE['accent_yellow'], label="Mínimo esperado")
@@ -105,11 +107,12 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     # 10) Configuración de ejes
     ax.set_title(title, fontsize=11, color=COLOR_PALETTE['primary_blue'])
     ax.set_ylabel(ylabel, fontsize=9)
-    ax.set_xlable("Parcelas", fontsize=9)
+    ax.set_xlabel("Parcelas", fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels("")
     ax.grid(axis='y', linestyle='--', alpha=0.3)
-    ax.legend()
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0, frameon=False, fontsize=6)
+
 
     # 11) Guardar figura
     _print_size_cm(fig)

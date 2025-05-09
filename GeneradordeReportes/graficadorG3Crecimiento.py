@@ -73,21 +73,21 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     rcParams.update({"figure.autolayout": True})
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.bar(x, grp["dbh_mean"], 0.6,
-           color=COLOR_PALETTE["secondary_green"], label="DBH promedio")
+           color=COLOR_PALETTE["secondary_green"], label="DAP promedio")
     ax.hlines(exp_min,   -0.5, len(x)-0.5, linestyle="--",
-              color=COLOR_PALETTE["primary_blue"], label="DBH mínimo esperado")
+              color=COLOR_PALETTE["primary_blue"], label="DAP mínimo esperado")
     ax.hlines(exp_ideal, -0.5, len(x)-0.5, linestyle="-.",
-              color=COLOR_PALETTE["primary_blue"],  label="DBH ideal esperado")
+              color=COLOR_PALETTE["primary_blue"],  label="DAP ideal esperado")
     ax.hlines(exp_max,   -0.5, len(x)-0.5, linestyle=":",
-              color=COLOR_PALETTE["primary_blue"], label="DBH máximo esperado")
+              color=COLOR_PALETTE["primary_blue"], label="DAP máximo esperado")
 
-    ax.set_title(f"DBH Promedio por Parcela – {contract_code}", fontsize=11,
+    ax.set_title(f"DAP Promedio por Parcela – {contract_code}", fontsize=11,
                  color=COLOR_PALETTE["primary_blue"])
-    ax.set_ylabel("DBH (in)", fontsize=9)
+    ax.set_ylabel("DAP (cm)", fontsize=9)
     ax.set_xticks(x)
-    ax.set_xticklabels(plots, rotation=45, ha="right")
+    ax.set_xticklabels('')
     ax.grid(axis="y", linestyle="--", alpha=0.3)
-    ax.legend()
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0, frameon=False, fontsize=6)
 
     # 8) Guardar
     out_dir = os.path.join(output_root, contract_code, "Resumen")

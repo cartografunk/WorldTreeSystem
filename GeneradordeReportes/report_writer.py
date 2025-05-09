@@ -54,19 +54,20 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     render_title(doc, country, year)
 
     # 6. Sección introductoria: valores dinámicos y datos de contrato
-    values = fetch_dynamic_values()
+    values = fetch_dynamic_values(code)
     datos = {
-        "farmercode": values.get("farmercode", code),
-        "contractcode": values.get("contractcode", farmer_number),
-        "planting_year": values.get("planting_year", year),
-        "contract_trees": values.get("contract_trees", trees_contract),
+        "contractcode": values.get("contractcode", code),
+        "farmer_number": values.get("farmer_number", ''),
+        "planting_year": values.get("planting_year", ''),
+        "contract_trees": values.get("contract_trees", ''),
     }
+
     # —— Obtener nombre real del productor ——
     with engine.connect() as conn:
         sql = text(
-            'SELECT farmername FROM public.cat_farmers WHERE contractcode = :fcode'
+            'SELECT contract_name FROM masterdatabase.contract_tree_information WHERE contract_code = :fcode'
         )
-        producer_name = conn.execute(sql, {'fcode': datos['farmercode']}).scalar_one()
+        producer_name = conn.execute(sql, {'fcode': datos['contractcode']}).scalar_one()
 
     # Render de la sección introductoria
     render_intro_and_table(

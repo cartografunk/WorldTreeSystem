@@ -1,6 +1,4 @@
-import os
-import pandas as pd
-from GeneradordeReportes.utils.libs import plt, rcParams
+from GeneradordeReportes.utils.libs import plt, rcParams, os, pd
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
 from GeneradordeReportes.utils.config import BASE_DIR, EXPORT_DPI
@@ -8,57 +6,57 @@ from GeneradordeReportes.utils.plot import FIGSIZE, _print_size_cm
 from GeneradordeReportes.utils.helpers import (
     get_inventory_table_name,
     get_sql_column,
-    get_region_language
+    get_region_language,
+    resolve_column
 )
 from GeneradordeReportes.utils.text_templates import text_templates
 from GeneradordeReportes.utils.crecimiento_esperado import df_altura  # solo Min y Max
 
 
-def generar_altura(contract_code: str,
-                   country: str,
-                   year: int,
-                   engine=None,
-                   output_root: str = os.path.join(BASE_DIR,
-                                                   "GeneradordeReportes",
-                                                   "outputs")):
-    # Inicializar engine y directorio de salida
+def generar_altura(contract_code: str, country: str, year: int, engine=None, output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs") ):
     engine = engine or get_engine()
-    resumen_dir = os.path.join(output_root, contract_code, "Resumen")
-    os.makedirs(resumen_dir, exist_ok=True)
+    inv_table = get_inventory_table_name(country, year)  # p.ej. inventory_cr_2025
 
-    # Columnas dinámicas
-    plot_col = get_sql_column("plot")  # p.ej. "Plot#"
-    tht_col = get_sql_column("tht_ft")  # p.ej. "THT (ft)"
-    contract_col = get_sql_column("contractcode")  # ya mapea a contractcode
+    # 1) Resolve columnas en inventario
+    plot_col      = resolve_column(engine, inv_table, "plot")
+    tht_col       = resolve_column(engine, inv_table, "tht_ft")
+    # esto devolverá exactamente 'Contract Code'
+    inv_code_col  = resolve_column(engine, inv_table, "contractcode")
 
-    # Obtener datos de altura
+    # 2) Query de alturas de inventario
     sql_heights = f"""
     SELECT
       "{plot_col}" AS plot,
       "{tht_col}"  AS tht
-    FROM public.{table}
-    WHERE {contract_col} = %(code)s
+    FROM public.{inv_table}
+    WHERE "{inv_code_col}" = %(code)s
     """
     df = pd.read_sql(sql_heights, engine, params={"code": contract_code})
     if df.empty:
-        print(f"⚠️ No hay datos de altura para contrato {contract_code}.")
+        print(f"⚠️ Sin datos de altura para {contract_code}.")
         return
 
-    # Obtener planting_year del registro maestro
+    # 3) Resolve columna de contrato y planting_year en la tabla principal
+    tree_table    = "masterdatabase.contract_tree_information"
+    # aquí key='contractcode' también, pero en esta tabla su sql_name real es contract_code
+    tree_code_col = resolve_column(engine, tree_table,   "contractcode")
+    plant_col     = resolve_column(engine, tree_table,   "planting_year")
+
+    # 4) Query de planting_year
     sql_plant = f"""
-    SELECT planting_year
-    FROM masterdatabase.contract_tree_information
-    WHERE contract_code = :code
+    SELECT "{plant_col}" AS planting_year
+    FROM {tree_table}
+    WHERE "{tree_code_col}" = %(code)s
     """
     plant_df = pd.read_sql(sql_plant, engine, params={"code": contract_code})
-    if plant_df.empty or pd.isna(plant_df.iloc[0,0]):
-        print(f"⚠️ No se encontró planting_year para contrato {contract_code}.")
+    if plant_df.empty or plant_df.iloc[0,0] is None:
+        print(f"⚠️ No se encontró planting_year para {contract_code}.")
         return
     planting_year = int(plant_df.iloc[0,0])
 
-    # Calcular edad y limpiar nulos
-    df['age'] = year - planting_year
-    df = df.dropna(subset=["tht", "age"])
+    # 5) Calcular edad y seguir con el gráfico…
+    df["age"] = year - planting_year
+    df = df.dropna(subset=["tht","age"])
     if df.empty:
         print(f"⚠️ Tras limpieza, no quedan datos válidos para contrato {contract_code}.")
         return

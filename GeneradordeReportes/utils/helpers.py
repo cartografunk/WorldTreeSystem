@@ -32,3 +32,30 @@ def get_sql_column(key: str) -> str:
     if match:
         return match["sql_name"]
     raise KeyError(f"Key '{key}' not found in schema.")
+
+
+from sqlalchemy import inspect
+from Cruises.utils.schema import COLUMNS as schema
+
+def resolve_column(engine, table_name: str, key: str) -> str:
+    """
+    A partir de un key (p.ej. 'contractcode') busca en schema['sql_name'] y sus aliases
+    y devuelve el nombre de columna EXACTO que existe en la tabla.
+    """
+    # Busca la definición de ese key
+    entry = next((e for e in schema if e['key'] == key), None)
+    if not entry:
+        raise KeyError(f"No existe definición de esquema para key '{key}'")
+
+    # Lista de candidatos en orden: sql_name + aliases
+    candidates = [entry['sql_name']] + entry.get('aliases', [])
+    # Inspector para ver las columnas reales
+    tbl = table_name.split('.')[-1]
+    inspector = inspect(engine)
+    real_cols = [c['name'] for c in inspector.get_columns(tbl)]
+
+    for cand in candidates:
+        if cand in real_cols:
+            return cand
+
+    raise KeyError(f"Ninguno de {candidates} existe en {table_name}. Columnas reales: {real_cols}")

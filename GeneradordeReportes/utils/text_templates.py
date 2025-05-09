@@ -80,5 +80,15 @@ text_templates = {
             }
         },
 
+    "section_headers": {
+        "G1": {"es": "Sobrevivencia",    "en": "Survival"},
+        "G2": {"es": "Altura y medidas", "en": "Height and measures"},
+        "G3": {"es": "Crecimiento",      "en": "Growth"},
+    },
+    "mortality_text": {
+        "es": "Esto significa que, por cada 100 árboles sembrados, hay {dead_per_100} árboles muertos, quedando remanentes en la totalidad del proyecto {alive} árboles vivos.",
+        "en": "It was found that, for every 100 trees planted, there are {dead_per_100} dead trees, leaving a total of {alive} live trees in the whole project.",
+    },
+    
 }
 

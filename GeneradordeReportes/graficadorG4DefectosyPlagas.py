@@ -1,4 +1,4 @@
-from GeneradordeReportes.utils.libs import pd, os
+from GeneradordeReportes.utils.libs import pd, os, np
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.helpers import get_inventory_table_name
 from GeneradordeReportes.utils.config import BASE_DIR
@@ -50,12 +50,16 @@ def generar_tabla_sanidad(contract_code: str, country: str, year: int, engine, o
         df = pd.read_sql(query, engine)
         if not df.empty:
             df['Grupo'] = grupo
-            df['Porcentaje'] = (df['total'] / total * 100).round(2)
+            df.rename(columns={'nombre': 'Tipo', 'total': 'Total'}, inplace=True)
+            df['Porcentaje'] = (df['Total'] / total * 100).round(2).astype(str) + '%'
+            df['Proyección'] = (df['Total'] / total * 100).apply(np.floor).astype(int)
+            resultados.append(df)
+
             df.rename(columns={'nombre': 'Tipo', 'total': 'Total'}, inplace=True)
             resultados.append(df)
 
     if resultados:
-        tabla = pd.concat(resultados, ignore_index=True)[['Grupo', 'Tipo', 'Total', 'Porcentaje']]
+        tabla = pd.concat(resultados, ignore_index=True)[['Grupo', 'Tipo', 'Total', 'Porcentaje', 'Proyección']]
         tabla.to_csv(output_path, index=False)
         print(f"✅ Tabla de sanidad guardada: {output_path}")
         return tabla  # 👈 Esta línea nueva es clave

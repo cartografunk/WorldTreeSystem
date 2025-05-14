@@ -65,7 +65,7 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     # —— Obtener nombre real del productor ——
     with engine.connect() as conn:
         sql = text(
-            'SELECT contract_name FROM masterdatabase.contract_tree_information WHERE contract_code = :fcode'
+            'SELECT contract_name FROM masterdatabase.contract_farmer_information WHERE contract_code = :fcode'
         )
         producer_name = conn.execute(sql, {'fcode': datos['contractcode']}).scalar_one()
 

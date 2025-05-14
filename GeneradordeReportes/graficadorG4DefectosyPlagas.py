@@ -32,6 +32,15 @@ def generar_tabla_sanidad(contract_code: str, country: str, year: int, engine, o
     ORDER BY total DESC
     """
 
+    from sqlalchemy import text
+    with engine.connect() as conn:
+        ct_sql = text("""
+            SELECT trees_contract
+            FROM masterdatabase.contract_tree_information
+            WHERE contract_code = :code
+        """)
+        contract_trees = conn.execute(ct_sql, {"code": contract_code}).scalar_one_or_none() or 0
+
     grupos = {
         "Enfermedad": ("cat_disease", "cat_disease_id"),
         "Defecto": ("cat_defect", "cat_defect_id"),
@@ -52,11 +61,9 @@ def generar_tabla_sanidad(contract_code: str, country: str, year: int, engine, o
             df['Grupo'] = grupo
             df.rename(columns={'nombre': 'Tipo', 'total': 'Total'}, inplace=True)
             df['Porcentaje'] = (df['Total'] / total * 100).round(2).astype(str) + '%'
-            df['Proyección'] = (df['Total'] / total * 100).apply(np.floor).astype(int)
+            df['Proyección'] = ((df['Total'] / total) * contract_trees).apply(np.floor).astype(int)
             resultados.append(df)
 
-            df.rename(columns={'nombre': 'Tipo', 'total': 'Total'}, inplace=True)
-            resultados.append(df)
 
     if resultados:
         tabla = pd.concat(resultados, ignore_index=True)[['Grupo', 'Tipo', 'Total', 'Porcentaje', 'Proyección']]

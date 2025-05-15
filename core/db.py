@@ -1,7 +1,7 @@
-# GeneradordeReportes/utils/db.py
+# core/db.py
 
 from sqlalchemy import create_engine
-from core.libs import pd
+import pandas as pd
 
 
 def get_engine():
@@ -63,6 +63,5 @@ def inspect_tables(
             print("\n→ Info de columnas:")
             df.info(verbose=True)
             print("\n→ Estadísticas descriptivas:\n", df.describe(include='all'))
-
         except Exception as e:
             print(f"⚠️ Error consultando {sql_tabla}: {e}")

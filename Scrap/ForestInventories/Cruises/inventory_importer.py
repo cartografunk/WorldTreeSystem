@@ -1,5 +1,5 @@
 # forest_inventory/inventory_importer.py
-from utils.libs import pd, unicodedata, re  # 👈 Añadir 're' aquí
+from core.libs import pd, unicodedata, re  # 👈 Añadir 're' aquí
 from utils.db import get_engine
 
 

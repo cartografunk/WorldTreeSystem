@@ -25,7 +25,6 @@ def get_region_language(country_code: str = "CR") -> str:
 def get_inventory_table_name(country: str, year: int) -> str:
     return f"inventory_{country.lower()}_{year}"
 
-from Cruises.utils.schema import COLUMNS
 
 def get_sql_column(key: str) -> str:
     match = next((col for col in COLUMNS if col["key"] == key), None)
@@ -38,7 +37,7 @@ def get_sql_column(key: str) -> str:
 
 from sqlalchemy import inspect
 from sqlalchemy.exc import NoSuchTableError
-from Cruises.utils.schema import COLUMNS
+from core.schema import COLUMNS
 import re
 
 def normalize(s: str) -> str:

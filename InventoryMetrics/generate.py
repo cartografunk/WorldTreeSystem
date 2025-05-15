@@ -4,8 +4,8 @@ import re
 import pandas as pd
 from sqlalchemy import text
 from tqdm import tqdm
-from Cruises.utils.schema import get_column
-from Cruises.doyle_calculator import calculate_doyle
+from core.schema import get_column
+from core.doyle_calculator import calculate_doyle
 from db import get_engine  # asegúrate que esté bien importado
 
 def get_inventory_tables(engine):

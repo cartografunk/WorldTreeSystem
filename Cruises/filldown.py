@@ -1,5 +1,5 @@
-from utils.libs import pd
-from utils.schema import COLUMNS
+from core.libs import pd
+from core.schema import COLUMNS
 
 # Extraer HEADER_COLS desde schema.py
 HEADER_COLS = [

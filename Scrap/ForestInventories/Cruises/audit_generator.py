@@ -1,4 +1,4 @@
-from utils.libs import pd
+from core.libs import pd
 from utils.db import get_engine
 from utils.cleaners import get_column
 from utils.sql_helpers import prepare_df_for_sql  # ← importar la normalización SQL :contentReference[oaicite:0]{index=0}&#8203;:contentReference[oaicite:1]{index=1}

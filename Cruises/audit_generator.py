@@ -1,9 +1,9 @@
 # — imports al inicio del archivo —
-from utils.schema import rename_columns_using_schema
+from core.schema import rename_columns_using_schema
 from utils.sql_helpers import prepare_df_for_sql
 from utils.cleaners import get_column
 from inventory_importer import save_inventory_to_sql, ensure_table
-from utils.libs import pd, os
+from core.libs import pd, os
 
 def create_audit_table(engine, table_name: str, output_excel_folder=None):
     country_code = table_name.split("_")[1].upper()

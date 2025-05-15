@@ -1,4 +1,4 @@
-from GeneradordeReportes.utils.libs import pd, os, np
+from core.libs import pd, os, np
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.helpers import get_inventory_table_name
 from GeneradordeReportes.utils.config import BASE_DIR

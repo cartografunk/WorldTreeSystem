@@ -1,4 +1,4 @@
-from GeneradordeReportes.utils.libs import pd, os
+from core.libs import pd, os
 from docx import Document
 from docx.shared import Pt, Inches
 from sqlalchemy import text

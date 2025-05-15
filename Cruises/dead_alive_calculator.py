@@ -1,6 +1,6 @@
 # dead_alive_calculator.py
 
-from utils.libs import pd
+from core.libs import pd
 
 def calculate_dead_alive(df: pd.DataFrame, engine) -> pd.DataFrame:
     """

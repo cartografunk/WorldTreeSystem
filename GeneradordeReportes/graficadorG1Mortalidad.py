@@ -3,7 +3,7 @@ from GeneradordeReportes.utils.helpers import get_region_language, get_inventory
 from GeneradordeReportes.utils.text_templates import text_templates
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
 from GeneradordeReportes.utils.plot import save_pie_chart
-from GeneradordeReportes.utils.libs import pd, os
+from core.libs import pd, os
 from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES, BASE_DIR
 
 def generar_mortalidad(contract_code: str, country: str, year: int,

@@ -1,7 +1,7 @@
 # union.py
-from utils.libs    import os, pd, warnings
+from utils.libs    import pd, warnings
 from utils.extractors import extract_metadata_from_excel
-from utils.schema    import COLUMNS
+from core.schema import COLUMNS
 from utils.cleaners  import get_column
 from utils.normalizers import clean_column_name
 from tqdm            import tqdm

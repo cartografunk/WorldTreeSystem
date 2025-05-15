@@ -1,6 +1,6 @@
 # catalog_normalizer.py
 
-from utils.libs import pd
+from core.libs import pd
 from utils.column_mapper import COLUMN_LOOKUP
 from sqlalchemy import text
 

@@ -2,10 +2,9 @@
 print("🌎 Hello World Tree!")
 
 import argparse
-from GeneradordeReportes.utils.db import get_engine
-from GeneradordeReportes.utils.libs import pd
+from core.libs import pd
 from GeneradordeReportes.report_writer import crear_reporte
-from Cruises.utils.schema import COLUMNS
+from core.schema import COLUMNS
 from GeneradordeReportes.utils.db import get_engine
 
 def main():

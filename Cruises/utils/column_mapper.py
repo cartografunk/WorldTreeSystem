@@ -1,5 +1,5 @@
 # utils/column_mapper.py
-from .schema import COLUMNS
+from core.schema import COLUMNS
 
 COLUMN_LOOKUP = {
     alias: col["key"]

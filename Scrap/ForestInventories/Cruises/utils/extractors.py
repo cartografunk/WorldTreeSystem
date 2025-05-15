@@ -1,5 +1,5 @@
 # utils/extractors.py
-from utils.libs import load_workbook, range_boundaries, re
+from core.libs import load_workbook, range_boundaries, re
 
 
 def extract_metadata_from_excel(file_path):

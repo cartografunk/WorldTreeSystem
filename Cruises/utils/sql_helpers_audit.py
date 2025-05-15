@@ -1,4 +1,4 @@
-from utils.libs import pd
+from core.libs import pd
 from utils.schema import COLUMNS
 from sqlalchemy import Text, Float, SmallInteger
 

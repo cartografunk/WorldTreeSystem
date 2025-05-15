@@ -1,5 +1,5 @@
 # utils/extractors.py
-from utils.libs import load_workbook, range_boundaries, re
+from core.libs import load_workbook, range_boundaries, re
 
 
 # define all your labels, in Spanish and English, normalized to lowercase without accents

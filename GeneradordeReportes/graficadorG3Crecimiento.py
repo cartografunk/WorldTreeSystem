@@ -1,6 +1,6 @@
 # GeneradordeReportes/graficadorG3Crecimiento.py
 
-from GeneradordeReportes.utils.libs import plt, rcParams, os, pd
+from core.libs import plt, rcParams, os, pd
 import numpy as np
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.colors import COLOR_PALETTE

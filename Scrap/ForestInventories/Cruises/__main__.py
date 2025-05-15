@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from utils.libs import argparse, os, pd, re, unicodedata
+from core.libs import argparse, os, pd, re, unicodedata
 from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
 from utils.db import get_engine
 from catalog_normalizer import normalize_catalogs

@@ -1,6 +1,6 @@
 # utils/sql_helpers.py
 from sqlalchemy import Text, Float, Numeric, SmallInteger, Date
-from utils.libs import pd
+from core.libs import pd
 from utils.column_mapper import SQL_COLUMNS
 from utils.schema import COLUMNS
 

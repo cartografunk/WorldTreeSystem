@@ -1,4 +1,4 @@
-from utils.libs import pd
+from core.libs import pd
 from utils.db import get_engine
 from inventory_importer import save_inventory_to_sql
 

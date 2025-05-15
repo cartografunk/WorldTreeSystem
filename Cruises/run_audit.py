@@ -1,7 +1,7 @@
 from pathlib import Path
-from utils.libs import pd
+from core.libs import pd
 from utils.extractors import extract_metadata_from_folder
-from utils.schema import rename_columns_using_schema
+from core.schema import rename_columns_using_schema
 from utils.sql_helpers import prepare_df_for_sql
 from inventory_importer import ensure_table, save_inventory_to_sql
 

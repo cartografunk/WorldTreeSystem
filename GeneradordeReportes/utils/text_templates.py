@@ -9,7 +9,7 @@ text_templates = {
         "es": (
             "Estimado productor:<br><br>"
             "{farmername}<br><br>"
-            "Con gusto le compartimos un resumen de los resultados obtenidos en las visitas "
+            "Con gusto le compartimos el resumen de los resultados obtenidos en las visitas "
             "técnicas de seguimiento al proyecto, con el fin de informar sobre el estado actual "
             "de los árboles y su desarrollo."
         ),
@@ -82,7 +82,7 @@ text_templates = {
 
     "section_headers": {
         "G1": {"es": "Sobrevivencia",    "en": "Survival"},
-        "G2": {"es": "Altura y medidas", "en": "Height and measures"},
+        "G2": {"es": "Alturas y DAP promedio de los árboles", "en": "Height and measures"},
         "G3": {"es": "Crecimiento",      "en": "Growth"},
     },
     "mortality_text": {

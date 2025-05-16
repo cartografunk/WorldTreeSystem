@@ -1,7 +1,6 @@
 # inventory_metrics/generate.py
 
-import re
-import pandas as pd
+from core.libs import re, pd
 from sqlalchemy import text
 from tqdm import tqdm
 from core.schema import get_column

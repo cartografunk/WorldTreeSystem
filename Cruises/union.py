@@ -67,32 +67,36 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
         print(f"[ERROR] {file_path}: {e}")
         return None, {}
 
-from tqdm import tqdm
-import os
 
-def combine_files(file_paths, filter_func=None):
-    """
-    Combina archivos .xlsx a partir de una lista de rutas individuales.
-    """
+# Reemplazar tu función por esta:
+def combine_files(file_paths_or_dir, filter_func=None):
+    import os
+    from core.libs import pd, tqdm
+    from Cruises.union import read_metadata_and_input
+    from pathlib import Path
+
     df_list = []
 
+    # Detectar si es carpeta (modo original)
+    if isinstance(file_paths_or_dir, (str, Path)):
+        base_path = Path(file_paths_or_dir)
+        all_files = []
+        for root, _, files in os.walk(base_path):
+            for f in files:
+                if f.lower().endswith(".xlsx") and not f.startswith("~$") and "combined_inventory" not in f.lower():
+                    all_files.append(Path(root) / f)
+        tqdm.write(f"📁 Modo directorio: {base_path} → {len(all_files)} archivos encontrados")
+    else:
+        all_files = [Path(p) for p in file_paths_or_dir]
+        tqdm.write(f"🗂️ Modo lista: {len(all_files)} archivos recibidos")
+
+    if not all_files:
+        print("❌ No se encontró ningún archivo válido.")
+        return None
+
     print("⚙️ Iniciando procesamiento de archivos...")
-    for path_str in tqdm(file_paths, unit="archivo"):
-        path = Path(path_str)
+    for path in tqdm(all_files, unit="archivo"):
         file = path.name
-
-        # Filtrar si no es .xlsx o si contiene "combined_inventory"
-        if (
-            not path.suffix.lower() == ".xlsx"
-            or path.name.startswith("~$")
-            or "combined_inventory" in file.lower()
-        ):
-            continue
-
-        # Filtro personalizado opcional
-        if filter_func and not filter_func(path):
-            continue
-
         try:
             df, meta = read_metadata_and_input(path)
         except Exception as e:
@@ -117,11 +121,8 @@ def combine_files(file_paths, filter_func=None):
 
         df_list.append(df)
 
-    if not df_list:
-        print("❌ No se encontró ningún archivo válido.")
-        return None
-
     combined = pd.concat(df_list, ignore_index=True)
     print("📂 Combinación finalizada")
     print(f"🌳 Total de árboles combinados: {len(combined):,}")
     return combined
+

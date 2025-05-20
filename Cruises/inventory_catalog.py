@@ -1,8 +1,8 @@
 # inventory_catalog.py
 
 from core.libs import pd
-from utils.db import get_engine
-from inventory_importer import save_inventory_to_sql, ensure_table
+from core.db import get_engine
+from Cruises.inventory_importer import save_inventory_to_sql, ensure_table
 
 
 def create_inventory_catalog(df, engine, table_catalog_name):

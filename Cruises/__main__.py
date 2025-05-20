@@ -1,24 +1,26 @@
-#!/usr/bin/env python
+#WorldTreeSystem/Cruises/main.py
+
 print("🌎 Hello World Tree!")
 from core.libs import argparse, pd, inspect
-from utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
-from utils.db import get_engine
-from utils.sql_helpers import prepare_df_for_sql
-from utils.summary import generate_summary
-
-from catalog_normalizer import normalize_catalogs
-from union import combine_files
-from filters import create_filter_func
-from inventory_importer import ensure_table
-
-from inventory_importer import save_inventory_to_sql
-from inventory_catalog import create_inventory_catalog
-from audit_pipeline import run_audit
+from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
-from dead_alive_calculator import calculate_dead_alive
-from dead_tree_imputer import add_imputed_dead_rows
-from filldown import forward_fill_headers
-from tree_id import split_by_id_validity
+
+from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
+from Cruises.utils.sql_helpers import prepare_df_for_sql
+from Cruises.utils.summary import generate_summary
+
+from Cruises.catalog_normalizer import normalize_catalogs
+from Cruises.union import combine_files
+from Cruises.filters import create_filter_func
+from Cruises.inventory_importer import ensure_table, save_inventory_to_sql
+
+from Cruises.inventory_importer import save_inventory_to_sql
+from Cruises.inventory_catalog import create_inventory_catalog
+from Cruises.audit_pipeline import run_audit
+from Cruises.dead_alive_calculator import calculate_dead_alive
+from Cruises.dead_tree_imputer import add_imputed_dead_rows
+from Cruises.filldown import forward_fill_headers
+from Cruises.tree_id import split_by_id_validity
 
 print("🌎 Iniciando...")
 
@@ -27,7 +29,13 @@ def main():
     parser = argparse.ArgumentParser(
         description="Procesa inventario forestal: combina, limpia, normaliza y guarda en SQL."
     )
-    parser.add_argument("--cruises_path", required=True)
+    parser.add_argument(
+        "--cruises_path",
+        nargs="+",  # acepta múltiples rutas
+        required=True,
+        help="Rutas de los archivos .xlsx de inventario"
+    )
+
     parser.add_argument("--output_file", required=True)
     parser.add_argument("--allowed_codes", nargs="+", default=None)
     parser.add_argument("--table_name", required=True,

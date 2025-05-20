@@ -1,8 +1,8 @@
-# utils/sql_helpers.py
+# Cruises/utils/sql_helpers.py
 from sqlalchemy import Text, Float, Numeric, SmallInteger, Date
 from core.libs import pd
-from utils.column_mapper import SQL_COLUMNS
-from utils.schema import COLUMNS
+from Cruises.utils.column_mapper import SQL_COLUMNS
+from core.schema import COLUMNS
 
 # Construye FINAL_ORDER y DTYPES desde schema
 SQL_COLUMNS = { col["key"]: col["sql_name"] for col in COLUMNS }

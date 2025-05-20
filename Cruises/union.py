@@ -1,10 +1,10 @@
 # union.py
-from utils.libs    import pd, warnings
-from utils.extractors import extract_metadata_from_excel
+from core.libs    import pd, warnings, Path
+from Cruises.utils.extractors import extract_metadata_from_excel
 from core.schema import COLUMNS
-from utils.cleaners  import get_column
-from utils.normalizers import clean_column_name
-from tqdm            import tqdm
+from Cruises.utils.cleaners  import get_column
+from Cruises.utils.normalizers import clean_column_name
+from tqdm import tqdm
 
 warnings.filterwarnings(
     "ignore",
@@ -70,46 +70,56 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
 from tqdm import tqdm
 import os
 
-def combine_files(base_path, filter_func=None):
+def combine_files(file_paths, filter_func=None):
+    """
+    Combina archivos .xlsx a partir de una lista de rutas individuales.
+    """
     df_list = []
-    all_files = []
-    for root, _, files in os.walk(base_path):
-        for f in files:
-            if (
-              f.lower().endswith(".xlsx")
-              and not f.startswith("~$")
-              and "combined_inventory" not in f.lower()
-            ):
-                all_files.append(os.path.join(root, f))
-    if not all_files:
-        print("❌ No se encontró ningún archivo válido.")
-        return None
 
     print("⚙️ Iniciando procesamiento de archivos...")
-    for path in tqdm(all_files, unit="archivo"):
-        file = os.path.basename(path)
-        df, meta = read_metadata_and_input(path)
+    for path_str in tqdm(file_paths, unit="archivo"):
+        path = Path(path_str)
+        file = path.name
+
+        # Filtrar si no es .xlsx o si contiene "combined_inventory"
+        if (
+            not path.suffix.lower() == ".xlsx"
+            or path.name.startswith("~$")
+            or "combined_inventory" in file.lower()
+        ):
+            continue
+
+        # Filtro personalizado opcional
+        if filter_func and not filter_func(path):
+            continue
+
+        try:
+            df, meta = read_metadata_and_input(path)
+        except Exception as e:
+            tqdm.write(f"   ❌ Error al leer {file}: {e}")
+            continue
+
         if df is None or df.empty:
             tqdm.write(f"   ⚠️  Sin datos válidos en {file}")
             continue
 
-        # ensure tree_number/Status exist, coerce blanks → NA
         for col in ("tree_number", "Status"):
-            df[col] = df.get(col, pd.NA)
-            df[col] = df[col].replace("", pd.NA)
+            df[col] = df.get(col, pd.NA).replace("", pd.NA)
 
-        # filter out rows where BOTH are empty
         mask = df["tree_number"].isna() & df["Status"].isna()
         if mask.any():
             tqdm.write(f"   🧹 {mask.sum()} filas vacías en {file}")
             df = df.loc[~mask]
 
-        # attach your metadata
         df["contractcode"] = meta.get("contract_code")
         df["farmername"]   = meta.get("farmer_name")
         df["cruisedate"]   = meta.get("cruise_date", pd.NaT)
 
         df_list.append(df)
+
+    if not df_list:
+        print("❌ No se encontró ningún archivo válido.")
+        return None
 
     combined = pd.concat(df_list, ignore_index=True)
     print("📂 Combinación finalizada")

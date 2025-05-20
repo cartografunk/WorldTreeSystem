@@ -1,10 +1,8 @@
 # utils/summary.py
-
-import os
-import pandas as pd
-from union import read_metadata_and_input
-from utils.schema import COLUMNS
-from utils.cleaners import clean_column_name
+from core.libs import pd, os
+from Cruises.union import read_metadata_and_input
+from core.schema import COLUMNS
+from Cruises.utils.cleaners import clean_column_name
 
 def generate_summary(cruises_path: str) -> pd.DataFrame:
     """

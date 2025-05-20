@@ -1,5 +1,5 @@
 # pipeline_utils.py
-from audit_generator import create_audit_table
+from Cruises.audit_generator import create_audit_table
 from core.libs import os, re
 
 def run_audit(engine, inventory_table_name: str, output_xlsx: str | None):

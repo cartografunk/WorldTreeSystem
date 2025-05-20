@@ -1,6 +1,6 @@
 # forest_inventory/inventory_importer.py
 from core.libs import pd, unicodedata, re, inspect
-from utils.db import get_engine
+from core.db import get_engine
 
 from sqlalchemy import text
 

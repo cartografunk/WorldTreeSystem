@@ -1,10 +1,12 @@
 # union.py
-from core.libs    import pd, warnings, Path
+from core.libs    import pd, warnings, Path, os
 from Cruises.utils.extractors import extract_metadata_from_excel
 from core.schema import COLUMNS
 from Cruises.utils.cleaners  import get_column
 from Cruises.utils.normalizers import clean_column_name
 from tqdm import tqdm
+import traceback
+from Cruises.onedriver import force_download
 
 warnings.filterwarnings(
     "ignore",
@@ -32,6 +34,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
      - meta: dict con contract_code, farmer_name, cruise_date
     """
     try:
+        print(">>> Leyendo archivo:", repr(file_path))
         xls = pd.ExcelFile(file_path)
         raw_sheets = xls.sheet_names
         # buscar hoja de input de forma case‐insensitive
@@ -65,64 +68,107 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
 
     except Exception as e:
         print(f"[ERROR] {file_path}: {e}")
+        traceback.print_exc()
         return None, {}
 
 
-# Reemplazar tu función por esta:
-def combine_files(file_paths_or_dir, filter_func=None):
-    import os
-    from core.libs import pd, tqdm
-    from Cruises.union import read_metadata_and_input
-    from pathlib import Path
+def combine_files(base_path, filter_func=None, explicit_files=None):
+    """Combina archivos XLSX de inventario forestal.
+
+    Args:
+        base_path (str/Path): Ruta base (se ignora si explicit_files está presente)
+        filter_func (callable, optional): Función para filtrar metadatos
+        explicit_files (list, optional): Lista explícita de paths de archivos a procesar
+
+    Returns:
+        pd.DataFrame: DataFrame combinado
+    """
 
     df_list = []
+    all_files = []
 
-    # Detectar si es carpeta (modo original)
-    if isinstance(file_paths_or_dir, (str, Path)):
-        base_path = Path(file_paths_or_dir)
-        all_files = []
+    # Priorizar archivos explícitos si existen
+    if explicit_files:
+        all_files = [Path(f) for f in explicit_files]
+        print(f"🗂️ Procesando {len(all_files)} archivos explícitos")
+
+    else:  # Modo automático: buscar en directorio
+        base_path = Path(base_path)
+        print(f"📁 Buscando archivos en: {base_path}")
+
         for root, _, files in os.walk(base_path):
             for f in files:
-                if f.lower().endswith(".xlsx") and not f.startswith("~$") and "combined_inventory" not in f.lower():
+                if (f.lower().endswith(".xlsx")
+                        and not f.startswith("~$")
+                        and "combined_inventory" not in f.lower()):
                     all_files.append(Path(root) / f)
-        tqdm.write(f"📁 Modo directorio: {base_path} → {len(all_files)} archivos encontrados")
-    else:
-        all_files = [Path(p) for p in file_paths_or_dir]
-        tqdm.write(f"🗂️ Modo lista: {len(all_files)} archivos recibidos")
+
+        print(f"🔍 Encontrados {len(all_files)} archivos XLSX")
 
     if not all_files:
-        print("❌ No se encontró ningún archivo válido.")
-        return None
+        print("❌ No hay archivos para procesar")
+        return pd.DataFrame()
 
     print("⚙️ Iniciando procesamiento de archivos...")
     for path in tqdm(all_files, unit="archivo"):
+        # ⬇️ Verifica y descarga si está en la nube
+        if not force_download(path):
+            tqdm.write(f"   🚫 Archivo no disponible localmente: {path.name}")
+            continue
+
         file = path.name
         try:
             df, meta = read_metadata_and_input(path)
+
+            print(f"\n📄 Procesando: {file}")
+
+            # Leer archivo y metadatos
+            df, meta = read_metadata_and_input(path)
+
+            if df is None:
+                print(f"   ⚠️  Archivo no procesado: {file}")
+                continue
+
+            if df.empty:
+                print(f"   ⚠️  Archivo vacío: {file}")
+                continue
+
+            # Validación básica de columnas
+            required_cols = ["tree_number", "Status"]
+            missing = [c for c in required_cols if c not in df.columns]
+            if missing:
+                print(f"   ❌ Faltan columnas clave: {', '.join(missing)}")
+                continue
+
+            # Filtrado por metadatos
+            if filter_func and not filter_func(meta):
+                print(f"   🚫 Filtrado por códigos: {file}")
+                continue
+
+            # Limpieza inicial
+            df = df.dropna(subset=["tree_number", "Status"], how="all")
+            df = df.reset_index(drop=True)
+
+            # Añadir metadatos
+            df["contractcode"] = meta.get("contract_code", "DESCONOCIDO")
+            df["farmername"] = meta.get("farmer_name", "SIN_NOMBRE")
+            df["cruisedate"] = meta.get("cruise_date", pd.NaT)
+
+            df_list.append(df)
+            print(f"   ✅ Procesado exitoso: {len(df)} filas")
+
         except Exception as e:
-            tqdm.write(f"   ❌ Error al leer {file}: {e}")
+            print(f"   🔥 Error crítico en {file}: {str(e)}")
             continue
 
-        if df is None or df.empty:
-            tqdm.write(f"   ⚠️  Sin datos válidos en {file}")
-            continue
-
-        for col in ("tree_number", "Status"):
-            df[col] = df.get(col, pd.NA).replace("", pd.NA)
-
-        mask = df["tree_number"].isna() & df["Status"].isna()
-        if mask.any():
-            tqdm.write(f"   🧹 {mask.sum()} filas vacías en {file}")
-            df = df.loc[~mask]
-
-        df["contractcode"] = meta.get("contract_code")
-        df["farmername"]   = meta.get("farmer_name")
-        df["cruisedate"]   = meta.get("cruise_date", pd.NaT)
-
-        df_list.append(df)
+    if not df_list:
+        print("❌ Ningún archivo pudo ser procesado")
+        return pd.DataFrame()
 
     combined = pd.concat(df_list, ignore_index=True)
-    print("📂 Combinación finalizada")
-    print(f"🌳 Total de árboles combinados: {len(combined):,}")
+    print("\n📊 Combinación finalizada")
+    print(f"🌳 Total de árboles procesados: {len(combined):,}")
+    print(f"📅 Rango de fechas: {combined['cruisedate'].min()} a {combined['cruisedate'].max()}")
+
     return combined
 

@@ -1,7 +1,7 @@
 #WorldTreeSystem/Cruises/main.py
 
 print("🌎 Hello World Tree!")
-from core.libs import argparse, pd, inspect
+from core.libs import argparse, pd, inspect, Path
 from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
 
@@ -31,11 +31,8 @@ def main():
     )
     parser.add_argument(
         "--cruises_path",
-        nargs="+",  # acepta múltiples rutas
-        required=True,
-        help="Rutas de los archivos .xlsx de inventario"
+        required=True, help="Ruta base a los archivos del inventario forestal."
     )
-
     parser.add_argument("--output_file", required=True)
     parser.add_argument("--allowed_codes", nargs="+", default=None)
     parser.add_argument("--table_name", required=True,
@@ -45,6 +42,13 @@ def main():
         "--recreate_table",
         action="store_true",
         help="Drop & recreate table before bulk-insert"
+    )
+    parser.add_argument("--year", required=True, help="Año del inventario (ej. 2025).")
+    parser.add_argument(
+        "--files",
+        nargs="+",
+        default=None,
+        help="Lista explícita de archivos XLSX a procesar (sobreescribe búsqueda en directorio)"
     )
 
     args = parser.parse_args()
@@ -57,7 +61,12 @@ def main():
 
     # Combinar todos los datos
     print("\n📂 Combinando archivos en DataFrame...")
-    df_combined = combine_files(args.cruises_path, filter_func=filter_func)
+    df_combined = combine_files(
+        args.cruises_path,
+        filter_func=filter_func,
+        explicit_files=[Path(f) for f in args.files] if args.files else None  # Nueva lógica
+    )
+
     if df_combined is None or df_combined.empty:
         print("⚠️ No se encontraron datos combinados.")
         return

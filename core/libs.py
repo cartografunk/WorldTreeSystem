@@ -17,6 +17,7 @@ import warnings
 import unicodedata
 from pathlib import Path
 from datetime import datetime
+import ctypes
 
 # ───── Regex & CLI ─────
 import re

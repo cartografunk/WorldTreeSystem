@@ -12,5 +12,5 @@ def calculate_doyle(df: pd.DataFrame) -> pd.DataFrame:
     df["THT (ft)"] = pd.to_numeric(df[tht_col], errors='coerce')
     df["doyle_bf"] = ((df["DBH (in)"] - 4) ** 2) * (df["THT (ft)"] / 16)
 
-    print("Doyle calculado")
+    print("🌳 Doyle calculado")
     return df

@@ -92,10 +92,8 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
         from core.paths import INVENTORY_BASE
 
         # 🔧 Armar rutas completas + limpiar nombres invisibles
-        all_files = [
-            INVENTORY_BASE / base_path / Path(f).name
-            for f in explicit_files
-        ]
+        all_files = [INVENTORY_BASE / Path(f) for f in explicit_files]
+
 
         #print(f"🗂️ Procesando {len(all_files)} archivos explícitos")
 

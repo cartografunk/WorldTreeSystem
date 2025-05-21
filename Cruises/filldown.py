@@ -1,3 +1,4 @@
+#Cruises/filldown
 from core.libs import pd
 from core.schema import COLUMNS
 
@@ -14,7 +15,7 @@ def forward_fill_headers(df: pd.DataFrame,
                          cols: list[str] | None = None) -> pd.DataFrame:
     """
     Aplica fill-down (ffill + bfill) solo a filas que no estén completamente vacías.
-    Las filas vacías permanecen intactas.
+    Las filas vacías en columnas clave se eliminan antes.
     """
     cols = cols or HEADER_COLS
     df_filled = df.copy()
@@ -22,13 +23,14 @@ def forward_fill_headers(df: pd.DataFrame,
     # Asegurar que solo use columnas existentes
     existing = [col for col in cols if col in df_filled.columns]
 
-    # Crear máscara de filas que tienen al menos un valor en esas columnas
-    mask_non_empty = df_filled[existing].replace("", pd.NA).notna().any(axis=1)
+    # 🔥 Eliminar filas completamente vacías en columnas clave
+    df_filled = df_filled.replace("", pd.NA)
+    df_filled = df_filled.dropna(subset=existing, how="all")
 
-    # Solo aplicar fill a esas filas
+    # ✅ Aplicar filldown solo a las filas parcialmente completas
+    mask_non_empty = df_filled[existing].notna().any(axis=1)
     df_filled.loc[mask_non_empty, existing] = (
         df_filled.loc[mask_non_empty, existing]
-        .replace("", pd.NA)
         .ffill()
         .bfill()
     )

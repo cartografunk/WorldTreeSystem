@@ -5,7 +5,7 @@ from core.libs import argparse, pd, inspect, Path
 from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
 
-from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, get_column
+from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, get_column, remove_blank_rows
 from Cruises.utils.sql_helpers import prepare_df_for_sql
 from Cruises.utils.summary import generate_summary
 
@@ -22,6 +22,8 @@ from Cruises.dead_tree_imputer import add_imputed_dead_rows
 from Cruises.filldown import forward_fill_headers
 from Cruises.tree_id import split_by_id_validity
 from Cruises.import_summary import generate_summary_from_df
+from Cruises.status_para_batch_imports import marcar_lote_completado
+
 
 print("🌎 Iniciando...")
 
@@ -67,7 +69,7 @@ def main():
         args.table_name = lote["tabla_destino"]
         args.country_code = lote["pais"]
         args.year = lote["año"]
-        args.files = [Path(p).name for p in lote["archivos"]]
+        args.files = lote["archivos"]
 
     parser.add_argument("--batch_imports_path", help="Ruta a batch_imports.json")
     parser.add_argument("--tabla_destino", help="Nombre de tabla_destino a buscar en batch_imports.json")
@@ -107,6 +109,9 @@ def main():
     if args.allowed_codes and args.allowed_codes != ["ALL"]:
         filter_func = create_filter_func(args.allowed_codes)
 
+    print("🔍 Verificando archivos cargados desde batch:")
+    for f in args.files:
+        print(" →", f)
 
     # Combinar todos los datos
     #print("\n📂 Combinando archivos en DataFrame...")
@@ -133,6 +138,7 @@ def main():
 
     # Limpieza general de columnas y forward fill
     df_combined = clean_cruise_dataframe(df_combined)
+    df_combined = remove_blank_rows(df_combined)
 
     # Completar encabezados repetidos
     df_combined = forward_fill_headers(df_combined)
@@ -211,14 +217,23 @@ def main():
         pre_cleaned=True
     )
 
-    # Exportar Excel combinado
-    df_combined.to_excel(args.output_file, index=False)
-    print(f"✅ Guardado Excel combinado: {args.output_file}")
+    try:
+        # Proceso principal...
+        df_combined.to_excel(args.output_file, index=False)
+        print(f"✅ Guardado Excel combinado: {args.output_file}")
 
-    # Ejecutar auditoría y catálogo adicional
-    run_audit(engine, args.table_name, args.output_file)
-    create_inventory_catalog(df_combined, engine, f"cat_{args.table_name}")
-    print("✅ Proceso completo.")
+        run_audit(engine, args.table_name, args.output_file)
+        create_inventory_catalog(df_combined, engine, f"cat_{args.table_name}")
+        print("✅ Proceso completo.")
+
+        # Marcar como completado
+        if getattr(args, "batch_imports_path", None) and getattr(args, "tabla_destino", None):
+            tabla_sql = f"public.{args.table_name}"
+            marcar_lote_completado(args.batch_imports_path, args.tabla_destino, tabla_sql)
+
+    except Exception as e:
+        print(f"❌ Error fatal durante el procesamiento: {e}")
+
 
 def _safe_get_column(df, logical_name):
     try:

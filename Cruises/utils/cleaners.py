@@ -76,3 +76,14 @@ def clean_cruise_dataframe(df: pd.DataFrame) -> pd.DataFrame:
     #print("Filas restantes:", len(df))
 
     return df
+
+def remove_blank_rows(df: pd.DataFrame,
+                      campos_clave: list[str] = None) -> pd.DataFrame:
+    """
+    Elimina filas completamente vacías en los campos clave (útiles).
+    """
+    campos_clave = campos_clave or ["plot", "tree_number", "Status"]
+    campos_existentes = [c for c in campos_clave if c in df.columns]
+
+    df = df.replace("", pd.NA)
+    return df.dropna(subset=campos_existentes, how="all")

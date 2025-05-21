@@ -32,8 +32,9 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
     config = PAIS_CONFIG.get(country_code.upper(), {"col": "nombre"})
     field = config["col"]
     df_result = df.copy()
+    normalizadas = []
 
-    print("=== Resumen de archivos normalizados ===")
+    print("=== Normalización de catálogos ===")
 
     with engine.begin() as conn:
         for logical in logical_keys:
@@ -55,11 +56,10 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
                 print(f"⚠️ Columna '{logical}' no encontrada en el DataFrame.")
                 continue
 
-            print(f"\n🔁 Normalizando: {logical} → {table} ({field})")
-
             unique_vals = df_result[raw_col].dropna().unique()
             val_map = {}
 
+            # Cargar catálogo actual
             existing = conn.execute(
                 text(f"SELECT {id_field}, {field} FROM {table}")
             ).mappings().all()
@@ -78,7 +78,7 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
                     val_map[raw_val] = catalog_dict[lookup_val]
                     continue
 
-                # Consulta directa
+                # Intentar encontrar directamente
                 result = conn.execute(
                     text(f"SELECT {id_field} FROM {table} WHERE {field} = :val"),
                     {"val": parsed_val}
@@ -90,17 +90,21 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
                     continue
 
                 # Insertar si no existe
-                result = conn.execute(
-                    text(f"INSERT INTO {table} ({field}) VALUES (:val) RETURNING {id_field}"),
-                    {"val": parsed_val}
-                )
-                new_id = result.scalar()
-                val_map[raw_val] = new_id
-                catalog_dict[lookup_val] = new_id
-                print(f"🆕 Insertado '{parsed_val}' en {table} → {id_field}={new_id}")
+                try:
+                    result = conn.execute(
+                        text(f"INSERT INTO {table} ({field}) VALUES (:val) RETURNING {id_field}"),
+                        {"val": parsed_val}
+                    )
+                    new_id = result.scalar()
+                    val_map[raw_val] = new_id
+                    catalog_dict[lookup_val] = new_id
+                    #print(f"🆕 Insertado '{parsed_val}' en {table} → {id_field}={new_id}")
+                except Exception as e:
+                    print(f"❌ Error al insertar '{parsed_val}' en {table}: {e}")
+                    continue
 
             df_result[dest_col] = df_result[raw_col].map(val_map)
-            print(f"✅ Columna '{dest_col}' asignada en el DataFrame")
+            normalizadas.append(dest_col)
 
+    print(f"✅ Columnas normalizadas: {', '.join(normalizadas)}")
     return df_result
-

@@ -936,8 +936,9 @@
   },
   {
     "pais": "USA",
-    "año": 2024,
-    "tabla_destino": "inventory_us_2024",
+    "carpeta": "USA/2024_ForestInventoryQ1_25",
+    "año": 2025,
+    "tabla_destino": "inventory_us_2025",
     "archivos": [
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0005 - Bruce Gamble/BruceGamble_US0005_DataInput.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0006 - David Smith/DavidSmith_US0006_DataInput.xlsx",
@@ -1001,15 +1002,8 @@
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0164 - Steve Carson/SteveCarson_US0164 Data Input.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0164 - Steve Carson/SteveCarson_US0164 Updated Data Input.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0165 - Steven Hunter/StevenHunter_US0165_DataInput.xlsx"
-    ]
-  },
-  {
-    "pais": "USA",
-    "año": null,
-    "tabla_destino": "inventory_us_None",
-    "archivos": [
-      "USA/General/GIS/Farms_Locations_KMZ/2021/worldtree/US_PlotsSummary.xlsx"
-    ]
+    ],
+    "status": false
   },
   {
     "pais": "Costa Rica",
@@ -1082,7 +1076,9 @@
       "Costa Rica/2024_ForestInventoryQ1_25/CR0100_Samuel Wards_Inventory 2024 Q1_2025.xlsx",
       "Costa Rica/2024_ForestInventoryQ1_25/CR0102_William Romero_Inventory 2024 Q1_2025.xlsx",
       "Costa Rica/2024_ForestInventoryQ1_25/CR104_Emmanuel Ruiz_Inventory 2024 Q1_2025.xlsx"
-    ]
+    ],
+    "status": true,
+    "dir": "public.inventory_cr_2025"
   },
   {
     "pais": "Costa Rica",

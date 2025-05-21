@@ -34,7 +34,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
      - meta: dict con contract_code, farmer_name, cruise_date
     """
     try:
-        print(">>> Leyendo archivo:", repr(file_path))
+        #print(">>> Leyendo archivo:", repr(file_path))
         xls = pd.ExcelFile(file_path)
         raw_sheets = xls.sheet_names
         # buscar hoja de input de forma case‐insensitive
@@ -89,8 +89,15 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
 
     # Priorizar archivos explícitos si existen
     if explicit_files:
-        all_files = [Path(f) for f in explicit_files]
-        print(f"🗂️ Procesando {len(all_files)} archivos explícitos")
+        from core.paths import INVENTORY_BASE
+
+        # 🔧 Armar rutas completas + limpiar nombres invisibles
+        all_files = [
+            INVENTORY_BASE / base_path / Path(f).name
+            for f in explicit_files
+        ]
+
+        #print(f"🗂️ Procesando {len(all_files)} archivos explícitos")
 
     else:  # Modo automático: buscar en directorio
         base_path = Path(base_path)
@@ -113,14 +120,13 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
     for path in tqdm(all_files, unit="archivo"):
         # ⬇️ Verifica y descarga si está en la nube
         if not force_download(path):
-            tqdm.write(f"   🚫 Archivo no disponible localmente: {path.name}")
-            continue
+            continue  # Silencioso
 
         file = path.name
         try:
             df, meta = read_metadata_and_input(path)
 
-            print(f"\n📄 Procesando: {file}")
+            #print(f"\n📄 Procesando: {file}")
 
             # Leer archivo y metadatos
             df, meta = read_metadata_and_input(path)
@@ -155,7 +161,7 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
             df["cruisedate"] = meta.get("cruise_date", pd.NaT)
 
             df_list.append(df)
-            print(f"   ✅ Procesado exitoso: {len(df)} filas")
+            #print(f"   ✅ Procesado exitoso: {len(df)} filas")
 
         except Exception as e:
             print(f"   🔥 Error crítico en {file}: {str(e)}")
@@ -168,7 +174,7 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
     combined = pd.concat(df_list, ignore_index=True)
     print("\n📊 Combinación finalizada")
     print(f"🌳 Total de árboles procesados: {len(combined):,}")
-    print(f"📅 Rango de fechas: {combined['cruisedate'].min()} a {combined['cruisedate'].max()}")
+    #print(f"📅 Rango de fechas: {combined['cruisedate'].min()} a {combined['cruisedate'].max()}")
 
     return combined
 

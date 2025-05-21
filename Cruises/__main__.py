@@ -21,37 +21,86 @@ from Cruises.dead_alive_calculator import calculate_dead_alive
 from Cruises.dead_tree_imputer import add_imputed_dead_rows
 from Cruises.filldown import forward_fill_headers
 from Cruises.tree_id import split_by_id_validity
+from Cruises.import_summary import generate_summary_from_df
 
 print("🌎 Iniciando...")
 
 def main():
+    # Paso 1: parse preliminar para batch_imports_path y tabla_destino
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument("--batch_imports_path")
+    pre_parser.add_argument("--tabla_destino")
+    pre_args, _ = pre_parser.parse_known_args()
 
-    parser = argparse.ArgumentParser(
-        description="Procesa inventario forestal: combina, limpia, normaliza y guarda en SQL."
-    )
-    parser.add_argument(
-        "--cruises_path",
-        required=True, help="Ruta base a los archivos del inventario forestal."
-    )
+    # Paso 2: parser completo con todos los argumentos
+    parser = argparse.ArgumentParser(conflict_handler="resolve")
+    parser.add_argument("--batch_imports_path", help="Ruta a batch_imports.json")
+    parser.add_argument("--tabla_destino", help="Nombre de tabla_destino a buscar en batch_imports.json")
+    parser.add_argument("--cruises_path", required=False)
+    parser.add_argument("--table_name", required=False)
+    parser.add_argument("--country_code", required=False)
+    parser.add_argument("--year", type=int, required=False)
     parser.add_argument("--output_file", required=True)
-    parser.add_argument("--allowed_codes", nargs="+", default=None)
-    parser.add_argument("--table_name", required=True,
-                        help="Nombre de la tabla SQL en la que se almacenará el inventario, por ejemplo 'inventory_gt_2025'.")
-    parser.add_argument("--country_code", required=True, help="Código de país, por ejemplo GT, US, etc.")
-    parser.add_argument(
-        "--recreate_table",
-        action="store_true",
-        help="Drop & recreate table before bulk-insert"
-    )
-    parser.add_argument("--year", required=True, help="Año del inventario (ej. 2025).")
-    parser.add_argument(
-        "--files",
-        nargs="+",
-        default=None,
-        help="Lista explícita de archivos XLSX a procesar (sobreescribe búsqueda en directorio)"
-    )
+    parser.add_argument("--files", nargs="+")
+    parser.add_argument("--allowed_codes", nargs="*")
+    parser.add_argument("--recreate_table", action="store_true")
 
     args = parser.parse_args()
+
+    # Paso 3: cargar lote si corresponde
+    if pre_args.batch_imports_path and pre_args.tabla_destino:
+        from pathlib import Path
+        import json
+
+        batch_path = Path(pre_args.batch_imports_path)
+        with open(batch_path, encoding="utf-8") as f:
+            lotes = json.load(f)
+
+        lote = next((l for l in lotes if l["tabla_destino"] == pre_args.tabla_destino), None)
+
+        if not lote:
+            print(f"❌ No se encontró tabla_destino={pre_args.tabla_destino} en {pre_args.batch_imports_path}")
+            exit(1)
+
+        # Asignar directamente a args
+        args.cruises_path = lote["carpeta"]
+        args.table_name = lote["tabla_destino"]
+        args.country_code = lote["pais"]
+        args.year = lote["año"]
+        args.files = [Path(p).name for p in lote["archivos"]]
+
+    parser.add_argument("--batch_imports_path", help="Ruta a batch_imports.json")
+    parser.add_argument("--tabla_destino", help="Nombre de tabla_destino a buscar en batch_imports.json")
+
+
+    # ========================================
+    # ✅ Soporte para carga por lote desde JSON
+    # ========================================
+    if args.batch_imports_path and args.tabla_destino:
+        from pathlib import Path
+        import json
+
+        batch_imports_path = Path(args.batch_imports_path)
+        with open(batch_imports_path, encoding="utf-8") as f:
+            lotes = json.load(f)
+
+        lote = next((l for l in lotes if l["tabla_destino"] == args.tabla_destino), None)
+
+        if not lote:
+            print(f"❌ No se encontró tabla_destino={args.tabla_destino} en {args.batch_imports_path}")
+            exit(1)
+
+        # Rellenar los argumentos faltantes
+        args.cruises_path = lote["carpeta"]
+        args.table_name = lote["tabla_destino"]
+        args.country_code = lote["pais"]
+        args.year = lote["año"]
+        args.files = [Path(p).name for p in lote["archivos"]]
+
+        print(f"🚀 Cargando lote {args.table_name} ({args.year}) desde {args.batch_imports_path}")
+        print(f"📂 Carpeta: {args.cruises_path}")
+        print(f"📄 Archivos: {len(args.files)} archivos")
+
 
     # Crear filtro opcional
     filter_func = None
@@ -60,23 +109,24 @@ def main():
 
 
     # Combinar todos los datos
-    print("\n📂 Combinando archivos en DataFrame...")
+    #print("\n📂 Combinando archivos en DataFrame...")
     df_combined = combine_files(
         args.cruises_path,
         filter_func=filter_func,
-        explicit_files=[Path(f) for f in args.files] if args.files else None  # Nueva lógica
+        explicit_files=[Path(f) for f in args.files] if args.files else None
     )
 
     if df_combined is None or df_combined.empty:
         print("⚠️ No se encontraron datos combinados.")
         return
 
-    df_sum = generate_summary(args.cruises_path)
+    # Reemplaza el summary antiguo por este:
+    df_sum = generate_summary_from_df(df_combined, args.files)
     if not df_sum.empty:
         print("\n=== Resumen de archivos procesados ===")
         print(df_sum.to_string(index=False))
     else:
-        print("⚠️ Ningún archivo válido procesado.")
+        print("⚠️ Resumen no disponible.")
 
     # Obtener engine
     engine = get_engine()

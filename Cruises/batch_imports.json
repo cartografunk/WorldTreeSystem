@@ -999,11 +999,11 @@
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0161 - Ken English/KenEnglish_US0161_DataInput.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0162 - Manuel Folsom/Manuel Folsom - US0162.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0163 - Rick Griffis/RickGriffis - US0163.xlsx",
-      "USA/2024_ForestInventoryQ1_25/WT Cruises/US0164 - Steve Carson/SteveCarson_US0164 Data Input.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0164 - Steve Carson/SteveCarson_US0164 Updated Data Input.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0165 - Steven Hunter/StevenHunter_US0165_DataInput.xlsx"
     ],
-    "status": false
+    "status": true,
+    "dir": "public.inventory_us_2025"
   },
   {
     "pais": "Costa Rica",

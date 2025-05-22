@@ -97,7 +97,7 @@ def main():
         args.table_name = lote["tabla_destino"]
         args.country_code = lote["pais"]
         args.year = lote["año"]
-        args.files = [Path(p).name for p in lote["archivos"]]
+        args.files = lote["archivos"]  # ✅ así conserva las subcarpetas
 
         print(f"🚀 Cargando lote {args.table_name} ({args.year}) desde {args.batch_imports_path}")
         print(f"📂 Carpeta: {args.cruises_path}")
@@ -109,16 +109,13 @@ def main():
     if args.allowed_codes and args.allowed_codes != ["ALL"]:
         filter_func = create_filter_func(args.allowed_codes)
 
-    print("🔍 Verificando archivos cargados desde batch:")
-    for f in args.files:
-        print(" →", f)
 
     # Combinar todos los datos
     #print("\n📂 Combinando archivos en DataFrame...")
     df_combined = combine_files(
         args.cruises_path,
         filter_func=filter_func,
-        explicit_files=[Path(f) for f in args.files] if args.files else None
+        explicit_files=args.files if args.files else None
     )
 
     if df_combined is None or df_combined.empty:

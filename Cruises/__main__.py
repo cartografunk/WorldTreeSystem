@@ -46,30 +46,33 @@ def main():
     parser.add_argument("--files", nargs="+")
     parser.add_argument("--allowed_codes", nargs="*")
     parser.add_argument("--recreate_table", action="store_true")
+    parser.add_argument("--batch_id", help="ID del lote definido en batch_imports.json")
 
     args = parser.parse_args()
 
     # Paso 3: cargar lote si corresponde
-    if pre_args.batch_imports_path and pre_args.tabla_destino:
-        from pathlib import Path
-        import json
-
-        batch_path = Path(pre_args.batch_imports_path)
-        with open(batch_path, encoding="utf-8") as f:
+    # Cargar lote por batch_id, NO por tabla_destino
+    if pre_args.batch_imports_path and pre_args.batch_id:
+        with open(pre_args.batch_imports_path, encoding="utf-8") as f:
             lotes = json.load(f)
 
-        lote = next((l for l in lotes if l["tabla_destino"] == pre_args.tabla_destino), None)
+        lote = next((l for l in lotes if l.get("batch_id") == pre_args.batch_id), None)
 
         if not lote:
-            print(f"❌ No se encontró tabla_destino={pre_args.tabla_destino} en {pre_args.batch_imports_path}")
+            print(f"❌ No se encontró batch_id={pre_args.batch_id} en {pre_args.batch_imports_path}")
             exit(1)
 
-        # Asignar directamente a args
+        # Asignar a args
         args.cruises_path = lote["carpeta"]
         args.table_name = lote["tabla_destino"]
         args.country_code = lote["pais"]
         args.year = lote["año"]
-        args.files = lote["archivos"]
+
+        # Convertir rutas relativas a absolutas si es necesario
+        args.files = [
+            str(Path(f)) if Path(f).is_absolute() else str(INVENTORY_BASE / Path(f))
+            for f in lote["archivos"]
+        ]
 
     parser.add_argument("--batch_imports_path", help="Ruta a batch_imports.json")
     parser.add_argument("--tabla_destino", help="Nombre de tabla_destino a buscar en batch_imports.json")

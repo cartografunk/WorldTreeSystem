@@ -21,7 +21,9 @@
       "Mexico/2023_ForestInventory/3-WT Cruises/Rafael Hernandez Hernandez - MX0035/MX0035_2023_Rafael Hernandez Hernandez.xlsx",
       "Mexico/2023_ForestInventory/3-WT Cruises/Tito Soria - MX0036/MX0036_2023_Tito Soria Perez.xlsx",
       "Mexico/2023_ForestInventory/3-WT Cruises/Ubaldo Guillermo Perez Cruz - MX0037/MX0037_2023_Ubaldo Guillermo Perez Cruz.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Mexico",
@@ -41,7 +43,9 @@
       "Mexico/2024_ForestInventoryQ1_25/MX0049_Roberta Felipe Cruz_Inventory 2025 Q1_2025.xlsx",
       "Mexico/2024_ForestInventoryQ1_25/MX0051_Tito Soria Pérez_Inventory 2024 Q1_2025.xlsx",
       "Mexico/2024_ForestInventoryQ1_25/MX0052_Victorico Ortega_Inventory 2024 Q1_2025.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Mexico",
@@ -90,7 +94,9 @@
       "Mexico/2021_ForestInventory/6-Database/All_2021/TreeField_Data/Juan Luis Villeda Goyosso_TreeFieldData.xlsx",
       "Mexico/2021_ForestInventory/6-Database/All_2021/TreeField_Data/Omar Ulises Guerrero Aboytes_TreeFieldData.xlsx",
       "Mexico/2021_ForestInventory/6-Database/All_2021/TreeField_Data/Rogelio Rizo Velazquez_TreeFieldData.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Mexico",
@@ -111,7 +117,9 @@
       "Mexico/2022_ForestInventory/4-ForestMetrix_Projects/1_José Baruche Rodríguez Mendoza - MX0024/MX0024_Mexico_2021_Manuel Mapula_Trees.xlsx",
       "Mexico/2022_ForestInventory/4-ForestMetrix_Projects/1_Álvaro Hernández Suarez - MX0021/MX0021_Mexico_2021_Manuel Mapula_Plots.xlsx",
       "Mexico/2022_ForestInventory/4-ForestMetrix_Projects/1_Álvaro Hernández Suarez - MX0021/MX0021_Mexico_2021_Manuel Mapula_Trees.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Guatemala",
@@ -133,7 +141,9 @@
       "Guatemala/2023_ForestInventory/3-WT Cruises/Richard Steven Callaway Ayau - Eco Energia H20 - GT0043/GT0043_2023_Richard Steven Callaway Ayáu.xlsx",
       "Guatemala/2023_ForestInventory/3-WT Cruises/Trapiche de la Vega S.A; María Isabel Aguero - GT0041/GT0041_2023_Trapiche de la Vega_María Agüero.xlsx",
       "Guatemala/2023_ForestInventory/3-WT Cruises/Trapiche de la Vega S.A; María Isabel Aguero - GT0045/GT0045_2023_Trapiche de la Vega_María Agüero.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Guatemala",
@@ -154,7 +164,9 @@
       "Guatemala/2024_ForestInventoryQ1_25/GT0044_David Horacio Estrada Jeréz.xlsx",
       "Guatemala/2024_ForestInventoryQ1_25/GT0045_Trapiche de la Vega.xlsx",
       "Guatemala/2024_ForestInventoryQ1_25/Extra samples/12A_Dereck Herman_25parcelas area 2022.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Guatemala",
@@ -326,7 +338,9 @@
       "Guatemala/2021_ForestInventory/6-Database/PerformanceBonus/Referral-Performance bonus - Remaining 2021 New planting 03.04.22_DS v1.0.xlsx",
       "Guatemala/2021_ForestInventory/6-Database/PerformanceBonus/TreeTHt_Proportion.xlsx",
       "Guatemala/2021_ForestInventory/6-Database/PerformanceBonus/TreeTHt_Proportion_HS v1.1.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Guatemala",
@@ -398,7 +412,9 @@
       "Guatemala/2022_ForestInventory/4-ForestMetrix_Projects/Agroindustrias Nativa S.A._Derek Jos├⌐ Herman Gordillo - GT0031/New Data/GT0031_Guatemala_2021_HS_Trees.xlsx",
       "Guatemala/2022_ForestInventory/4-ForestMetrix_Projects/Agroindustrias Nativa S.A._Derek Jos├⌐ Herman Gordillo - GT0031/New Data/GT0031_Guatemala_2021_JH_Plots.xlsx",
       "Guatemala/2022_ForestInventory/4-ForestMetrix_Projects/Agroindustrias Nativa S.A._Derek Jos├⌐ Herman Gordillo - GT0031/New Data/GT0031_Guatemala_2021_JH_Trees.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "USA",
@@ -449,7 +465,9 @@
       "USA/2023_ForestInventory/4-Contractor Cruises/Todd McCarley - US0143/us0143_us_2022_jcc.xlsx",
       "USA/2023_ForestInventory/4-Contractor Cruises/Wayne Crotty - US0030/US0030_US_2018_DallasEnfinger.xlsx",
       "USA/2023_ForestInventory/4-Contractor Cruises/Will Johnson - US0032/US0032_US_2018_DallasEnfinger.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "USA",
@@ -756,7 +774,9 @@
       "USA/2021_ForestInventory/9-Database/All_2021/TreeField_Data/Wesley and Stanley Todd_TreeFieldData.xlsx",
       "USA/2021_ForestInventory/9-Database/All_2021/TreeField_Data/WillJohnson_TreeFieldData.xlsx",
       "USA/2021_ForestInventory/9-Database/DiscrepancyReports/1-FinalReports/Raw Reports/TEMPLATE Data.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "USA",
@@ -932,7 +952,9 @@
       "USA/2022_ForestInventory/8-ForestMetrix_Projects/2_Wayne Moseley - US0051/US0051_US_2019_Ashley Daniels_Trees.xlsx",
       "USA/2022_ForestInventory/8-ForestMetrix_Projects/Steven Hunter - US0142/US0142_US_2022_PrestonPayne_Plots.xlsx",
       "USA/2022_ForestInventory/8-ForestMetrix_Projects/Steven Hunter - US0142/US0142_US_2022_PrestonPayne_Trees.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "USA",
@@ -1003,7 +1025,30 @@
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0165 - Steven Hunter/StevenHunter_US0165_DataInput.xlsx"
     ],
     "status": true,
-    "dir": "public.inventory_us_2025"
+    "dir": "public.inventory_us_2025",
+    "batch_id": "inventory_us_2025_mainimport",
+    "fecha": "2025-05-22T13:45:00"
+  },
+  {
+    "pais": "USA",
+    "carpeta": "USA/2024_ForestInventoryQ1_25",
+    "año": 2025,
+    "tabla_destino": "inventory_us_2025",
+    "archivos": [
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0005 - Bruce Gamble/BruceGamble_US0005_DataInput.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0006 - David Smith/DavidSmith_US0006_DataInput.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0008 - Eugene Martens/Eugene Martens - US0008.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0014 - Wayne Owen/WayneOwen_US0014_DataInput.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0039 - David Chang/DavidChang_US0039_DataInput.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0055 - Billy Strange/BillyStrange_US0055_DataInput.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0062 - David Chang/DavidChang_US0062_DataInput.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0077 - Jim West/Jim West - US0077.xlsx",
+      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0077 - Mike Porter/Mike Porter - US0116 or US0077 (2) Survived Field.xlsx"
+    ],
+    "status": true,
+    "dir": "public.inventory_us_2025",
+    "batch_id": "inventory_us_2025_auxiliaryimport1",
+    "fecha": ""
   },
   {
     "pais": "Costa Rica",
@@ -1056,7 +1101,9 @@
       "Costa Rica/2023_ForestInventory/3-WT Cruises/William Romero_CR0102/William Romero_CR0102.xlsx",
       "Costa Rica/2023_ForestInventory/3-WT Cruises/Wilman Alvarado - CR0069/Wilman Alvarado_CR0069.xlsx",
       "Costa Rica/2023_ForestInventory/3-WT Cruises/Xinia Moya - CR0078/CR0078_2021_Xinia Moya.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Costa Rica",
@@ -1078,7 +1125,9 @@
       "Costa Rica/2024_ForestInventoryQ1_25/CR104_Emmanuel Ruiz_Inventory 2024 Q1_2025.xlsx"
     ],
     "status": true,
-    "dir": "public.inventory_cr_2025"
+    "dir": "public.inventory_cr_2025",
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Costa Rica",
@@ -1340,7 +1389,9 @@
       "Costa Rica/2021_ForestInventory/7-Database/Metric - Do not use/All_2021/TreeField_Data/VivianaAlvarado_Miguel_TreeFieldData.xlsx",
       "Costa Rica/2021_ForestInventory/7-Database/Metric - Do not use/All_2021/TreeField_Data/Warner Salazar_TreeFieldData.xlsx",
       "Costa Rica/2021_ForestInventory/7-Database/Metric - Do not use/All_2021/TreeField_Data/Wilberth Alfaro_TreeFieldData.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   },
   {
     "pais": "Costa Rica",
@@ -1368,6 +1419,8 @@
       "Costa Rica/2022_ForestInventory/4-ForestMetrix_Projects/1_Roy Damian Campos - CR0065/CR0065_Costa Rica_2020_Gustavo Solis_Trees.xlsx",
       "Costa Rica/2022_ForestInventory/4-ForestMetrix_Projects/1_Xinia Moya - CR0078/CR0078_Costa Rica_2021_Gustavo Solis_Plots.xlsx",
       "Costa Rica/2022_ForestInventory/4-ForestMetrix_Projects/1_Xinia Moya - CR0078/CR0078_Costa Rica_2021_Gustavo Solis_Trees.xlsx"
-    ]
+    ],
+    "batch_id": "",
+    "fecha": ""
   }
 ]

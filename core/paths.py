@@ -3,7 +3,7 @@
 from core.libs import Path, os, safe_mkdir
 
 # === Rutas base ===
-INVENTORY_BASE = Path(r"C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos")
+INVENTORY_BASE = Path(r"D:\OneDrive Local\OneDrive - World Tree Technologies Inc\Forest Inventory - Documentos")
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # WorldTreeSystem/
 DATA_DIR = BASE_DIR / "data"

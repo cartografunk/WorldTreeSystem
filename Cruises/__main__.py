@@ -1,7 +1,7 @@
 #WorldTreeSystem/Cruises/main.py
 
 print("🌎 Hello World Tree!")
-from core.libs import argparse, pd, inspect, Path
+from core.libs import argparse, pd, inspect, Path, json
 from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
 
@@ -32,6 +32,7 @@ def main():
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument("--batch_imports_path")
     pre_parser.add_argument("--tabla_destino")
+    pre_parser.add_argument("--batch_id")
     pre_args, _ = pre_parser.parse_known_args()
 
     # Paso 2: parser completo con todos los argumentos
@@ -82,8 +83,6 @@ def main():
     # ✅ Soporte para carga por lote desde JSON
     # ========================================
     if args.batch_imports_path and args.tabla_destino:
-        from pathlib import Path
-        import json
 
         batch_imports_path = Path(args.batch_imports_path)
         with open(batch_imports_path, encoding="utf-8") as f:

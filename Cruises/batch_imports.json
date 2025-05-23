@@ -147,8 +147,9 @@
   },
   {
     "pais": "Guatemala",
-    "año": 2024,
-    "tabla_destino": "inventory_gt_2024",
+    "carpeta": "Guatemala/2024_ForestInventoryQ1_25",
+    "año": 2025,
+    "tabla_destino": "inventory_gt_2025",
     "archivos": [
       "Guatemala/2024_ForestInventoryQ1_25/GT0024b_Julio Francisco Morán Pérez.xlsx",
       "Guatemala/2024_ForestInventoryQ1_25/GT0029_Rudy Israel Cienfuegos Cordón.xlsx",
@@ -165,7 +166,7 @@
       "Guatemala/2024_ForestInventoryQ1_25/GT0045_Trapiche de la Vega.xlsx",
       "Guatemala/2024_ForestInventoryQ1_25/Extra samples/12A_Dereck Herman_25parcelas area 2022.xlsx"
     ],
-    "batch_id": "",
+    "batch_id": "inventory_gt_2025_mainimport",
     "fecha": ""
   },
   {

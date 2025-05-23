@@ -33,11 +33,31 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
      - df_input: la hoja 'Input' o 'DataInput'
      - meta: dict con contract_code, farmer_name, cruise_date
     """
+    from pathlib import Path
+    from time import sleep
+
     try:
-        #print(">>> Leyendo archivo:", repr(file_path))
+        path = Path(file_path)
+        max_retries = 3
+        delay_base = 2  # segundos
+
+        for attempt in range(1, max_retries + 1):
+            success = force_download(path)
+
+            # Validación real de archivo descargado
+            if success and path.exists() and path.is_file() and path.stat().st_size > 0:
+                break
+
+            print(f"🔁 Retry {attempt}/{max_retries} para {path.name}...")
+            sleep(delay_base * attempt)
+        else:
+            print(f"⛔ No se pudo acceder a: {file_path} tras {max_retries} intentos")
+            return None, {}
+
+        # Proceder con la lectura
         xls = pd.ExcelFile(file_path)
         raw_sheets = xls.sheet_names
-        # buscar hoja de input de forma case‐insensitive
+
         for s in raw_sheets:
             if s.lower().strip() in ("input", "datainput"):
                 target = s
@@ -46,10 +66,8 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
             target = raw_sheets[0]
 
         df = pd.read_excel(xls, sheet_name=target, dtype=str, na_filter=False)
-        # limpieza de nombres
         df.columns = [clean_column_name(c) for c in df.columns]
 
-        # renombrar según schema
         rename_dict = {}
         for col in COLUMNS:
             if col.get("source") != "input":
@@ -61,15 +79,14 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
                 pass
         df = df.rename(columns=rename_dict)
 
-        # metadatos con tu extractor existente
         meta = extract_metadata_from_excel(file_path) or {}
-
         return df, meta
 
     except Exception as e:
         print(f"[ERROR] {file_path}: {e}")
         traceback.print_exc()
         return None, {}
+
 
 
 def combine_files(base_path, filter_func=None, explicit_files=None):

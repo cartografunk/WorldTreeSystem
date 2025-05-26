@@ -20,24 +20,35 @@ def get_inventory_tables(engine):
         return [row[0] for row in result]
 
 
-def get_cruise_date(df, contract_code):
-    contract_col = get_column(df, "contractcode")
-
+def get_cruise_date(df, contract_code, engine, country, year):
+    table_name = f"cat_inventory_{country}_{year}"
     try:
-        cruise_col = get_column(df, "cruisedate")
-    except KeyError:
-        print(f"⚠️ No se encontró 'cruisedate' para contrato {contract_code}.")
-        return None
+        catalog = pd.read_sql(
+            f'SELECT contractcode, cruisedate FROM {table_name}',
+            engine
+        )
+        match = catalog[catalog["contractcode"] == contract_code]
+        if not match.empty:
+            date_val = match.iloc[0]["cruisedate"]
+            return pd.to_datetime(date_val).strftime("%Y-%m-%d") if pd.notnull(date_val) else "pending"
+        else:
+            print(f"⚠️  No CruiseDate encontrado en {table_name} para {contract_code}")
+            return "pending"
+    except Exception as e:
+        print(f"⚠️  Error accediendo a {table_name}: {e}")
+        return "pending"
 
-    filtered = df[df[contract_col] == contract_code]
-    if filtered.empty or cruise_col not in filtered.columns:
-        return None
 
-    return filtered.sort_values(by=cruise_col, ascending=False).iloc[0][cruise_col]
+def safe_numeric(series):
+    try:
+        return pd.to_numeric(series, errors="coerce")
+    except Exception:
+        return pd.Series([None] * len(series), index=series.index)
 
 
 def process_inventory_table(engine, table):
     df = pd.read_sql(f'SELECT * FROM public.{table}', engine)
+    print(f"\n📄 Columnas cargadas para {table}: {df.columns.tolist()}")
     if df.empty:
         return []
 
@@ -45,11 +56,14 @@ def process_inventory_table(engine, table):
 
     # Obtener columnas reales desde el esquema
     contract_col = get_column(df, "contractcode")
+    print(f"✅ contract_col: {contract_col}")
     dbh_col = get_column(df, "dbh_in")
     tht_col = get_column(df, "tht_ft")
     mht_col = get_column(df, "merch_ht_ft")
     doyle_col = get_column(df, "doyle_bf")
     status_col = get_column(df, "status_id")
+
+    print(f"✅ status_col: {status_col}")
 
     # Crear vista filtrada sin perder metadatos como CruiseDate
     filtered_df = df[
@@ -67,28 +81,25 @@ def process_inventory_table(engine, table):
         country, year = country_year
         year = int(year)
 
-        cruise_date = get_cruise_date(df, contract_code)
+        cruise_date = get_cruise_date(df, contract_code, engine, country, year)
         if cruise_date is None:
             cruise_date = "pending"  # default value when no date is available
 
-        live = group[group[status_col] == 1]
-
-        if live.empty:
-            continue
+        live = group  # ya no filtramos por árboles vivos
 
         row = {
             "contract_code": contract_code,
             "inventory_year": year,
             "inventory_date": cruise_date,
-            "dbh_mean": round(live[dbh_col].mean(), 2),
-            "dbh_std": round(live[dbh_col].std(), 2),
-            "tht_mean": round(live[tht_col].mean(), 2),
-            "tht_std": round(live[tht_col].std(), 2),
-            "mht_mean": round(live[mht_col].mean(), 2),
-            "mht_std": round(live[mht_col].std(), 2),
-            "doyle_bf_mean": round(live[doyle_col].mean(), 2),
-            "doyle_bf_std": round(live[doyle_col].std(), 2),
-            "doyle_bf_total": round(live[doyle_col].sum(), 2),
+            "dbh_mean": round(safe_numeric(live[dbh_col]).mean(), 2),
+            "dbh_std": round(safe_numeric(live[dbh_col]).std(), 2),
+            "tht_mean": round(safe_numeric(live[tht_col]).mean(), 2),
+            "tht_std": round(safe_numeric(live[tht_col]).std(), 2),
+            "mht_mean": round(safe_numeric(live[mht_col]).mean(), 2),
+            "mht_std": round(safe_numeric(live[mht_col]).std(), 2),
+            "doyle_bf_mean": round(safe_numeric(live[doyle_col]).mean(), 2),
+            "doyle_bf_std": round(safe_numeric(live[doyle_col]).std(), 2),
+            "doyle_bf_total": round(safe_numeric(live[doyle_col]).sum(), 2),
         }
 
         rows.append(row)

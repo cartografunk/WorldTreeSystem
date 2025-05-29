@@ -977,7 +977,7 @@
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0039 - David Chang/DavidChang_US0039_DataInput.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0055 - Billy Strange/BillyStrange_US0055_DataInput.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0062 - David Chang/DavidChang_US0062_DataInput.xlsx",
-      "USA/2024_ForestInventoryQ1_25/WT Cruises/US0077 - Jim West/Jim West - US0077.xlsx",
+      "USA/2024_ForestInventoryQ1_25/WT Cruises/US0071 - Jim West/Jim West - US0071.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0077 - Mike Porter/Mike Porter - US0116 or US0077 (2) Survived Field.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0091 - Billy Gordie/BillyGordie_US0091_DataInput.xlsx",
       "USA/2024_ForestInventoryQ1_25/WT Cruises/US0092 - Billy Strange/BillyStrange_US0092_DataInput.xlsx",
@@ -1036,15 +1036,9 @@
     "año": 2025,
     "tabla_destino": "inventory_us_2025",
     "archivos": [
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0005 - Bruce Gamble/BruceGamble_US0005_DataInput.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0006 - David Smith/DavidSmith_US0006_DataInput.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0008 - Eugene Martens/Eugene Martens - US0008.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0014 - Wayne Owen/WayneOwen_US0014_DataInput.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0039 - David Chang/DavidChang_US0039_DataInput.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0055 - Billy Strange/BillyStrange_US0055_DataInput.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0062 - David Chang/DavidChang_US0062_DataInput.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0077 - Jim West/Jim West - US0077.xlsx",
-      "C:/Users/HeyCe/World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0077 - Mike Porter/Mike Porter - US0116 or US0077 (2) Survived Field.xlsx"
+      "D:/OneDrive Local/OneDrive - World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0116 - Mike Porter/Mike Porter - US0116 or US0077.xlsx",
+      "D:/OneDrive Local/OneDrive - World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0146 - Clinton&Anita Hardie/Clinton Hardie Inventory - US0146.xlsx",
+      "D:/OneDrive Local/OneDrive - World Tree Technologies Inc/Forest Inventory - Documentos/USA/2024_ForestInventoryQ1_25/WT Cruises/US0147 - Colin McCulley/Colin McCulley - US0147 Inventory.xlsx"
     ],
     "status": true,
     "dir": "public.inventory_us_2025",

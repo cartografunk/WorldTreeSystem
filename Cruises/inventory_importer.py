@@ -1,16 +1,11 @@
 # forest_inventory/inventory_importer.py
-from core.libs import pd, unicodedata, re, inspect
 from core.db import get_engine
-
-from sqlalchemy import text
-
-from sqlalchemy import text, inspect
+from core.libs import text, inspect, pd, unicodedata, re
 
 def ensure_table(df, engine, table_name, recreate=False):
     insp = inspect(engine)
 
     with engine.begin() as conn:
-        # 🔧 Quitar columnas duplicadas ANTES de crear tabla
         df = df.loc[:, ~df.columns.duplicated()]
 
         if recreate or not insp.has_table(table_name):
@@ -19,19 +14,41 @@ def ensure_table(df, engine, table_name, recreate=False):
 
             df.head(0).to_sql(table_name, conn, index=False, if_exists="replace")
 
-            # sólo añadimos PK si existe la columna id
             if 'id' in df.columns:
                 conn.execute(text(
                     f'ALTER TABLE "{table_name}" '
                     f'ADD CONSTRAINT {table_name}_pk PRIMARY KEY (id)'
                 ))
+                print(f"🔑 PRIMARY KEY agregada en 'id'")
         else:
             existing_cols = {c['name'] for c in insp.get_columns(table_name)}
             for col in df.columns:
                 if col not in existing_cols:
                     conn.execute(text(
-                        f'ALTER TABLE "{table_name}" ADD COLUMN "{col}" TEXT'
+                        f'ALTER TABLE "{table_name}" ADD COLUMN \"{col}\" TEXT"
                     ))
+
+            # ✅ Verificar si 'id' ya tiene PK (para evitar conflicto ON CONFLICT)
+            if 'id' in df.columns:
+                result = conn.execute(text(f"""
+                    SELECT COUNT(*)
+                    FROM information_schema.table_constraints tc
+                    JOIN information_schema.constraint_column_usage ccu
+                      ON tc.constraint_name = ccu.constraint_name
+                    WHERE tc.table_name = :table AND tc.constraint_type = 'PRIMARY KEY'
+                      AND ccu.column_name = 'id'
+                """), {'table': table_name})
+                has_pk = result.scalar() > 0
+
+                if not has_pk:
+                    try:
+                        conn.execute(text(
+                            f'ALTER TABLE "{table_name}" '
+                            f'ADD CONSTRAINT {table_name}_pk PRIMARY KEY (id)'
+                        ))
+                        print(f"🔑 PRIMARY KEY añadida en tabla existente para 'id'")
+                    except Exception as e:
+                        print(f"❌ No se pudo agregar PK en 'id': {e}")
 
 
 def save_inventory_to_sql(df,

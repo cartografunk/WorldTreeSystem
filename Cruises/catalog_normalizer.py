@@ -28,7 +28,7 @@ def parse_catalog_value(val: str):
     return val_str
 
 
-def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], country_code='GT') -> pd.DataFrame:
+def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], country_code= str) -> pd.DataFrame:
     config = PAIS_CONFIG.get(country_code.upper(), {"col": "nombre"})
     field = config["col"]
     df_result = df.copy()
@@ -98,7 +98,7 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
                     new_id = result.scalar()
                     val_map[raw_val] = new_id
                     catalog_dict[lookup_val] = new_id
-                    #print(f"🆕 Insertado '{parsed_val}' en {table} → {id_field}={new_id}")
+                    print(f"🆕 Insertado '{parsed_val}' en {table} → {id_field}={new_id}")
                 except Exception as e:
                     print(f"❌ Error al insertar '{parsed_val}' en {table}: {e}")
                     continue

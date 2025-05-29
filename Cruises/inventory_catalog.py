@@ -37,14 +37,14 @@ def create_inventory_catalog(df, engine, table_catalog_name):
 
     # --- Paso 3: Crear DataFrame del catálogo ---
     try:
-        df_catalog = df[cols_base].drop_duplicates(subset=["contractcode"]).copy()
+        df_catalog = df[cols_base].drop_duplicates(subset=["contractcode", "cruisedate"]).copy()
     except KeyError as e:
         print(f"❌ Error crítico: {str(e)}")
         print("Columnas disponibles en df:", df.columns.tolist())
         raise
 
     # --- Paso 4: Calcular TreesSampled ---
-    sampled = df.groupby("contractcode").size().reset_index(name="TreesSampled")
+    sampled = df.groupby(["contractcode", "cruisedate"]).size().reset_index(name="TreesSampled")
 
     # --- Paso 5: Traer datos de cat_farmers ---
     query = '''
@@ -58,6 +58,7 @@ def create_inventory_catalog(df, engine, table_catalog_name):
     df_farmers = pd.read_sql('SELECT "contractcode" AS contractcode, "farmername" FROM cat_farmers', engine)
 
     # --- Paso 6: Unir datos ---
+    df_catalog = pd.merge(df_catalog, sampled, on=["contractcode", "cruisedate"], how="left")
     df_catalog = pd.merge(df_catalog, df_farmers, on="contractcode", how="left")
 
     # --- Paso 7: Ordenar columnas ---
@@ -76,8 +77,6 @@ def create_inventory_catalog(df, engine, table_catalog_name):
         table_catalog_name,
         recreate=True
     )
-    save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
-
     save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
     print(f"✅ Catálogo guardado: \n {table_catalog_name}")
 

@@ -94,21 +94,15 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             continue
 
         if key == "G1":
-
-            # 1) Título dinámico de mortalidad
+            # Título dinámico de mortalidad
             mort_title = (
                 f"{text_templates['chart_titles']['mortality'][lang]}: "
                 f"{metrics['rate']:.1f}%"
             )
             doc.add_heading(mort_title, level=2)
 
-            # Calcula dimensiones en pulgadas (cm / 2.54)
-            pic_width_in = 8.5 / 2.54
-            pic_height_in = 5.8 / 2.54
-
-            # Crea la tabla 1 fila × 2 columnas
+            # Crear tabla 1x2 sin bordes
             table = doc.add_table(rows=1, cols=2)
-            # ---- Quitar bordes ----
             tbl = table._tbl
             tblPr = tbl.tblPr
             for node in tblPr.findall(qn('w:tblBorders')):
@@ -120,32 +114,45 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
                 borders.append(elm)
             tblPr.append(borders)
 
-            # Celda izquierda: texto de mortalidad
+            # Contenido celda izquierda
             cell_text, cell_img = table.rows[0].cells
+            section2_title = text_templates["section_headers"]["G2"][lang]
             mort_text = text_templates["mortality_text"][lang].format(
                 dead_per_100=metrics['dead_per_100'],
                 alive=metrics['survivors_estimated']
             )
-            cell_text.paragraphs[0].add_run(mort_text)
 
-            # Celda derecha: gráfica con tamaño fijo
+            # Agrega texto completo en la celda izquierda
+            cell_text.paragraphs[0].add_run(mort_text).bold = True
+            cell_text.add_paragraph(section2_title).runs[0].bold = True
+            for paragraph in format_paragraphs(values):
+                cell_text.add_paragraph(paragraph)
+
+            # Imagen G1 en la celda derecha
             run = cell_img.paragraphs[0].add_run()
-            run.add_picture(img_path, width=Inches(pic_width_in), height=Inches(pic_height_in))
+            run.add_picture(img_path, width=Inches(8.5 / 2.54), height=Inches(5.8 / 2.54))
+
+            # Después de la tabla, insertar gráficas G2 y G3
+            g2_path = os.path.join(resumen_dir, f"G2_Altura_{code}.png")
+            g3_path = os.path.join(resumen_dir, f"G3_Crecimiento_{code}.png")
+
+            if os.path.exists(g2_path):
+                doc.add_picture(g2_path, width=Inches(4.1))
+
+            if os.path.exists(g3_path):
+                doc.add_picture(g3_path, width=Inches(4.1))
+
+            continue  # Saltar a siguiente
+
+
+        elif key == "G2":
 
             continue
 
-        elif key == "G2":
-            # Altura y medidas + texto dinámico
-            section_title = text_templates["section_headers"][key][lang]
-            doc.add_heading(section_title, level=2)
 
-            for paragraph in format_paragraphs(values):
-                doc.add_paragraph(paragraph)
+        elif key == "G3":
 
-        else:  # G3
-            # Solo encabezado de sección
-            section_title = text_templates["section_headers"][key][lang]
-            doc.add_heading(section_title, level=2)
+            continue
 
         # Inserta la imagen y luego salta de página
         doc.add_picture(img_path, width=Inches(6.125))

@@ -1,8 +1,9 @@
 #Cruises/general_importer.py
 from sqlalchemy import Text, Float, Numeric, SmallInteger, Date
-from core.libs import pd, text, inspect, pd, unicodedata, re, Path, json
-from core.schema import COLUMNS
+from core.libs import pd, text, inspect, pd
+from core.schema import COLUMNS, get_dtypes_for_dataframe, _SA_TO_PD
 from core.db import get_engine
+
 
 # Construye FINAL_ORDER y DTYPES desde schema
 SQL_COLUMNS = { col["key"]: col["sql_name"] for col in COLUMNS }
@@ -85,7 +86,7 @@ def create_inventory_catalog(df, engine, table_catalog_name):
         FROM masterdatabase.contract_farmer_information
     """, engine)
 
-    # En inventory_catalog.py, antes del merge:
+
     df_farmers = pd.read_sql('SELECT "contractcode" AS contractcode, "farmername" FROM cat_farmers', engine)
 
     # --- Paso 6: Unir datos ---

@@ -1,8 +1,7 @@
 # — imports al inicio del archivo —
 from core.schema import rename_columns_using_schema
-from Cruises.global_importer import prepare_df_for_sql
+from Cruises.general_importer import prepare_df_for_sql, save_inventory_to_sql, ensure_table
 from core.schema import get_column
-from Cruises.global_importer import save_inventory_to_sql, ensure_table
 from core.libs import pd, os
 
 def create_audit_table(engine, table_name: str, output_excel_folder=None):

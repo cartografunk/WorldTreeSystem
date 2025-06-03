@@ -29,3 +29,15 @@ def ensure_all_paths_exist():
     """Crea las carpetas si no existen"""
     for path in [DATA_DIR, OUTPUTS_DIR, TEMP_DIR, REPORTS_DIR]:
         safe_mkdir(path)
+
+def resolve_inventory_paths(file_list):
+    """Convierte rutas relativas a absolutas usando INVENTORY_BASE.
+    Si ya son absolutas, se devuelven tal cual."""
+    resolved = []
+    for f in file_list:
+        path = Path(f)
+        if path.is_absolute():
+            resolved.append(str(path))
+        else:
+            resolved.append(str((INVENTORY_BASE / path).resolve()))
+    return resolved

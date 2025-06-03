@@ -1,6 +1,6 @@
 # WorldTreeSystem/core/schema.py
 from sqlalchemy import Float, SmallInteger, Text, Date, Numeric, Integer
-from core.schema import clean_column_name
+from core.libs import re, unicodedata
 
 COLUMNS = [
   {
@@ -83,7 +83,7 @@ COLUMNS = [
   },
   {
     "key": "Status", "sql_name": "status_id",
-    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición"],
+    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion"],
     "dtype": "TEXT",
     "source": "input",
     "catalog_table": "cat_status",
@@ -260,24 +260,13 @@ def clean_column_name(name):
   name = re.sub(r'_+', '_', name)
   return name
 
-  def get_column(df, logical_name: str) -> str:
-    """
-    Devuelve el nombre real de la columna en el DataFrame `df` que corresponde al
-    campo lógico `logical_name`, usando los alias definidos en schema.py
-    """
-    # 1. Buscar la definición en schema
-    for entry in COLUMNS:
-      if logical_name == entry["key"] or logical_name == entry["sql_name"] or logical_name in entry["aliases"]:
-        candidates = [entry["key"], entry["sql_name"]] + entry.get("aliases", [])
-        break
-    else:
-      raise KeyError(f"❌ '{logical_name}' no está definido en schema")
 
-    # 2. Coincidencia exacta
-    for candidate in candidates:
-      if candidate in df.columns:
-        return candidate
-
-    raise KeyError(
-      f"❌ No se encontró una columna para '{logical_name}'. Aliases probados: {candidates}"
-    )
+def get_column(logical_name: str) -> str:
+  """
+  Devuelve el nombre estandarizado (key) de la columna lógica,
+  según la definición de `COLUMNS` en schema.py.
+  """
+  for entry in COLUMNS:
+    if logical_name == entry["key"] or logical_name == entry["sql_name"] or logical_name in entry.get("aliases", []):
+      return entry["key"]
+  raise KeyError(f"❌ '{logical_name}' no está definido en schema")

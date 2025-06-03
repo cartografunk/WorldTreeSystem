@@ -1,12 +1,16 @@
-# xlsx_read_and_merge.py
-from core.libs    import pd, warnings, Path, os
+#Cruises/xlsx_read_and_merge.py
+from core.schema import (
+    COLUMNS,
+    clean_column_name,
+    rename_columns_using_schema,
+    get_column as get_column_from_schema,
+)
+from core.libs import pd, warnings, Path, os, tqdm, traceback
+
 from Cruises.utils.metadata_extractor import extract_metadata_from_excel
-from core.schema import COLUMNS, cast_dataframe
-from core.schema import get_column
-from core.schema import clean_column_name
-from tqdm import tqdm
-import traceback
 from Cruises.utils.onedriver import force_download
+from Cruises.general_importer import cast_dataframe
+
 
 warnings.filterwarnings(
     "ignore",
@@ -73,7 +77,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
             if col.get("source") != "input":
                 continue
             try:
-                real = get_column(df, col["key"])
+                real = get_column_from_schema(col["key"])
                 rename_dict[real] = col["key"]
             except KeyError:
                 pass
@@ -93,7 +97,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
 
 
 
-def combine_files(base_path, filter_func=None, explicit_files=None):
+def combine_files(explicit_files=None, base_path=None, filter_func=None):
     """Combina archivos XLSX de inventario forestal.
 
     Args:
@@ -110,11 +114,7 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
 
     # Priorizar archivos explícitos si existen
     if explicit_files:
-        from core.paths import INVENTORY_BASE
-
-        # 🔧 Armar rutas completas + limpiar nombres invisibles
-        all_files = [INVENTORY_BASE / Path(f) for f in explicit_files]
-
+        all_files = [Path(f) for f in explicit_files]
 
         #print(f"🗂️ Procesando {len(all_files)} archivos explícitos")
 
@@ -154,8 +154,10 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
                 print(f"   ⚠️  Archivo vacío: {file}")
                 continue
 
+            df = rename_columns_using_schema(df)
+
             # Validación básica de columnas
-            required_cols = ["tree_number", "Status"]
+            required_cols = [get_column_from_schema("tree_number"), get_column_from_schema("Status")]
             missing = [c for c in required_cols if c not in df.columns]
             if missing:
                 print(f"   ❌ Faltan columnas clave: {', '.join(missing)}")
@@ -167,7 +169,7 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
                 continue
 
             # Limpieza inicial
-            df = df.dropna(subset=["tree_number", "Status"], how="all")
+            df = df.dropna(subset=required_cols, how="all")
             df = df.reset_index(drop=True)
 
             # Añadir metadatos

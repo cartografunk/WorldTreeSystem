@@ -20,6 +20,7 @@ from datetime import datetime
 import ctypes
 import json
 import time
+import traceback
 
 # ───── Regex & CLI ─────
 import re

@@ -4,9 +4,9 @@ print("🌎 Hello World Tree!")
 from core.libs import argparse, pd, Path, json
 from core.db import get_engine
 
-from Cruises.reader import load_and_prepare_data
-from Cruises.global_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql, create_inventory_catalog, marcar_lote_completado
-from Cruises.processing import process_inventory_dataframe
+from Cruises.general_reader import load_and_prepare_data
+from Cruises.general_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql, create_inventory_catalog, marcar_lote_completado, cast_dataframe
+from Cruises.general_processing import process_inventory_dataframe
 from Cruises.audit_pipeline import run_audit
 from Cruises.import_summary import generate_summary_from_df
 
@@ -68,7 +68,7 @@ def main():
     )
 
     # 🎯 2) Alinea todos los dtypes contra schema.py
-    from Cruises.general_importer from Cruises.global_importer import prepare_df_for_sqldataframe
+
     df_sql = cast_dataframe(df_sql)
     
     df_sql = df_sql.loc[:, ~df_sql.columns.duplicated()]

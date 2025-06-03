@@ -5,104 +5,17 @@ from core.libs import argparse, pd, Path, json
 from core.db import get_engine
 from core.paths import INVENTORY_BASE
 
-from Cruises.utils.sql_helpers import prepare_df_for_sql
-from Cruises.xlsx_read_and_merge import combine_files
-from Cruises.inventory_importer import ensure_table
-
-from Cruises.inventory_importer import save_inventory_to_sql
-from Cruises.inventory_catalog import create_inventory_catalog
+from Cruises.reader import load_and_prepare_data
+from Cruises.global_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql, create_inventory_catalog, marcar_lote_completado
 from Cruises.processing import process_inventory_dataframe
 from Cruises.audit_pipeline import run_audit
 from Cruises.import_summary import generate_summary_from_df
-from Cruises.status_para_batch_imports import marcar_lote_completado
 
 
 print("🌎 Iniciando...")
 
 def main():
-    # Paso 1: parse preliminar para batch_imports_path y tabla_destino
-    pre_parser = argparse.ArgumentParser(add_help=False)
-    pre_parser.add_argument("--batch_imports_path")
-    pre_parser.add_argument("--tabla_destino")
-    pre_parser.add_argument("--batch_id")
-    pre_args, _ = pre_parser.parse_known_args()
-
-    # Paso 2: parser completo con todos los argumentos
-    parser = argparse.ArgumentParser(conflict_handler="resolve")
-    parser.add_argument("--batch_imports_path", help="Ruta a batch_imports.json")
-    parser.add_argument("--tabla_destino", help="Nombre de tabla_destino a buscar en batch_imports.json")
-    parser.add_argument("--cruises_path", required=False)
-    parser.add_argument("--table_name", required=False)
-    parser.add_argument("--country_code", required=False)
-    parser.add_argument("--year", type=int, required=False)
-    parser.add_argument("--output_file", required=True)
-    parser.add_argument("--files", nargs="+")
-    parser.add_argument("--allowed_codes", nargs="*")
-    parser.add_argument("--recreate_table", action="store_true")
-    parser.add_argument("--batch_id", help="ID del lote definido en batch_imports.json")
-
-    args = parser.parse_args()
-
-    # Paso 3: cargar lote si corresponde
-    # Cargar lote por batch_id, NO por tabla_destino
-    if pre_args.batch_imports_path and pre_args.batch_id:
-        with open(pre_args.batch_imports_path, encoding="utf-8") as f:
-            lotes = json.load(f)
-
-        lote = next((l for l in lotes if l.get("batch_id") == pre_args.batch_id), None)
-
-        if not lote:
-            print(f"❌ No se encontró batch_id={pre_args.batch_id} en {pre_args.batch_imports_path}")
-            exit(1)
-
-        # Asignar a args
-        args.cruises_path = lote["carpeta"]
-        args.table_name = lote["tabla_destino"]
-        args.country_code = lote["pais"]
-        args.year = lote["año"]
-
-        # Convertir rutas relativas a absolutas si es necesario
-        args.files = [
-            str(Path(f)) if Path(f).is_absolute() else str(INVENTORY_BASE / Path(f))
-            for f in lote["archivos"]
-        ]
-
-    parser.add_argument("--batch_imports_path", help="Ruta a batch_imports.json")
-    parser.add_argument("--tabla_destino", help="Nombre de tabla_destino a buscar en batch_imports.json")
-
-
-    # ========================================
-    # ✅ Soporte para carga por lote desde JSON
-    # ========================================
-    if args.batch_imports_path and args.tabla_destino:
-
-        batch_imports_path = Path(args.batch_imports_path)
-        with open(batch_imports_path, encoding="utf-8") as f:
-            lotes = json.load(f)
-
-        lote = next((l for l in lotes if l["tabla_destino"] == args.tabla_destino), None)
-
-        if not lote:
-            print(f"❌ No se encontró tabla_destino={args.tabla_destino} en {args.batch_imports_path}")
-            exit(1)
-
-        # Rellenar los argumentos faltantes
-        args.cruises_path = lote["carpeta"]
-        args.table_name = lote["tabla_destino"]
-        args.country_code = lote["pais"]
-        args.year = lote["año"]
-        args.files = lote["archivos"]  # ✅ así conserva las subcarpetas
-
-        print(f"🚀 Cargando lote {args.table_name} ({args.year}) desde {args.batch_imports_path}")
-        print(f"📂 Carpeta: {args.cruises_path}")
-        print(f"📄 Archivos: {len(args.files)} archivos")
-
-    # Combinar todos los datos
-    #print("\n📂 Combinando archivos en DataFrame...")
-    df_combined = combine_files(
-        args.cruises_path,
-        explicit_files=args.files if args.files else None
-    )
+    args, df_combined = load_and_prepare_data()
 
     if df_combined is None or df_combined.empty:
         print("⚠️ No se encontraron datos combinados.")
@@ -156,7 +69,7 @@ def main():
     )
 
     # 🎯 2) Alinea todos los dtypes contra schema.py
-    from core.schema import cast_dataframe
+    from Cruises.general_importer from Cruises.global_importer import prepare_df_for_sqldataframe
     df_sql = cast_dataframe(df_sql)
     
     df_sql = df_sql.loc[:, ~df_sql.columns.duplicated()]

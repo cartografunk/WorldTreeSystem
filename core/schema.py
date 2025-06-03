@@ -251,20 +251,6 @@ _SA_TO_PD = {
     Date:          "datetime64[ns]",
 }
 
-def cast_dataframe(df):
-    """Convierte in-place las columnas presentes al dtype esperado."""
-    from pandas import to_datetime
-    for col, sa_type in get_dtypes_for_dataframe(df).items():        # ← ya existe
-        pd_dtype = _SA_TO_PD.get(sa_type)
-        if pd_dtype is None or col not in df.columns:
-            continue
-        if pd_dtype == "datetime64[ns]":
-            df[col] = to_datetime(df[col], errors="coerce")
-        else:
-            df[col] = df[col].astype(pd_dtype, errors="ignore")
-    return df
-
-
 def clean_column_name(name):
   name = str(name)
   name = re.sub(r'[#\s]+', '_', name)

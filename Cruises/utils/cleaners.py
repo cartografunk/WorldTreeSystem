@@ -1,36 +1,5 @@
 #core/cleaners.py
 from core.libs import pd
-from core.schema import COLUMNS
-from Cruises.utils.normalizers import clean_column_name
-
-def get_column(df, logical_name: str) -> str:
-    """
-    Devuelve el nombre real de la columna en el DataFrame `df` que corresponde al
-    campo lógico `logical_name`, usando los alias definidos en schema.py
-    """
-    # 1. Buscar la definición en schema
-    for entry in COLUMNS:
-        if logical_name == entry["key"] or logical_name == entry["sql_name"] or logical_name in entry["aliases"]:
-            candidates = [entry["key"], entry["sql_name"]] + entry.get("aliases", [])
-            break
-    else:
-        raise KeyError(f"❌ '{logical_name}' no está definido en schema")
-
-    # 2. Coincidencia exacta
-    for candidate in candidates:
-        if candidate in df.columns:
-            return candidate
-
-    # 3. Coincidencia por normalización
-    normalized_df_cols = {clean_column_name(col): col for col in df.columns}
-    for candidate in candidates:
-        cleaned = clean_column_name(candidate)
-        if cleaned in normalized_df_cols:
-            return normalized_df_cols[cleaned]
-
-    raise KeyError(
-        f"❌ No se encontró una columna para '{logical_name}'. Aliases probados: {candidates}"
-    )
 
 def standardize_units(df):
     """

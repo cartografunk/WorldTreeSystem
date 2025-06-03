@@ -1,7 +1,7 @@
 # — imports al inicio del archivo —
 from core.schema import rename_columns_using_schema
 from Cruises.utils.sql_helpers import prepare_df_for_sql
-from Cruises.utils.cleaners import get_column
+from core.schema import get_column
 from Cruises.inventory_importer import save_inventory_to_sql, ensure_table
 from core.libs import pd, os
 

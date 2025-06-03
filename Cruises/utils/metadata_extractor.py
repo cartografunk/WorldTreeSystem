@@ -1,4 +1,4 @@
-# utils/extractors.py
+# utils/metadata_extractor.py
 from core.libs import load_workbook
 
 

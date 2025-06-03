@@ -1,9 +1,8 @@
-# NUEVA VERSIÓN – catalog_normalizer.py
-from core.libs import pd
+#Cruises/catalog_normalizer.py
+from core.libs import pd, re, unicodedata
 from core.schema import COLUMNS
-from Cruises.utils.cleaners import get_column
+from core.schema import get_column
 from sqlalchemy import text
-
 
 PAIS_CONFIG = {
     "GT": {"col": "nombre"},

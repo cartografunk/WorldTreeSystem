@@ -1,6 +1,6 @@
 # WorldTreeSystem/core/schema.py
 from sqlalchemy import Float, SmallInteger, Text, Date, Numeric, Integer
-from Cruises.utils.normalizers import clean_column_name
+from core.schema import clean_column_name
 
 COLUMNS = [
   {
@@ -263,3 +263,35 @@ def cast_dataframe(df):
         else:
             df[col] = df[col].astype(pd_dtype, errors="ignore")
     return df
+
+
+def clean_column_name(name):
+  name = str(name)
+  name = re.sub(r'[#\s]+', '_', name)
+  name = unicodedata.normalize('NFKD', name).encode('ascii', 'ignore').decode('ascii')
+  name = re.sub(r'[^\w_]', '', name)
+  name = name.strip('_').lower()
+  name = re.sub(r'_+', '_', name)
+  return name
+
+  def get_column(df, logical_name: str) -> str:
+    """
+    Devuelve el nombre real de la columna en el DataFrame `df` que corresponde al
+    campo lógico `logical_name`, usando los alias definidos en schema.py
+    """
+    # 1. Buscar la definición en schema
+    for entry in COLUMNS:
+      if logical_name == entry["key"] or logical_name == entry["sql_name"] or logical_name in entry["aliases"]:
+        candidates = [entry["key"], entry["sql_name"]] + entry.get("aliases", [])
+        break
+    else:
+      raise KeyError(f"❌ '{logical_name}' no está definido en schema")
+
+    # 2. Coincidencia exacta
+    for candidate in candidates:
+      if candidate in df.columns:
+        return candidate
+
+    raise KeyError(
+      f"❌ No se encontró una columna para '{logical_name}'. Aliases probados: {candidates}"
+    )

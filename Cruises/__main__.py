@@ -3,23 +3,16 @@
 print("🌎 Hello World Tree!")
 from core.libs import argparse, pd, Path, json
 from core.db import get_engine
-from core.doyle_calculator import calculate_doyle
 from core.paths import INVENTORY_BASE
 
-from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, remove_blank_rows
 from Cruises.utils.sql_helpers import prepare_df_for_sql
-from Cruises.catalog_normalizer import normalize_catalogs
 from Cruises.xlsx_read_and_merge import combine_files
-from Cruises.filters import create_filter_func
 from Cruises.inventory_importer import ensure_table
 
 from Cruises.inventory_importer import save_inventory_to_sql
 from Cruises.inventory_catalog import create_inventory_catalog
+from Cruises.processing import process_inventory_dataframe
 from Cruises.audit_pipeline import run_audit
-from Cruises.dead_alive_calculator import calculate_dead_alive
-from Cruises.dead_tree_imputer import add_imputed_dead_rows
-from Cruises.filldown import forward_fill_headers
-from Cruises.tree_id import split_by_id_validity
 from Cruises.import_summary import generate_summary_from_df
 from Cruises.status_para_batch_imports import marcar_lote_completado
 
@@ -104,18 +97,10 @@ def main():
         print(f"📂 Carpeta: {args.cruises_path}")
         print(f"📄 Archivos: {len(args.files)} archivos")
 
-
-    # Crear filtro opcional
-    filter_func = None
-    if args.allowed_codes and args.allowed_codes != ["ALL"]:
-        filter_func = create_filter_func(args.allowed_codes)
-
-
     # Combinar todos los datos
     #print("\n📂 Combinando archivos en DataFrame...")
     df_combined = combine_files(
         args.cruises_path,
-        filter_func=filter_func,
         explicit_files=args.files if args.files else None
     )
 
@@ -134,55 +119,7 @@ def main():
     # Obtener engine
     engine = get_engine()
 
-    # Limpieza general de columnas y forward fill
-    df_combined = clean_cruise_dataframe(df_combined)
-    df_combined = remove_blank_rows(df_combined)
-
-    # Completar encabezados repetidos
-    df_combined = forward_fill_headers(df_combined)
-
-    # Convertir unidades ya con campos normalizados
-    df_combined = standardize_units(df_combined)
-
-    # Completar encabezados repetidos
-    df_combined = forward_fill_headers(df_combined)
-
-    # Convertir unidades ya con campos normalizados
-    df_combined = standardize_units(df_combined)
-
-    # 💾 Guardar el valor original antes de que lo pise normalize_catalogs
-    df_combined["status_text_raw"] = df_combined["Status"]
-
-    # Normalizar catálogos a ID (incluye status_id)
-    df_combined = normalize_catalogs(
-        df_combined,
-        engine,
-        logical_keys=["Status", "Species", "Defect", "Disease", "Pests", "Coppiced", "Permanent Plot"],
-        country_code=args.country_code
-    )
-
-
-    # Calcular volumen Doyle
-    df_combined = calculate_doyle(df_combined)
-
-    # Calcular árboles vivos/muertos usando status_id
-    df_combined = calculate_dead_alive(df_combined, engine)
-
-    # Subsanar árboles muertos
-    df_combined = add_imputed_dead_rows(
-        df_combined,
-        contract_col="contractcode",
-        plot_col="plot",
-        dead_col="dead_tree"
-    )
-
-    # Eliminar columnas de status innecesarias para el insert final
-    for col in ["Status", "status_id", "status_text_raw"]:
-        if col in df_combined.columns:
-            df_combined.drop(columns=col, inplace=True)
-
-    # Crear IDs de árbol
-    df_good, df_bad = split_by_id_validity(df_combined)
+    df_good, df_bad = process_inventory_dataframe(df_combined, engine, args.country_code)
 
     if not df_bad.empty:
         print(f"⚠️  {len(df_bad)} filas ignoradas por ID inválido.")

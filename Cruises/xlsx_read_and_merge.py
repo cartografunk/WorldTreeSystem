@@ -6,7 +6,7 @@ from core.schema import get_column
 from core.schema import clean_column_name
 from tqdm import tqdm
 import traceback
-from Cruises.onedriver import force_download
+from Cruises.utils.onedriver import force_download
 
 warnings.filterwarnings(
     "ignore",

@@ -1,18 +1,17 @@
 #WorldTreeSystem/Cruises/main.py
 
 print("🌎 Hello World Tree!")
-from core.libs import argparse, pd, inspect, Path, json, to_datetime
+from core.libs import argparse, pd, Path, json
 from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
 from core.paths import INVENTORY_BASE
-from core.schema import cast_dataframe
 
-from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, get_column, remove_blank_rows
+from core.cleaners import clean_cruise_dataframe, standardize_units, remove_blank_rows
 from Cruises.utils.sql_helpers import prepare_df_for_sql
 from Cruises.catalog_normalizer import normalize_catalogs
 from Cruises.union import combine_files
 from Cruises.filters import create_filter_func
-from Cruises.inventory_importer import ensure_table, save_inventory_to_sql
+from Cruises.inventory_importer import ensure_table
 
 from Cruises.inventory_importer import save_inventory_to_sql
 from Cruises.inventory_catalog import create_inventory_catalog
@@ -263,13 +262,6 @@ def main():
     except Exception as e:
         print(f"❌ Error fatal durante el procesamiento: {e}")
 
-
-def _safe_get_column(df, logical_name):
-    try:
-        get_column(df, logical_name)
-        return True
-    except KeyError:
-        return False
 
 if __name__ == '__main__':
     main()

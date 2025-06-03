@@ -47,13 +47,11 @@ def create_inventory_catalog(df, engine, table_catalog_name):
     sampled = df.groupby(["contractcode", "cruisedate"]).size().reset_index(name="TreesSampled")
 
     # --- Paso 5: Traer datos de cat_farmers ---
-    query = '''
-        SELECT 
-            "contractcode", 
-            "planting_year", 
-            "treescontract" AS TreesContract 
-        FROM cat_farmers
-    '''
+    df_farmers = pd.read_sql("""
+        SELECT contractcode, farmername, planting_year, treescontract AS trees_contract
+        FROM masterdatabase.contract_farmer_information
+    """, engine)
+
     # En inventory_catalog.py, antes del merge:
     df_farmers = pd.read_sql('SELECT "contractcode" AS contractcode, "farmername" FROM cat_farmers', engine)
 

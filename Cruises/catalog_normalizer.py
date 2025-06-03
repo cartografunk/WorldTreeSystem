@@ -1,7 +1,7 @@
 # NUEVA VERSIÓN – catalog_normalizer.py
 from core.libs import pd
 from core.schema import COLUMNS
-from .utils.cleaners import get_column
+from core.cleaners import get_column
 from sqlalchemy import text
 
 

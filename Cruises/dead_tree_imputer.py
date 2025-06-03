@@ -1,5 +1,4 @@
 from core.libs import np, pd
-from Cruises.utils.cleaners import get_column
 
 
 def add_imputed_dead_rows(df: pd.DataFrame, contract_col: str, plot_col: str, dead_col: str) -> pd.DataFrame:

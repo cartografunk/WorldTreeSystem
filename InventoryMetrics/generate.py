@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 from core.libs import re, pd, text
 from core.db import get_engine
-from Cruises.utils.cleaners import get_column
+from core.cleaners import get_column
 
 
 def get_inventory_tables(engine):

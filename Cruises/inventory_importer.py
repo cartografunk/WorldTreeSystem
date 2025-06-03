@@ -60,8 +60,7 @@ def save_inventory_to_sql(df,
         schema=None,
         dtype=None,
         progress=False,
-        chunksize=1000,
-        pre_cleaned=False):
+        chunksize=1000):
     """Limpia nombres de columnas y guarda el DataFrame en SQL con tipos opcionales."""
 
     print("\n=== INICIO DE IMPORTACIÓN ===")

@@ -1,5 +1,5 @@
-# WorldTreeSystem/Cruises/utils/schema.py
-from sqlalchemy import Float, SmallInteger, Text, Date, Numeric
+# WorldTreeSystem/core/schema.py
+from sqlalchemy import Float, SmallInteger, Text, Date, Numeric, Integer
 from Cruises.utils.normalizers import clean_column_name
 
 COLUMNS = [
@@ -84,6 +84,7 @@ COLUMNS = [
   {
     "key": "Status", "sql_name": "status_id",
     "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición"],
+    "dtype": "TEXT",
     "source": "input",
     "catalog_table": "cat_status",
     "catalog_field": "id"
@@ -192,25 +193,73 @@ COLUMNS = [
   }
 ]
 
-#from utils.cleaners import clean_column_name
+#Previously: from utils.cleaners import clean_column_name
 
 def rename_columns_using_schema(df):
-    rename_map = {}
+  rename_map = {}
 
-    for col_def in COLUMNS:
-        logical = col_def["key"]
-        for alias in [col_def["sql_name"]] + col_def.get("aliases", []):
-            if alias in df.columns:
-                rename_map[alias] = logical
-            elif clean_column_name(alias) in [clean_column_name(c) for c in df.columns]:
-                matched = [
-                    c for c in df.columns if clean_column_name(c) == clean_column_name(alias)
-                ]
-                if matched:
-                    rename_map[matched[0]] = logical
+  for col_def in COLUMNS:
+    logical = col_def["key"]
+    for alias in [col_def["sql_name"]] + col_def.get("aliases", []):
+      if alias in df.columns:
+        rename_map[alias] = logical
+      elif clean_column_name(alias) in [clean_column_name(c) for c in df.columns]:
+        matched = [
+          c for c in df.columns if clean_column_name(c) == clean_column_name(alias)
+        ]
+        if matched:
+          rename_map[matched[0]] = logical
 
-    df = df.rename(columns=rename_map)
+
+  df = df.rename(columns=rename_map)
+  return df
+
+
+SQLALCHEMY_DTYPES = {
+    "TEXT": Text,
+    "FLOAT": Float,
+    "NUMERIC": Numeric,
+    "INT": Integer,
+    "DATE": Date,
+    "SMALLINT": SmallInteger,
+}
+
+
+def get_dtypes_for_dataframe(df):
+  mapping = {}
+  for col in COLUMNS:
+    sa_type = SQLALCHEMY_DTYPES.get(col.get("dtype"))
+    if not sa_type:
+      continue
+
+    # 1️⃣  Prefiere la clave lógica si está presente
+    if col["key"] in df.columns:
+      mapping[col["key"]] = sa_type
+    # 2️⃣  Si no, usa el nombre SQL (lo que realmente llega a la BD)
+    elif col["sql_name"] in df.columns:
+      mapping[col["sql_name"]] = sa_type
+  return mapping
+
+
+# --- NEW: castea un DataFrame según los tipos ya definidos arriba ---
+_SA_TO_PD = {
+    Text:          "string",
+    Float:         "float64",
+    Numeric:       "float64",
+    Integer:       "Int64",        # entero nullable
+    SmallInteger:  "Int16",
+    Date:          "datetime64[ns]",
+}
+
+def cast_dataframe(df):
+    """Convierte in-place las columnas presentes al dtype esperado."""
+    from pandas import to_datetime
+    for col, sa_type in get_dtypes_for_dataframe(df).items():        # ← ya existe
+        pd_dtype = _SA_TO_PD.get(sa_type)
+        if pd_dtype is None or col not in df.columns:
+            continue
+        if pd_dtype == "datetime64[ns]":
+            df[col] = to_datetime(df[col], errors="coerce")
+        else:
+            df[col] = df[col].astype(pd_dtype, errors="ignore")
     return df
-
-('Status', 'Species', 'Defect', 'Disease', 'Pests', 'Coppiced', 'Permanent Plot')
-

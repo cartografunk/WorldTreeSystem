@@ -1,7 +1,7 @@
 # union.py
 from core.libs    import pd, warnings, Path, os
 from Cruises.utils.extractors import extract_metadata_from_excel
-from core.schema import COLUMNS
+from core.schema import COLUMNS, cast_dataframe
 from Cruises.utils.cleaners  import get_column
 from Cruises.utils.normalizers import clean_column_name
 from tqdm import tqdm
@@ -79,6 +79,10 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
                 pass
         df = df.rename(columns=rename_dict)
 
+        # 1️⃣  Normaliza dtypes (solo una vez)
+        df = cast_dataframe(df)  # <- aquí
+
+
         meta = extract_metadata_from_excel(file_path) or {}
         return df, meta
 
@@ -139,10 +143,6 @@ def combine_files(base_path, filter_func=None, explicit_files=None):
 
         file = path.name
         try:
-            df, meta = read_metadata_and_input(path)
-
-            #print(f"\n📄 Procesando: {file}")
-
             # Leer archivo y metadatos
             df, meta = read_metadata_and_input(path)
 

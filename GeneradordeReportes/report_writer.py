@@ -1,4 +1,6 @@
 from core.libs import pd, os
+from core.db import get_engine
+
 from docx import Document
 from docx.shared import Pt, Inches
 from sqlalchemy import text
@@ -204,6 +206,8 @@ if __name__ == '__main__':
     parser.add_argument('--country', '-c', required=True)
     parser.add_argument('--year', '-y', type=int, required=True)
     args = parser.parse_args()
-    crear_reporte(args.code, args.country, args.year)
+
+    engine = get_engine()
+    crear_reporte(args.code, args.country, args.year, engine)
 
 

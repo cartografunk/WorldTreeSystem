@@ -1,6 +1,7 @@
 # forest_inventory/inventory_importer.py
 from core.db import get_engine
 from core.libs import text, inspect, pd, unicodedata, re
+from core.schema import get_dtypes_for_dataframe
 
 def ensure_table(df, engine, table_name, recreate=False):
     insp = inspect(engine)
@@ -12,7 +13,8 @@ def ensure_table(df, engine, table_name, recreate=False):
             if insp.has_table(table_name):
                 conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
 
-            df.head(0).to_sql(table_name, conn, index=False, if_exists="replace")
+            dtypes = get_dtypes_for_dataframe(df)
+            df.head(0).to_sql(table_name, conn, index=False, if_exists="replace", dtype=dtypes)
 
             if 'id' in df.columns:
                 conn.execute(text(
@@ -25,7 +27,7 @@ def ensure_table(df, engine, table_name, recreate=False):
             for col in df.columns:
                 if col not in existing_cols:
                     conn.execute(text(
-                        f'ALTER TABLE "{table_name}" ADD COLUMN \"{col}\" TEXT"
+                        f'ALTER TABLE "{table_name}" ADD COLUMN "{col}" TEXT'
                     ))
 
             # ✅ Verificar si 'id' ya tiene PK (para evitar conflicto ON CONFLICT)
@@ -67,7 +69,7 @@ def save_inventory_to_sql(df,
 
     # AQUI: df ya viene renombrado y ordenado por prepare_df_for_sql,
     # así que NO lo tocamos más. Si quieres, mú evita duplicados:
-    df = df.loc[:, ~df.columns.duplicated()]
+    df = df.reindex(sorted(df.columns), axis=1)  # ordénalas alfabéticamente (o la clave que prefieras)
 
     try:
         engine = get_engine()

@@ -1,10 +1,11 @@
 #WorldTreeSystem/Cruises/main.py
 
 print("🌎 Hello World Tree!")
-from core.libs import argparse, pd, inspect, Path, json
+from core.libs import argparse, pd, inspect, Path, json, to_datetime
 from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
 from core.paths import INVENTORY_BASE
+from core.schema import cast_dataframe
 
 from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, get_column, remove_blank_rows
 from Cruises.utils.sql_helpers import prepare_df_for_sql
@@ -144,6 +145,15 @@ def main():
     # Convertir unidades ya con campos normalizados
     df_combined = standardize_units(df_combined)
 
+    # Completar encabezados repetidos
+    df_combined = forward_fill_headers(df_combined)
+
+    # Convertir unidades ya con campos normalizados
+    df_combined = standardize_units(df_combined)
+
+    # 💾 Guardar el valor original antes de que lo pise normalize_catalogs
+    df_combined["status_text_raw"] = df_combined["Status"]
+
     # Normalizar catálogos a ID (incluye status_id)
     df_combined = normalize_catalogs(
         df_combined,
@@ -151,6 +161,7 @@ def main():
         logical_keys=["Status", "Species", "Defect", "Disease", "Pests", "Coppiced", "Permanent Plot"],
         country_code=args.country_code
     )
+
 
     # Calcular volumen Doyle
     df_combined = calculate_doyle(df_combined)
@@ -165,6 +176,11 @@ def main():
         plot_col="plot",
         dead_col="dead_tree"
     )
+
+    # Eliminar columnas de status innecesarias para el insert final
+    for col in ["Status", "status_id", "status_text_raw"]:
+        if col in df_combined.columns:
+            df_combined.drop(columns=col, inplace=True)
 
     # Crear IDs de árbol
     df_good, df_bad = split_by_id_validity(df_combined)
@@ -195,6 +211,18 @@ def main():
 
     # Insertar en SQL
     df_sql, dtype_for_sql = prepare_df_for_sql(df_good)
+
+    # 🔄 1) Quita la parte de hora y fuerza datetime64[ns]
+    from pandas import to_datetime
+    df_sql["CruiseDate"] = (
+        to_datetime(df_sql["CruiseDate"], errors="coerce")
+        .dt.date  # 2025-06-14 00:00:00 → 2025-06-14
+    )
+
+    # 🎯 2) Alinea todos los dtypes contra schema.py
+    from core.schema import cast_dataframe
+    df_sql = cast_dataframe(df_sql)
+    
     df_sql = df_sql.loc[:, ~df_sql.columns.duplicated()]
     ensure_table(
         df_sql,
@@ -204,6 +232,9 @@ def main():
     )
 
     df_sql = df_sql.replace({pd.NA: None})
+
+    #Normaliza dtypes una sola vez
+    df_sql = cast_dataframe((df_sql))
 
     save_inventory_to_sql(
         df_sql,

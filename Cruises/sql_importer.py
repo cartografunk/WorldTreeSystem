@@ -1,7 +1,7 @@
 # forest_inventory/sql_importer.py
 
 from core.libs import pd
-from utils.db import get_engine
+from core.db import get_engine
 
 def import_catalog_to_sql(df, table_name, connection_string, if_exists="append", schema=None):
     """

@@ -1,5 +1,5 @@
 from core.libs import pd
-from core.cleaners import get_column
+from Cruises.utils.cleaners import get_column
 
 def calculate_doyle(df: pd.DataFrame) -> pd.DataFrame:
     """

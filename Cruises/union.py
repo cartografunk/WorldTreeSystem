@@ -2,7 +2,7 @@
 from core.libs    import pd, warnings, Path, os
 from Cruises.utils.extractors import extract_metadata_from_excel
 from core.schema import COLUMNS, cast_dataframe
-from core.cleaners import get_column
+from Cruises.utils.cleaners import get_column
 from Cruises.utils.normalizers import clean_column_name
 from tqdm import tqdm
 import traceback

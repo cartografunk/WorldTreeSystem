@@ -6,7 +6,7 @@ from core.db import get_engine
 from core.doyle_calculator import calculate_doyle
 from core.paths import INVENTORY_BASE
 
-from core.cleaners import clean_cruise_dataframe, standardize_units, remove_blank_rows
+from Cruises.utils.cleaners import clean_cruise_dataframe, standardize_units, remove_blank_rows
 from Cruises.utils.sql_helpers import prepare_df_for_sql
 from Cruises.catalog_normalizer import normalize_catalogs
 from Cruises.union import combine_files

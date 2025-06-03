@@ -3,7 +3,6 @@
 print("🌎 Hello World Tree!")
 from core.libs import argparse, pd, Path, json
 from core.db import get_engine
-from core.paths import INVENTORY_BASE
 
 from Cruises.reader import load_and_prepare_data
 from Cruises.global_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql, create_inventory_catalog, marcar_lote_completado

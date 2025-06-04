@@ -5,7 +5,7 @@ from core.schema import (
     rename_columns_using_schema,
     get_column as get_column_from_schema,
 )
-from core.libs import pd, warnings, Path, os, tqdm, traceback
+from core.libs import pd, warnings, Path, os, tqdm, traceback, sleep
 
 from Cruises.utils.metadata_extractor import extract_metadata_from_excel
 from Cruises.utils.onedriver import force_download
@@ -37,8 +37,6 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
      - df_input: la hoja 'Input' o 'DataInput'
      - meta: dict con contract_code, farmer_name, cruise_date
     """
-    from pathlib import Path
-    from time import sleep
 
     try:
         path = Path(file_path)
@@ -72,20 +70,8 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
         df = pd.read_excel(xls, sheet_name=target, dtype=str, na_filter=False)
         df.columns = [clean_column_name(c) for c in df.columns]
 
-        rename_dict = {}
-        for col in COLUMNS:
-            if col.get("source") != "input":
-                continue
-            try:
-                real = get_column_from_schema(col["key"])
-                rename_dict[real] = col["key"]
-            except KeyError:
-                pass
-        df = df.rename(columns=rename_dict)
-
         # 1️⃣  Normaliza dtypes (solo una vez)
         df = cast_dataframe(df)  # <- aquí
-
 
         meta = extract_metadata_from_excel(file_path) or {}
         return df, meta
@@ -157,7 +143,7 @@ def combine_files(explicit_files=None, base_path=None, filter_func=None):
             df = rename_columns_using_schema(df)
 
             # Validación básica de columnas
-            required_cols = [get_column_from_schema("tree_number"), get_column_from_schema("Status")]
+            required_cols = [get_column_from_schema("tree_number"), get_column_from_schema("status")]
             missing = [c for c in required_cols if c not in df.columns]
             if missing:
                 print(f"   ❌ Faltan columnas clave: {', '.join(missing)}")

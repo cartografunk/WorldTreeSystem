@@ -22,8 +22,6 @@ LABELS = {
 print("📄 Extrayendo metadatos...")
 
 def extract_metadata_from_excel(path):
-
-
     """
     Returns a dict with keys: contract_code, farmer_name, cruise_date.
     Scans the 'Summary' sheet for any of the LABELS, then walks

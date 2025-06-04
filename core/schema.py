@@ -1,6 +1,6 @@
 # WorldTreeSystem/core/schema.py
 from sqlalchemy import Float, SmallInteger, Text, Date, Numeric, Integer
-from core.libs import re, unicodedata
+from core.libs import re, unicodedata, pd
 
 COLUMNS = [
   {
@@ -82,7 +82,7 @@ COLUMNS = [
     "source": "input"
   },
   {
-    "key": "Status", "sql_name": "status_id",
+    "key": "Status", "sql_name": "status",
     "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion"],
     "dtype": "TEXT",
     "source": "input",
@@ -91,7 +91,7 @@ COLUMNS = [
   },
   {
     "key": "status_id", "sql_name": "status_id",
-    "aliases": ["status_id", "Condicion"],
+    "aliases": ["status_id"],
     "dtype": "SMALLINT",
     "source": "calculated"
   },
@@ -200,16 +200,13 @@ def rename_columns_using_schema(df):
 
   for col_def in COLUMNS:
     logical = col_def["key"]
-    for alias in [col_def["sql_name"]] + col_def.get("aliases", []):
-      if alias in df.columns:
-        rename_map[alias] = logical
-      elif clean_column_name(alias) in [clean_column_name(c) for c in df.columns]:
-        matched = [
-          c for c in df.columns if clean_column_name(c) == clean_column_name(alias)
-        ]
-        if matched:
-          rename_map[matched[0]] = logical
+    candidates = [col_def["sql_name"]] + col_def.get("aliases", [])
 
+    for alias in candidates:
+      for real_col in df.columns:
+        if clean_column_name(real_col) == clean_column_name(alias):
+          rename_map[real_col] = logical
+          break
 
   df = df.rename(columns=rename_map)
   return df
@@ -261,12 +258,27 @@ def clean_column_name(name):
   return name
 
 
-def get_column(logical_name: str) -> str:
+def get_column(logical_name: str, df: pd.DataFrame = None) -> str:
   """
-  Devuelve el nombre estandarizado (key) de la columna lógica,
-  según la definición de `COLUMNS` en schema.py.
+  Si `df` es None → devuelve la clave lógica estándar (`key`) desde schema.
+  Si `df` se proporciona → busca el nombre real en el DataFrame según aliases definidos.
   """
   for entry in COLUMNS:
     if logical_name == entry["key"] or logical_name == entry["sql_name"] or logical_name in entry.get("aliases", []):
-      return entry["key"]
-  raise KeyError(f"❌ '{logical_name}' no está definido en schema")
+      candidates = [entry["key"], entry["sql_name"]] + entry.get("aliases", [])
+      break
+  else:
+    raise KeyError(f"❌ '{logical_name}' no está definido en schema")
+
+  if df is None:
+    return entry["key"]  # ← caso moderno: solo dame el nombre estandarizado
+
+  # ← caso legacy: dime cómo se llama realmente en este df
+  for candidate in candidates:
+    if candidate in df.columns:
+      return candidate
+
+  raise KeyError(
+    f"❌ No se encontró una columna para '{logical_name}' en df. Aliases probados: {candidates}"
+  )
+

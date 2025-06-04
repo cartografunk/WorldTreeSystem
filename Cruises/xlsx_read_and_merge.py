@@ -180,4 +180,3 @@ def combine_files(explicit_files=None, base_path=None, filter_func=None):
     #print(f"📅 Rango de fechas: {combined['cruisedate'].min()} a {combined['cruisedate'].max()}")
 
     return combined
-

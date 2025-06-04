@@ -14,9 +14,9 @@ def pad_plot(val: str) -> str:
 def split_by_id_validity(df: pd.DataFrame):
     df = df.copy()
 
-    plot_col     = get_column(df, PLOT_LOGICAL)
-    tree_col     = get_column(df, TREE_LOGICAL)
-    contract_col = get_column(df, CONTRACT_LOGICAL)
+    plot_col     = get_column(PLOT_LOGICAL, df)
+    tree_col     = get_column(TREE_LOGICAL, df)
+    contract_col = get_column(CONTRACT_LOGICAL, df)
 
     df["plot_str"] = df[plot_col].astype(str).str.strip()
     df["plot_clean"] = df["plot_str"].apply(pad_plot)

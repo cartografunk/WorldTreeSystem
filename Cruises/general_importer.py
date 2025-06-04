@@ -1,6 +1,6 @@
 #Cruises/general_importer.py
 from sqlalchemy import Text, Float, Numeric, SmallInteger, Date
-from core.libs import pd, text, inspect, pd
+from core.libs import text, inspect, pd
 from core.schema import COLUMNS, get_dtypes_for_dataframe, _SA_TO_PD
 from core.db import get_engine
 
@@ -15,28 +15,32 @@ DTYPES = {
 }
 
 def prepare_df_for_sql(df):
-    # 1) renombrar internals → SQL
+    # 1) renombrar columnas internas al nombre SQL
     df2 = df.rename(columns=SQL_COLUMNS)
 
-    # 2) quitar duplicados
+    # 2) quitar duplicados de columnas
     df2 = df2.loc[:, ~df2.columns.duplicated()]
 
-    # 3) filtrar+reordenar
+    # 3) filtrar y reordenar según FINAL_ORDER
     cols = [c for c in FINAL_ORDER if c in df2.columns]
     df2 = df2[cols].copy()
 
-    # 4️⃣ Conversión de tipos en base a DTYPES
+    # 4) conversión de tipos mínimos según DTYPES
     for col, dtype in DTYPES.items():
         if col in df2.columns:
             if isinstance(dtype, SmallInteger):
-                df2[col] = pd.to_numeric(df2[col], errors='coerce').fillna(0).astype(int)
+                df2[col] = pd.to_numeric(df2[col], errors="coerce").fillna(0).astype(int)
             elif isinstance(dtype, (Float, Numeric)):
-                df2[col] = pd.to_numeric(df2[col], errors='coerce')
+                df2[col] = pd.to_numeric(df2[col], errors="coerce")
             elif isinstance(dtype, Date):
-                df2[col] = df2[col].where(df2[col].notna(), None)
+                # Convertir cualquier Timestamp o cadena válida a datetime.date
+                df2[col] = (
+                    pd.to_datetime(df2[col], errors="coerce")
+                    .dt.date
+                )
 
+    # 5) Construir dtype_for_sql para usar en el insert de SQLAlchemy/psycopg2
     dtype_for_sql = {col: DTYPES[col] for col in df2.columns if col in DTYPES}
-
     return df2, dtype_for_sql
 
 def create_inventory_catalog(df, engine, table_catalog_name):

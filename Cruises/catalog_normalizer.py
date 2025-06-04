@@ -50,7 +50,7 @@ def normalize_catalogs(df: pd.DataFrame, engine, logical_keys: list[str], countr
             dest_col = col_entry["sql_name"]
 
             try:
-                raw_col = get_column(df_result, logical)
+                raw_col = get_column(logical, df_result)
             except KeyError:
                 print(f"⚠️ Columna '{logical}' no encontrada en el DataFrame.")
                 continue

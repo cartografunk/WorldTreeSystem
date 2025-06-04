@@ -13,6 +13,7 @@ def get_args():
     parser.add_argument("--country_code", help="Código del país (mx, cr, gt, us)", required=False)
     parser.add_argument("--year", help="Año del inventario", required=False)
     parser.add_argument("--save_summary", action="store_true", help="Guardar resumen en archivo")
+    parser.add_argument("--recreate-table", action="store_true", help="Si se especifica, recrea la tabla SQL antes de volcar datos")
     return parser.parse_args()
 
 
@@ -43,7 +44,7 @@ def load_and_prepare_data():
         df_combined = combine_files(explicit_files=args.files)
 
         if df_combined is not None and not df_combined.empty:
-            generate_summary_from_df(df_combined)
+            generate_summary_from_df(df_combined, args.files)
         else:
             print("⚠️ No se pudo generar el resumen porque el dataframe está vacío.")
 

@@ -60,13 +60,6 @@ def main():
     # Insertar en SQL
     df_sql, dtype_for_sql = prepare_df_for_sql(df_good)
 
-    # 🔄 1) Quita la parte de hora y fuerza datetime64[ns]
-    from pandas import to_datetime
-    df_sql["CruiseDate"] = (
-        to_datetime(df_sql["CruiseDate"], errors="coerce")
-        .dt.date  # 2025-06-14 00:00:00 → 2025-06-14
-    )
-
     # 🎯 2) Alinea todos los dtypes contra schema.py
 
     df_sql = cast_dataframe(df_sql)
@@ -75,7 +68,7 @@ def main():
     ensure_table(
         df_sql,
         engine,
-        args.table_name,
+        args.tabla_destino,
         recreate=args.recreate_table
     )
 
@@ -87,25 +80,24 @@ def main():
     save_inventory_to_sql(
         df_sql,
         engine,
-        args.table_name,
+        args.tabla_destino,
         if_exists="append",  # la tabla ya existe
         dtype=dtype_for_sql,
-        progress=True,
-        pre_cleaned=True
+        progress=True
     )
 
     try:
-        # Proceso principal...
+        # Proceso principal…
         df_combined.to_excel(args.output_file, index=False)
         print(f"✅ Guardado Excel combinado: {args.output_file}")
 
-        run_audit(engine, args.table_name, args.output_file)
-        create_inventory_catalog(df_combined, engine, f"cat_{args.table_name}")
+        run_audit(engine, args.tabla_destino, args.output_file)
+        create_inventory_catalog(df_combined, engine, f"cat_{args.tabla_destino}")
         print("✅ Proceso completo.")
 
         # Marcar como completado
         if getattr(args, "batch_imports_path", None) and getattr(args, "tabla_destino", None):
-            tabla_sql = f"public.{args.table_name}"
+            tabla_sql = f"public.{args.tabla_destino}"
             marcar_lote_completado(args.batch_imports_path, args.tabla_destino, tabla_sql)
 
     except Exception as e:
@@ -114,3 +106,5 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+

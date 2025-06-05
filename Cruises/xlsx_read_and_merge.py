@@ -3,7 +3,7 @@ from core.schema import (
     COLUMNS,
     clean_column_name,
     rename_columns_using_schema,
-    get_column as get_column_from_schema,
+    get_column as get_column,
 )
 from core.libs import pd, warnings, Path, os, tqdm, traceback, sleep
 
@@ -31,13 +31,20 @@ warnings.filterwarnings(
     module="pandas.core.reshape.concat"
 )
 
+
+
 def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
     """
     Abre un XLSX, extrae:
      - df_input: la hoja 'Input' o 'DataInput'
      - meta: dict con contract_code, farmer_name, cruise_date
+    A la vez aplica:
+     1) Limpieza de nombres
+     2) casteo de tipos (cast_dataframe)
+     3) renombrado global basado en schema (rename_columns_using_schema)
+     4) eliminación de cat_*_id viejas
+     5) verificación rápida de columnas lógicas de catálogo
     """
-
     try:
         path = Path(file_path)
         max_retries = 3
@@ -50,7 +57,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
             if success and path.exists() and path.is_file() and path.stat().st_size > 0:
                 break
 
-            print(f"🔁 Retry {attempt}/{max_retries} para {path.name}...")
+            print(f"🔁 Retry {attempt}/{max_retries} para {path.name}…")
             sleep(delay_base * attempt)
         else:
             print(f"⛔ No se pudo acceder a: {file_path} tras {max_retries} intentos")
@@ -68,11 +75,33 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
             target = raw_sheets[0]
 
         df = pd.read_excel(xls, sheet_name=target, dtype=str, na_filter=False)
+
+        # 0️⃣ Limpieza inicial: uniformizar todos los encabezados en “snake case” minimal
         df.columns = [clean_column_name(c) for c in df.columns]
 
         # 1️⃣  Normaliza dtypes (solo una vez)
-        df = cast_dataframe(df)  # <- aquí
+        df = cast_dataframe(df)
 
+        # 2️⃣  Renombrado global según schema.py
+        #     Esto convierte columnas “defecto”→“Defect”, “especie”→“Species”, “plagas”→“Pests”, etc.
+        df = rename_columns_using_schema(df)
+        #print(">>> Columnas tras rename_columns_using_schema:", df.columns.tolist())
+
+        # 3️⃣  Borrar columnas residuales cat_*_id (si quedaron de corridas anteriores)
+        for c in [
+            "cat_defect_id",
+            "cat_pest_id",
+            "cat_disease_id",
+            "cat_coppiced_id",
+            "cat_permanent_plot_id",
+        ]:
+            if c in df.columns:
+                df = df.drop(columns=[c])
+                print(f"🔸 Eliminada columna residual {c!r}")
+
+        #print(">>> Columnas DESPUÉS de quitar cat_*_id viejas:", df.columns.tolist())
+
+        # 5️⃣ Devolver el DataFrame listo para pasar a normalize_catalogs
         meta = extract_metadata_from_excel(file_path) or {}
         return df, meta
 
@@ -80,8 +109,6 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
         print(f"[ERROR] {file_path}: {e}")
         traceback.print_exc()
         return None, {}
-
-
 
 def combine_files(explicit_files=None, base_path=None, filter_func=None):
     """Combina archivos XLSX de inventario forestal.
@@ -143,7 +170,7 @@ def combine_files(explicit_files=None, base_path=None, filter_func=None):
             df = rename_columns_using_schema(df)
 
             # Validación básica de columnas
-            required_cols = [get_column_from_schema("tree_number"), get_column_from_schema("status")]
+            required_cols = [get_column("tree_number"), get_column("status")]
             missing = [c for c in required_cols if c not in df.columns]
             if missing:
                 print(f"   ❌ Faltan columnas clave: {', '.join(missing)}")

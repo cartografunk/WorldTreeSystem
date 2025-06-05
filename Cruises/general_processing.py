@@ -12,18 +12,15 @@ def process_inventory_dataframe(df, engine, country_code):
     df = forward_fill_headers(df)
     df = standardize_units(df)
 
-    # Preservar texto original de status antes de normalizar
-    df["status_text_raw"] = df["Status"]
+    df = calculate_dead_alive(df, engine)
 
     df = normalize_catalogs(
         df,
-        engine,
-        logical_keys=["Status", "Species", "Defect", "Disease", "Pests", "Coppiced", "Permanent Plot"],
-        country_code=country_code
+        engine
     )
 
     df = calculate_doyle(df)
-    df = calculate_dead_alive(df, engine)
+
     df = add_imputed_dead_rows(df, contract_col="contractcode", plot_col="plot", dead_col="dead_tree")
 
     # Eliminar columnas temporales

@@ -1,5 +1,5 @@
 # WorldTreeSystem/core/schema.py
-from sqlalchemy import Float, SmallInteger, Text, Date, Numeric, Integer
+from sqlalchemy import Float, SmallInteger, Text, DateTime, Numeric, Integer
 from core.libs import re, unicodedata, pd
 
 COLUMNS = [
@@ -52,25 +52,25 @@ COLUMNS = [
     "source": "input"
   },
   {
-    "key": "defect_ht_ft", "sql_name": "Defect HT(ft)",
+    "key": "defect_ht_ft", "sql_name": "Defect HT",
     "aliases": ["Defect HT (ft)", "AT del Defecto (m)", "at_del_defecto_m"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
-    "key": "dbh_in", "sql_name": "DBH (in)",
+    "key": "dbh_in", "sql_name": "DBH",
     "aliases": ["DBH (in)", "DAP (cm)", "dap_cm", "dbh_in"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
-    "key": "tht_ft", "sql_name": "THT (ft)",
+    "key": "tht_ft", "sql_name": "THT",
     "aliases": ["THT (ft)", "AT (m)", "at_m", "tht_ft"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
-    "key": "merch_ht_ft", "sql_name": "Merch. HT (ft)",
+    "key": "merch_ht_ft", "sql_name": "Merch. HT",
     "aliases": ["Merch. HT (ft)", "Alt. Com. (m)", "alt_com_m", "merch_ht_ft"],
     "dtype": "NUMERIC",
     "source": "input"
@@ -102,15 +102,16 @@ COLUMNS = [
     "source": "calculated"
   },
   {
-    "key": "Species", "sql_name": "cat_species_id",
+    "key": "Species", "sql_name": "species",
     "aliases": ["Species", "Especie", "especie"],
     "source": "input",
     "catalog_table": "cat_species",
-    "catalog_field": "id"
+    "catalog_field": "id",
+    "dtype": "TEXT"
   },
   {
     "key": "defect_id", "sql_name": "cat_defect_id",
-    "aliases": ["defect_id", "Defect", "defecto"],
+    "aliases": ["defect_id"],
     "dtype": "SMALLINT",
     "source": "calculated"
   },
@@ -157,35 +158,35 @@ COLUMNS = [
     "source": "calculated"
   },
     {
-    "key": "Defect", "sql_name": "cat_defect_id",
+    "key": "Defect", "sql_name": "defect",
     "aliases": ["Defect", "Defecto", "defecto"],
     "source": "input",
     "catalog_table": "cat_defect",
     "catalog_field": "id"
   },
   {
-    "key": "Pests", "sql_name": "cat_pest_id",
+    "key": "Pests", "sql_name": "pest",
     "aliases": ["Pests", "Plagas", "plagas"],
     "source": "input",
     "catalog_table": "cat_pest",
     "catalog_field": "id"
   },
   {
-    "key": "Disease", "sql_name": "cat_disease_id",
+    "key": "Disease", "sql_name": "disease",
     "aliases": ["Disease", "Enfermedadas", "enfermedadas"],
     "source": "input",
     "catalog_table": "cat_disease",
     "catalog_field": "id"
   },
   {
-    "key": "Coppiced", "sql_name": "cat_coppiced_id",
+    "key": "Coppiced", "sql_name": "coppiced",
     "aliases": ["Coppiced", "Poda Basal", "poda_basal"],
     "source": "input",
     "catalog_table": "cat_coppiced",
     "catalog_field": "id"
   },
   {
-    "key": "Permanent Plot", "sql_name": "cat_permanent_plot_id",
+    "key": "Permanent Plot", "sql_name": "permanent_plot",
     "aliases": ["Permanent Plot", "Parcela Permanente", "parcela_permanente"],
     "source": "input",
     "catalog_table": "cat_permanent_plot",
@@ -213,12 +214,12 @@ def rename_columns_using_schema(df):
 
 
 SQLALCHEMY_DTYPES = {
-    "TEXT": Text,
-    "FLOAT": Float,
-    "NUMERIC": Numeric,
-    "INT": Integer,
-    "DATE": Date,
-    "SMALLINT": SmallInteger,
+    "TEXT": Text(),
+    "FLOAT": Float(),
+    "NUMERIC": Numeric(),
+    "INT": Integer(),
+    "DATE": DateTime(),
+    "SMALLINT": SmallInteger(),
 }
 
 
@@ -245,7 +246,7 @@ _SA_TO_PD = {
     Numeric:       "float64",
     Integer:       "Int64",        # entero nullable
     SmallInteger:  "Int16",
-    Date:          "datetime64[ns]",
+    DateTime:          "datetime64[ns]",
 }
 
 def clean_column_name(name):

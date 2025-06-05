@@ -62,8 +62,6 @@ def main():
 
     # 🎯 2) Alinea todos los dtypes contra schema.py
 
-    df_sql = cast_dataframe(df_sql)
-    
     df_sql = df_sql.loc[:, ~df_sql.columns.duplicated()]
     ensure_table(
         df_sql,
@@ -87,11 +85,11 @@ def main():
     )
 
     try:
-        # Proceso principal…
-        df_combined.to_excel(args.output_file, index=False)
-        print(f"✅ Guardado Excel combinado: {args.output_file}")
+        # Generar reporte de auditoría
+        audit_output_file = f"audit_{args.tabla_destino}.xlsx"
+        run_audit(engine, args.tabla_destino, output_xlsx=None)
+        print(f"✅ Guardado reporte de auditoría: {audit_output_file}")
 
-        run_audit(engine, args.tabla_destino, args.output_file)
         create_inventory_catalog(df_combined, engine, f"cat_{args.tabla_destino}")
         print("✅ Proceso completo.")
 

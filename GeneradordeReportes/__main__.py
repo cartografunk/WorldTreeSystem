@@ -8,7 +8,7 @@ from core.schema import COLUMNS
 from GeneradordeReportes.utils.db import get_engine
 
 def main():
-    print("🌎 Iniciando...")
+    #print("🌎 Iniciando...")
     parser = argparse.ArgumentParser(
         description="Generar reportes .docx para contratos de inventario."
     )

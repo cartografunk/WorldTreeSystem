@@ -7,7 +7,31 @@ from core.db import get_engine
 
 # Construye FINAL_ORDER y DTYPES desde schema
 SQL_COLUMNS = { col["key"]: col["sql_name"] for col in COLUMNS }
-FINAL_ORDER = [ col["sql_name"] for col in COLUMNS ]
+FINAL_ORDER = [
+    "Contract Code",
+    "FarmerName",
+    "CruiseDate",
+    "id",
+    "id_error",
+    "Stand#",
+    "Plot#",
+    "PlotCoordinate",
+    "Tree#",
+    "Defect HT(ft)",
+    "DBH (in)",
+    "THT (ft)",
+    "Merch. HT (ft)",
+    "Short Note",
+    "cat_species_id",         # antes venía "Species" también, quítalo
+    "cat_defect_id",
+    "cat_pest_id",
+    "cat_coppiced_id",
+    "cat_permanent_plot_id",
+    "cat_disease_id",
+    "doyle_bf",
+    "dead_tree",
+    "alive_tree",
+]
 DTYPES = {
     col["sql_name"]: col["dtype"]
     for col in COLUMNS
@@ -35,7 +59,7 @@ def prepare_df_for_sql(df):
             elif isinstance(dtype, Date):
                 # Convertir cualquier Timestamp o cadena válida a datetime.date
                 df2[col] = (
-                    pd.to_datetime(df2[col], errors="coerce")
+                    pd.to_datetime(df2[col], format="%m/%d/%Y", errors="coerce")
                     .dt.date
                 )
 
@@ -183,7 +207,6 @@ def save_inventory_to_sql(df,
 
     # AQUI: df ya viene renombrado y ordenado por prepare_df_for_sql,
     # así que NO lo tocamos más. Si quieres, mú evita duplicados:
-    df = df.reindex(sorted(df.columns), axis=1)  # ordénalas alfabéticamente (o la clave que prefieras)
 
     try:
         engine = get_engine()
@@ -254,8 +277,12 @@ def cast_dataframe(df):
         pd_dtype = _SA_TO_PD.get(sa_type)
         if pd_dtype is None or col not in df.columns:
             continue
+        # Ya convertimos fechas a datetime.date en prepare_df_for_sql,
+        # no forzamos a Timestamp:
         if pd_dtype == "datetime64[ns]":
-            df[col] = to_datetime(df[col], errors="coerce")
+            # Si ya es date, no sobrescribimos. Solo convertir si no es date.
+            if not pd.api.types.is_datetime64_any_dtype(df[col]):
+                df[col] = to_datetime(df[col], errors="coerce")
         else:
             df[col] = df[col].astype(pd_dtype, errors="ignore")
     return df
@@ -309,3 +336,4 @@ def upload_and_finalize(df_combined, df_good, df_bad, args, engine):
 
         # Marcar como completado
         marcar_lote_completado(args.table)
+

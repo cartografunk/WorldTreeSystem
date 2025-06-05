@@ -1,5 +1,4 @@
-from pathlib import Path
-from core.libs import pd
+from core.libs import pd, Path
 from utils.metadata_extractor import extract_metadata_from_folder
 from core.schema import rename_columns_using_schema
 from Cruises.general_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql
@@ -47,37 +46,26 @@ def create_audit_table(engine, inventory_table_name, folder=None):
     df_sql, dtype_for_sql = prepare_df_for_sql(audit)
 
     # Año desde metadata
-    metadata = extract_metadata_from_folder(folder)
-    cruise_date = metadata.get("cruise_date")
-    if not cruise_date:
-        raise ValueError("CruiseDate no encontrado en metadata.")
-    year = cruise_date.year
+    # Si NO necesitas metadata de carpeta, puedes omitir todo esto.
+    year = None
+    if folder:
+        metadata = extract_metadata_from_folder(folder)
+        cruise_date = metadata.get("cruise_date")
+        if not cruise_date:
+            raise ValueError("CruiseDate no encontrado en metadata.")
+        year = cruise_date.year
+    else:
+        # O calcula el año de otra manera si ya lo tienes.
+        year = "2025"  # Default o extrae de inventory_table_name si lo tienes ahí
 
     # Nombre de tabla dinámico
     country_code = inventory_table_name.split("_")[1].lower()
     table_name = f"audit_{country_code}_{year}"
 
     # Crear y guardar tabla
-    ensure_table(df_sql, table_name, engine, dtype_for_sql, overwrite=True)
-    save_inventory_to_sql(df_sql, table_name, engine, dtype_for_sql)
+    ensure_table(df_sql, engine, table_name, dtype_for_sql, overwrite=True)
+    save_inventory_to_sql(df_sql, engine, table_name, dtype_for_sql)
 
-    # Exportar a Excel si hay folder
-    if folder:
-        output_path = Path(folder) / f"{table_name}.xlsx"
-        df_sql.to_excel(output_path, index=False)
-        print(f"📁 Exportada a Excel: {output_path}")
+    # Quita cualquier exportación a Excel si no la usas
 
     print(f"✅ Auditoría guardada en SQL: {table_name}")
-
-
-
-if __name__ == "__main__":
-    import argparse
-
-    parser = argparse.ArgumentParser(description="Genera tabla de auditoría por contrato.")
-    parser.add_argument("--table_name", required=True)
-    parser.add_argument("--output_folder", default=None)
-
-    args = parser.parse_args()
-    engine = get_engine()
-    create_audit_table(engine, args.table_name, args.output_folder)

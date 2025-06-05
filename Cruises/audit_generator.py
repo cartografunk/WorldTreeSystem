@@ -59,11 +59,5 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):
 
     save_inventory_to_sql(audit_sql, engine, audit_table_name, if_exists="append", dtype=dtype)
 
-    # 8. Exportar a Excel si corresponde
-    if output_excel_folder:
-        output_path = os.path.join(output_excel_folder, f"{audit_table_name}.xlsx")
-        audit_sql.to_excel(output_path, index=False)
-        print(f"📁 Excel exportado en: \n {output_path}")
-
     print(f"✅ Auditoría completada: \n {audit_table_name}")
     return audit

@@ -48,22 +48,23 @@ def safe_numeric(series):
 
 def process_inventory_table(engine, table):
     df = pd.read_sql(f'SELECT * FROM public.{table}', engine)
-    print(f"\n📄 Columnas cargadas para {table}: {df.columns.tolist()}")
+    #print(f"\n📄 Columnas cargadas para {table}: {df.columns.tolist()}")
     if df.empty:
         return []
 
     df = df.copy()
 
     # Obtener columnas reales desde el esquema
-    contract_col = get_column(df, "contractcode")
-    print(f"✅ contract_col: {contract_col}")
-    dbh_col = get_column(df, "dbh_in")
-    tht_col = get_column(df, "tht_ft")
-    mht_col = get_column(df, "merch_ht_ft")
-    doyle_col = get_column(df, "doyle_bf")
-    status_col = get_column(df, "status_id")
+    contract_col = get_column("contractcode", df)
+    #print(f"✅ contract_col: {contract_col}")
+    dbh_col = get_column("dbh_in", df)
+    tht_col = get_column("tht_ft", df)
+    mht_col = get_column("merch_ht_ft", df)
+    dead_tree_col = get_column("dead_tree", df)
+    alive_tree_col = get_column("alive_tree", df)
+    doyle_col = get_column("doyle_bf", df)
 
-    print(f"✅ status_col: {status_col}")
+    #print(f"✅ status_col: {status_col}")
 
     # Crear vista filtrada sin perder metadatos como CruiseDate
     filtered_df = df[
@@ -71,12 +72,21 @@ def process_inventory_table(engine, table):
         df[tht_col].notna() &
         df[mht_col].notna() &
         df[doyle_col].notna() &
-        df[status_col].notna()
+        df[dead_tree_col].notna() &
+        df[alive_tree_col].notna() &
+        df[doyle_col].notna()
     ]
 
     rows = []
 
     for contract_code, group in filtered_df.groupby(contract_col):
+
+        total_trees = len(df_group)
+        total_alive = df_group["alive_tree"].sum()
+        total_dead = df_group["dead_tree"].sum()
+        survival = round((total_alive / total_trees) * 100, 2)
+        mortality = round((total_dead / total_trees) * 100, 2)
+
         country_year = re.findall(r"inventory_([a-z]+)_(\d{4})", table)[0]
         country, year = country_year
         year = int(year)
@@ -91,6 +101,9 @@ def process_inventory_table(engine, table):
             "contract_code": contract_code,
             "inventory_year": year,
             "inventory_date": cruise_date,
+            "total_trees": total_trees,
+            "survival": f"{survival}%",
+            "mortality": f"{mortality}%",
             "dbh_mean": round(safe_numeric(live[dbh_col]).mean(), 2),
             "dbh_std": round(safe_numeric(live[dbh_col]).std(), 2),
             "tht_mean": round(safe_numeric(live[tht_col]).mean(), 2),

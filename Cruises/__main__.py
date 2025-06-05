@@ -36,14 +36,17 @@ def main():
     if not df_bad.empty:
         print(f"⚠️  {len(df_bad)} filas ignoradas por ID inválido.")
 
-        # columnas que EXISTEN en df_bad (evita KeyError)
+        # Diagnóstico (esto lo puedes dejar tal cual)
         diag_cols = [c for c in ("contractcode", "plot", "tree_number", "tree") if c in df_bad.columns]
         print(df_bad[diag_cols].head().to_string(index=False))
 
-        # Nombre del archivo en la raíz del repo
-        bad_report = f"bad_rows_{args.table_name}.xlsx"
-        # Guardar el Excel (UTF-8 ya viene soportado)
-        df_bad.to_excel(bad_report, index=False)
+        # Reordena columnas para exportar el archivo bad_rows en el orden de FINAL_ORDER
+        cols_in_final = [c for c in FINAL_ORDER if c in df_bad.columns]
+        extra_cols = [c for c in df_bad.columns if c not in FINAL_ORDER]
+        df_bad_export = df_bad[cols_in_final + extra_cols]
+
+        bad_report = f"bad_rows_{args.tabla_destino}.xlsx"
+        df_bad_export.to_excel(bad_report, index=False)
         print(f"📄 Reporte de filas excluidas → {bad_report}")
 
     #Chequeo de duplicados

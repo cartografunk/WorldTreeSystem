@@ -1,13 +1,10 @@
 [
   {
     "pais": "Mexico",
-    "año": 2023,
-    "tabla_destino": "inventory_mx_2023",
+    "año": 2024,
+    "tabla_destino": "inventory_mx_2024",
     "archivos": [
-      "Mexico/2023_ForestInventory/Contract Data.xlsx",
-      "Mexico/2023_ForestInventory/ES Plantilla de Recuento de Árboles.xlsx",
       "Mexico/2023_ForestInventory/3-WT Cruises/Alvaro Hernandez Suarez - MX0021/MX0021_2023_Alvaro Hernandez Suarez.xlsx",
-      "Mexico/2023_ForestInventory/3-WT Cruises/Alvaro Hernandez Suarez - MX0021/MX0021_2023_Alvaro Hernández Suarez.xlsx",
       "Mexico/2023_ForestInventory/3-WT Cruises/Caralampio Arreola Lopez - MX0026/MX0026_2023_Caralampio Arreola Lopez.xlsx",
       "Mexico/2023_ForestInventory/3-WT Cruises/Carlos Carbajal - MX0027/MX0027_2023_Carlos Carbajal Gutierrez.xlsx",
       "Mexico/2023_ForestInventory/3-WT Cruises/Cirilo Carbajal Hernandez - MX0028/MX0028_2023_Cirilo Carvajal Hernandez.xlsx",

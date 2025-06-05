@@ -84,24 +84,6 @@ def main():
         progress=True
     )
 
-    try:
-        # Generar reporte de auditoría
-        audit_output_file = f"audit_{args.tabla_destino}.xlsx"
-        run_audit(engine, args.tabla_destino, output_xlsx=None)
-        print(f"✅ Guardado reporte de auditoría: {audit_output_file}")
-
-        create_inventory_catalog(df_combined, engine, f"cat_{args.tabla_destino}")
-        print("✅ Proceso completo.")
-
-        # Marcar como completado
-        if getattr(args, "batch_imports_path", None) and getattr(args, "tabla_destino", None):
-            tabla_sql = f"public.{args.tabla_destino}"
-            marcar_lote_completado(args.batch_imports_path, args.tabla_destino, tabla_sql)
-
-    except Exception as e:
-        print(f"❌ Error fatal durante el procesamiento: {e}")
-
-
 if __name__ == '__main__':
     main()
 

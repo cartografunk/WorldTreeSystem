@@ -1,10 +1,8 @@
 #Cruises/xlsx_read_and_merge.py
 from core.schema import (
     COLUMNS,
-    clean_column_name,
-    rename_columns_using_schema,
-    get_column as get_column,
 )
+from core.schema_helpers import rename_columns_using_schema, clean_column_name, get_column as get_column
 from core.libs import pd, warnings, Path, os, tqdm, traceback, sleep
 
 from Cruises.utils.metadata_extractor import extract_metadata_from_excel

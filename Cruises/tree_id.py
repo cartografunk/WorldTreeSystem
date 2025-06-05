@@ -1,5 +1,5 @@
 from core.libs import pd
-from core.schema import get_column
+from core.schema_helpers import get_column
 
 PLOT_LOGICAL     = "Plot #"
 TREE_LOGICAL     = "Tree #"

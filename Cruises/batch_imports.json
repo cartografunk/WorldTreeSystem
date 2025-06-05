@@ -27,8 +27,8 @@
   },
   {
     "pais": "Mexico",
-    "año": 2024,
-    "tabla_destino": "inventory_mx_2024",
+    "año": 2025,
+    "tabla_destino": "inventory_mx_2025",
     "archivos": [
       "Mexico/2024_ForestInventoryQ1_25/MX0022_Gregorio Martinez_Inventory 2024 Q1_2025.xlsx",
       "Mexico/2024_ForestInventoryQ1_25/MX0038_Abraham Arreola Salto_Inventory 2024 Q1_2025.xlsx",

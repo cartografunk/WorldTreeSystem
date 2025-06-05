@@ -1,7 +1,6 @@
-# — imports al inicio del archivo —
-from core.schema import rename_columns_using_schema
+#Cruises/audit_generator
+from core.schema_helpers import rename_columns_using_schema, get_column
 from Cruises.general_importer import prepare_df_for_sql, save_inventory_to_sql, ensure_table
-from core.schema import get_column
 from core.libs import pd, os
 
 def create_audit_table(engine, table_name: str, output_excel_folder=None):
@@ -10,19 +9,27 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):
     inventory_table_name = table_name
     audit_table_name = f"audit_{country_code.lower()}_{year}"
 
-    # 1. Leer e renombrar inventario
-    df_inventory_raw = pd.read_sql_table(f"inventory_{country_code.lower()}_{year}", engine)
-    df_inventory = rename_columns_using_schema(df_inventory_raw)
+    try:
 
-    # 2. Leer y renombrar farmers
-    df_farmers_raw = pd.read_sql(
-        'SELECT contractcode, farmername, planting_year, contracted_trees FROM cat_farmers',
-        engine
-    )
+        # 1. Leer e renombrar inventario
+        df_inventory_raw = pd.read_sql_table(f"inventory_{country_code.lower()}_{year}", engine)
+        df_inventory = rename_columns_using_schema(df_inventory_raw)
 
-    # 3. Obtener los nombres de columna normalizados
-    contractcode_col = get_column(df_inventory, "contractcode")
-    tree_num_col    = get_column(df_inventory, "tree_number")
+        # 2. Leer y renombrar farmers
+        df_farmers_raw = pd.read_sql(
+            'SELECT contractcode, farmername, planting_year, contracted_trees FROM cat_farmers',
+            engine
+        )
+
+        # 3. Obtener los nombres de columna normalizados
+        contractcode_col = get_column(df_inventory, "contractcode")
+        tree_num_col    = get_column(df_inventory, "tree_number")
+
+    except Exception as e:
+        print("❌ Error en create_audit_table:", e)
+        traceback.print_exc()
+        raise
+
 
     # 4. Agrupar inventario
     grouped = df_inventory.groupby(contractcode_col, observed=True).agg(
@@ -50,12 +57,10 @@ def create_audit_table(engine, table_name: str, output_excel_folder=None):
     # 7. Preparar e insertar
     audit = rename_columns_using_schema(audit)
     audit_sql, dtype = prepare_df_for_sql(audit)
-    ensure_table(
-        audit_sql,  # 1. el DataFrame
-        engine,  # 2. la instancia Engine
-        audit_table_name,  # 3. el nombre de la tabla
-        recreate=True  # opcionalmente fuerza recreación
-    )
+    ensure_table(audit_sql, engine, audit_table_name, recreate=True)
+    save_inventory_to_sql(audit_sql, engine, audit_table_name, if_exists="append", dtype=dtype)
+    print(f"✅ Auditoría completada: \n {audit_table_name}")
+    return audit
 
     save_inventory_to_sql(audit_sql, engine, audit_table_name, if_exists="append", dtype=dtype)
 

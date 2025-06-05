@@ -1,5 +1,6 @@
 from core.libs import pd
-from core.schema import get_column
+from core.schema_helpers import get_column
+
 
 def calculate_doyle(df: pd.DataFrame) -> pd.DataFrame:
     """

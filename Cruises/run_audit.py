@@ -1,6 +1,6 @@
 from core.libs import pd, Path
 from utils.metadata_extractor import extract_metadata_from_folder
-from core.schema import rename_columns_using_schema
+from core.schema_helpers import rename_columns_using_schema
 from Cruises.general_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql
 
 def create_audit_table(engine, inventory_table_name, folder=None):

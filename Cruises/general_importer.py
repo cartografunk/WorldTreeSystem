@@ -1,67 +1,32 @@
 #Cruises/general_importer.py
-from sqlalchemy import Text, Float, Numeric, SmallInteger, Date
 from core.libs import text, inspect, pd
-from core.schema import COLUMNS, get_dtypes_for_dataframe, _SA_TO_PD
+from core.schema_helpers import rename_columns_using_schema, get_dtypes_for_dataframe, _SA_TO_PD, FINAL_ORDER, DTYPES
 from core.db import get_engine
 
 
 # Construye FINAL_ORDER y DTYPES desde schema
-SQL_COLUMNS = { col["key"]: col["sql_name"] for col in COLUMNS }
-FINAL_ORDER = [
-    "Contract Code",
-    "FarmerName",
-    "CruiseDate",
-    "id",
-    "id_error",
-    "Stand#",
-    "Plot#",
-    "PlotCoordinate",
-    "Tree#",
-    "Defect HT(ft)",
-    "DBH (in)",
-    "THT (ft)",
-    "Merch. HT (ft)",
-    "Short Note",
-    "cat_species_id",         # antes venía "Species" también, quítalo
-    "cat_defect_id",
-    "cat_pest_id",
-    "cat_coppiced_id",
-    "cat_permanent_plot_id",
-    "cat_disease_id",
-    "doyle_bf",
-    "dead_tree",
-    "alive_tree",
-]
-DTYPES = {
-    col["sql_name"]: col["dtype"]
-    for col in COLUMNS
-    if "dtype" in col
-}
 
 def prepare_df_for_sql(df):
-    # 1) renombrar columnas internas al nombre SQL
-    df2 = df.rename(columns=SQL_COLUMNS)
 
-    # 2) quitar duplicados de columnas
-    df2 = df2.loc[:, ~df2.columns.duplicated()]
+    # 1) Renombra todas las columnas usando el schema (al nombre SQL)
+    df = rename_columns_using_schema(df)
 
-    # 3) filtrar y reordenar según FINAL_ORDER
-    cols = [c for c in FINAL_ORDER if c in df2.columns]
-    df2 = df2[cols].copy()
+    # 2) Alinea y rellena columnas según el schema
+    for col in FINAL_ORDER:
+        if col not in df.columns:
+            df[col] = pd.NA
+    df = df[FINAL_ORDER]
 
-    # 4) conversión de tipos mínimos según DTYPES
-    for col, dtype in DTYPES.items():
-        if col in df2.columns:
-            if isinstance(dtype, SmallInteger):
-                df2[col] = pd.to_numeric(df2[col], errors="coerce").fillna(0).astype(int)
-            elif isinstance(dtype, (Float, Numeric)):
-                df2[col] = pd.to_numeric(df2[col], errors="coerce")
-            elif isinstance(dtype, Date):
-                # Convertir cualquier Timestamp o cadena válida a datetime.date
-                df2[col] = (
-                    pd.to_datetime(df2[col], format="%m/%d/%Y", errors="coerce")
-                    .dt.date
-                )
+    # 3) Castea tipos mínimos según DTYPES
+    dtypes = get_dtypes_for_dataframe(df)
+    for col, dtype in dtypes.items():
+        if col in df.columns:
+            try:
+                df[col] = df[col].astype(dtype.python_type, errors="ignore")
+            except Exception:
+                pass
+
+    return df, dtypes
 
     # 5) Construir dtype_for_sql para usar en el insert de SQLAlchemy/psycopg2
     dtype_for_sql = {col: DTYPES[col] for col in df2.columns if col in DTYPES}

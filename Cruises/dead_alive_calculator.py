@@ -23,7 +23,7 @@ def calculate_dead_alive(df: pd.DataFrame, engine) -> pd.DataFrame:
     mapping_dead = {}
     mapping_alive = {}
     for _, row in cat.iterrows():
-        for clave in [row["nombre"], row["nombre_en"]]:
+        for clave in [row["nombre"]]:
             if pd.notna(clave) and clave not in mapping_dead:
                 mapping_dead[clave] = int(row["dead"]) if not pd.isna(row["dead"]) else 0
                 mapping_alive[clave] = int(row["alive"]) if not pd.isna(row["alive"]) else 0

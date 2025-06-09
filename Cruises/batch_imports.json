@@ -100,8 +100,6 @@
     "año": 2022,
     "tabla_destino": "inventory_mx_2022",
     "archivos": [
-      "Mexico/2022_ForestInventory/2-Initial estimates/2022_ForestInventory_Properties_Mexico.xlsx",
-      "Mexico/2022_ForestInventory/7-Reports/MEX Audit Report.xlsx",
       "Mexico/2022_ForestInventory/4-ForestMetrix_Projects/1_Dolores Ramírez Rodríguez - MX0009/MX0009_Mexico_2021_Manuel Mapula_Plots.xlsx",
       "Mexico/2022_ForestInventory/4-ForestMetrix_Projects/1_Dolores Ramírez Rodríguez - MX0009/MX0009_Mexico_2021_Manuel Mapula_Trees.xlsx",
       "Mexico/2022_ForestInventory/4-ForestMetrix_Projects/1_Francisco Crivelli - MX0025/MX0025_Mexico_2021_Manuel Mapula_Plots.xlsx",
@@ -120,11 +118,9 @@
   },
   {
     "pais": "Guatemala",
-    "año": 2023,
-    "tabla_destino": "inventory_gt_2023",
+    "año": 2024,
+    "tabla_destino": "inventory_gt_2024",
     "archivos": [
-      "Guatemala/2023_ForestInventory/Contract Data.xlsx",
-      "Guatemala/2023_ForestInventory/ES Plantilla de Recuento de Árboles.xlsx",
       "Guatemala/2023_ForestInventory/3-WT Cruises/Ada Patricia Scheel Bartlett - GT0001/GT0001_2023_Ada Patricia Scheel.xlsx",
       "Guatemala/2023_ForestInventory/3-WT Cruises/Ada Patricia Scheel Bartlett - GT0030/GT0030_2023_Ada Patricia Scheel.xlsx",
       "Guatemala/2023_ForestInventory/3-WT Cruises/Beatriz Lopez Letona - GT0018/GT0018_2023_Beatriz López.xlsx",
@@ -416,15 +412,9 @@
   },
   {
     "pais": "USA",
-    "año": 2023,
-    "tabla_destino": "inventory_us_2023",
+    "año": 2024,
+    "tabla_destino": "inventory_us_2024",
     "archivos": [
-      "USA/2023_ForestInventory/Contract Data.xlsx",
-      "USA/2023_ForestInventory/ENG Tree Input Template.xlsx",
-      "USA/2023_ForestInventory/2-Initial Estimates/Table for Justin.xlsx",
-      "USA/2023_ForestInventory/2-Initial Estimates/Table for Progressive Forestry.xlsx",
-      "USA/2023_ForestInventory/2-Initial Estimates/US 2023 Cruise Budget.xlsx",
-      "USA/2023_ForestInventory/2-Initial Estimates/US 2023 Proposed farms for TreeSwift.xlsx",
       "USA/2023_ForestInventory/3-WT Cruises/Belinda Twohig - US0128/US0128_2022_Belinda Twohig.xlsx",
       "USA/2023_ForestInventory/3-WT Cruises/Daniel Bryd - US0022/US0022_2018_Daniel Byrd.xlsx",
       "USA/2023_ForestInventory/4-Contractor Cruises/Billy Whittaker - US0056/US0056_US_2020_DallasEnfinger.xlsx",
@@ -1044,12 +1034,9 @@
   },
   {
     "pais": "Costa Rica",
-    "año": 2023,
-    "tabla_destino": "inventory_cr_2023",
+    "año": 2024,
+    "tabla_destino": "inventory_cr_2024",
     "archivos": [
-      "Costa Rica/2023_ForestInventory/Contract Data.xlsx",
-      "Costa Rica/2023_ForestInventory/ES Plantilla de Recuento de Árboles.xlsx",
-      "Costa Rica/2023_ForestInventory/6-CR_2023DATABASE/CR_DataBase_Audit2023.xlsx",
       "Costa Rica/2023_ForestInventory/3-WT Cruises/Agner Chinchlla - CR0086/CR0086_2019_Agner Chinchila.xlsx",
       "Costa Rica/2023_ForestInventory/3-WT Cruises/Alex Donato Arguedas Arroyo - CR0035/CR0035_2020_Donato Arguedas.xlsx",
       "Costa Rica/2023_ForestInventory/3-WT Cruises/Ana Wolfe Arce - CR0037/CR0037 - 2023 - Ana Wolfe Arce.xlsx",

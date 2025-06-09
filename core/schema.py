@@ -3,13 +3,13 @@
 COLUMNS = [
   {
     "key": "contractcode", "sql_name": "Contract Code",
-    "aliases": ["ContractCode", "contractcode", "contract_code", "Contract Code"],
+    "aliases": ["ContractCode", "contractcode", "contract_code", "Contract Code", "Contract"],
     "dtype": "TEXT",
     "source": "metadata"
   },
   {
     "key": "farmername", "sql_name": "FarmerName",
-    "aliases": ["FarmerName", "farmername"],
+    "aliases": ["FarmerName", "farmername", "Property"],
     "dtype": "TEXT",
     "source": "metadata"
   },
@@ -33,7 +33,7 @@ COLUMNS = [
   },
   {
     "key": "plot", "sql_name": "Plot#",
-    "aliases": ["Plot #", "# Parcela", "_parcela", "plot"],
+    "aliases": ["Plot #", "# Parcela", "_parcela", "plot", "Plot#"],
     "dtype": "TEXT",
     "source": "input"
   },
@@ -45,7 +45,7 @@ COLUMNS = [
   },
   {
     "key": "tree_number", "sql_name": "Tree#",
-    "aliases": ["Tree #", "# Árbol", "# Arbol", "_arbol", "tree", "tree_#", "arbol", "#_arbol", "tree_number", "_árbol", "árbol", "#_árbol"],
+    "aliases": ["Tree #", "# Árbol", "# Arbol", "_arbol", "tree", "tree_#", "arbol", "#_arbol", "tree_number", "_árbol", "árbol", "#_árbol", "TreeID"],
     "dtype": "FLOAT",
     "source": "input"
   },
@@ -63,13 +63,13 @@ COLUMNS = [
   },
   {
     "key": "tht_ft", "sql_name": "THT",
-    "aliases": ["THT (ft)", "AT (m)", "at_m", "tht_ft"],
+    "aliases": ["THT (ft)", "AT (m)", "at_m", "tht_ft", "THt (ft)", "THt (m)"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
     "key": "merch_ht_ft", "sql_name": "Merch. HT",
-    "aliases": ["Merch. HT (ft)", "Alt. Com. (m)", "alt_com_m", "merch_ht_ft"],
+    "aliases": ["Merch. HT (ft)", "Alt. Com. (m)", "alt_com_m", "merch_ht_ft", "MHt (ft)", "MHt (m)"],
     "dtype": "NUMERIC",
     "source": "input"
   },
@@ -81,7 +81,7 @@ COLUMNS = [
   },
   {
     "key": "Status", "sql_name": "status",
-    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion"],
+    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion", "TreeStatus"],
     "dtype": "TEXT",
     "source": "input",
     "catalog_table": "cat_status",

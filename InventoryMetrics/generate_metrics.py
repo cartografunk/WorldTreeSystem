@@ -6,7 +6,7 @@ from core.db import get_engine
 engine = get_engine()
 
 # Año y países a considerar
-year = 2025
+year = 2024
 countries = ["gt", "cr", "mx", "us"]
 
 # Construir consulta por país

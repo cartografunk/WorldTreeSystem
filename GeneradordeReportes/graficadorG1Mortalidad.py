@@ -1,84 +1,59 @@
-from utils.db import get_engine
-from utils.colors import COLOR_PALETTE
-from utils.plot import save_pie_chart
-import pandas as pd
-import os
+from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.helpers import get_region_language, get_inventory_table_name, get_sql_column, resolve_column
+from GeneradordeReportes.utils.text_templates import text_templates
+from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.plot import save_pie_chart
+from core.libs import pd, os
+from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES, BASE_DIR
 
-def generar_mortalidad(contract_code: str, output_root: str = "outputs"):
-    engine = get_engine()
-
-    # Crear carpetas
-    plots_dir = os.path.join(output_root, contract_code, "Mortalidad")
+def generar_mortalidad(contract_code: str, country: str, year: int,
+                       engine=None,
+                       output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
+    engine = engine or get_engine()
+    table_name = get_inventory_table_name(country, year)
     resumen_dir = os.path.join(output_root, contract_code, "Resumen")
-    os.makedirs(plots_dir, exist_ok=True)
     os.makedirs(resumen_dir, exist_ok=True)
 
-    # Query
+    table_name = get_inventory_table_name(country, year)
+
+    # Obtener nombres de columna correctos según el esquema
+    col_code = resolve_column(engine, table_name, "contractcode")
+    col_alive = resolve_column(engine, table_name, "alive_tree")
+    col_dead = resolve_column(engine, table_name, "dead_tree")
+
     query = f"""
-    SELECT "Plot#", SUM("alive_tree") AS "Vivos", SUM("dead_tree") AS "Muertos"
-    FROM public.cr_inventory_2025
-    WHERE "Contract Code" = '{contract_code}'
-    GROUP BY "Plot#"
-    ORDER BY "Plot#"
-    """
-    df = pd.read_sql(query, engine)
+        SELECT
+          SUM("{col_dead}")   AS muertos,
+          SUM("{col_alive}")  AS vivos
+        FROM public.{table_name}
+        WHERE "{col_code}" = %(code)s
+        """
+    df = pd.read_sql(query, engine, params={"code": contract_code})
 
-    if df.empty:
+    # Verificar datos
+    if df.empty or (df.iloc[0]["vivos"] is None and df.iloc[0]["muertos"] is None):
         print(f"⚠️ No hay datos de mortalidad para contrato {contract_code}.")
-        return
+        return None
 
-    vivos_total = muertos_total = 0
+    muertos = int(df.loc[0, "muertos"] or 0)
+    vivos   = int(df.loc[0, "vivos"]   or 0)
 
-    for _, row in df.iterrows():
-        plot = int(row["Plot#"])
-        vivos = row["Vivos"]
-        muertos = row["Muertos"]
-        vivos_total += vivos
-        muertos_total += muertos
-
-        if vivos + muertos == 0:
-            continue
-
-        output_file = os.path.join(plots_dir, f"{contract_code}_Mortality_P{plot:02d}.png")
-        if not os.path.exists(output_file):
-            save_pie_chart(
-                values=[vivos, muertos],
-                labels=["Árboles Vivos", "Árboles Muertos"],
-                title=f"Mortality - Parcela {plot}",
-                output_path=output_file,
-                colors=[COLOR_PALETTE['secondary_green'], COLOR_PALETTE['primary_blue']],
-                fontsize=12,
-                figsize=(6, 6),
-                show_preview=True,
-                smart_labels=True
-            )
-            print(f"✅ Parcela {plot} guardada.")
-        else:
-            print(f"⚠️ Ya existe: {output_file}")
-
-    # Gráfico resumen
     resumen_file = os.path.join(resumen_dir, f"G1_Mortality_{contract_code}.png")
-    if not os.path.exists(resumen_file):
-        save_pie_chart(
-            values=[vivos_total, muertos_total],
-            labels=["Árboles Vivos", "Árboles Muertos"],
-            title=f"Mortality - {contract_code}",
-            output_path=resumen_file,
-            colors=[COLOR_PALETTE['secondary_green'], COLOR_PALETTE['primary_blue']],
-            figsize=(7, 7),
-            fontsize=13,
-            show_preview=True,
-            smart_labels=True
-        )
-        print(f"📊 Gráfico resumen guardado: {resumen_file}")
-    else:
-        print(f"⚠️ Ya existe: {resumen_file}")
+    lang = get_region_language(country)
+    title = text_templates["chart_titles"]["mortality"][lang].format(code=contract_code)
+    labels = text_templates["chart_labels"]["mortality"][lang]
 
-# Ejecutar todos los contratos si se corre directamente
-if __name__ == "__main__":
-    engine = get_engine()
-    contracts_df = pd.read_sql(
-        'SELECT DISTINCT "id_contract" FROM public.cat_cr_inventory2025 ORDER BY "id_contract"', engine
+    pic_width_in = 8.5 / 2.54
+    pic_height_in = 5.8 / 2.54
+
+    # Generar gráfico
+    save_pie_chart(
+        values=[muertos, vivos],
+        labels=labels,
+        title=title,
+        output_path=resumen_file,
+        colors=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['secondary_green']],
+        figsize=(8.5 / 2.54, 5.8 / 2.54)
     )
-    for code in contracts_df["id_contract"]:
-        generar_mortalidad(code)
+    print(f"📊 Gráfico de mortalidad guardado: {resumen_file}")
+    return resumen_file

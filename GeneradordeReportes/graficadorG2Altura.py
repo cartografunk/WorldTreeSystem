@@ -1,93 +1,132 @@
-from utils.libs import pd, os, plt, rcParams
-from utils.db import get_engine
-from utils.colors import COLOR_PALETTE
-from utils.plot import save_bar_chart
+from core.libs import plt, rcParams, os, pd
+import numpy as np
+from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from GeneradordeReportes.utils.config import BASE_DIR, EXPORT_DPI
+from GeneradordeReportes.utils.plot import FIGSIZE, _print_size_cm
+from GeneradordeReportes.utils.helpers import (
+    get_inventory_table_name,
+    get_region_language,
+    resolve_column
+)
+from GeneradordeReportes.utils.text_templates import text_templates
+from GeneradordeReportes.utils.crecimiento_esperado import df_altura  # DataFrame con columnas Año, Min, Max
 
 
-def generar_altura(contract_code: str, output_root: str = "outputs"):
-    engine = get_engine()
-
-    # === 1. Carpetas ===
-    altura_dir = os.path.join(output_root, contract_code, "Altura")
-    resumen_dir = os.path.join(output_root, contract_code, "Resumen")
-    os.makedirs(altura_dir, exist_ok=True)
-    os.makedirs(resumen_dir, exist_ok=True)
-
-    # === 2. Consulta a la base de datos ===
-    query = f"""
-    SELECT "Plot#", "THT (ft)", "Merch. HT (ft)"
-    FROM public.cr_inventory_2025
-    WHERE "Contract Code" = '{contract_code}'
+def generar_altura(contract_code: str, country: str, year: int, engine=None, output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
     """
-    df_alt = pd.read_sql(query, engine)
+    Genera un bar chart donde cada barra representa el promedio de alturas THT y MHT
+    por parcela (plot), más líneas horizontales de mínimo y máximo esperado según la edad.
+    """
+    # 1) Configuración inicial
+    year = int(year)
+    engine = engine or get_engine()
+    inv_table = get_inventory_table_name(country, year)
 
-    if df_alt.empty:
-        print(f"⚠️ No hay datos de altura para contrato {contract_code}.")
+    # 2) Resolver columnas: THT, MHT y plot
+    tht_col   = resolve_column(engine, inv_table, "tht_ft")
+    mht_col   = resolve_column(engine, inv_table, "merch_ht_ft")
+    plot_col  = resolve_column(engine, inv_table, "plot")
+    code_col  = resolve_column(engine, inv_table, "contractcode")
+
+    # 3) Leer datos de inventario
+    sql = f"""
+        SELECT
+          "{plot_col}" AS plot,
+          "{tht_col}"  AS tht,
+          "{mht_col}"  AS mht
+        FROM public.{inv_table}
+        WHERE "{code_col}" = %(code)s
+    """
+    df = pd.read_sql(sql, engine, params={"code": contract_code})
+
+    #omitir atípicos
+    df = df[
+        (df["tht"].between(1, 100)) &
+        (df["mht"].between(1, 100))
+        ]
+
+    if df.empty:
+        print(f"⚠️ Sin datos de altura para {contract_code}.")
         return
 
-    df_grouped = df_alt.groupby("Plot#", dropna=True).agg({
-        "THT (ft)": "mean",
-        "Merch. HT (ft)": "mean"
-    }).dropna().reset_index()
-
-    if df_grouped.empty:
-        print(f"⚠️ No hay datos válidos de altura en {contract_code}.")
+    # 4) Obtener planting_year
+    tree_table    = "masterdatabase.contract_tree_information"
+    tree_code_col = resolve_column(engine, tree_table, "contractcode")
+    plant_col     = resolve_column(engine, tree_table, "planting_year")
+    sql_py = f"""
+        SELECT "{plant_col}" AS planting_year
+        FROM {tree_table}
+        WHERE "{tree_code_col}" = %(code)s
+    """
+    plant_df = pd.read_sql(sql_py, engine, params={"code": contract_code})
+    if plant_df.empty or plant_df.iloc[0,0] is None:
+        print(f"⚠️ No se encontró planting_year para {contract_code}.")
         return
+    planting_year = int(plant_df.iloc[0,0])
 
-    # === 3. Gráfico resumen de altura por parcela (G2) ===
-    plots = df_grouped["Plot#"].astype(int).astype(str).tolist()
-    altura_total = df_grouped["THT (ft)"].tolist()
-    altura_comercial = df_grouped["Merch. HT (ft)"].tolist()
+    # 5) Calcular edad y valores esperados
+    age = year - planting_year
+    expected = df_altura[df_altura["Año"] == age]
+    has_reference = not expected.empty
 
-    series = {
-        "Altura Total": altura_total,
-        "Altura Comercial": altura_comercial
-    }
+    if has_reference:
+        exp_min = expected["Min"].iloc[0]
+        exp_max = expected["Max"].iloc[0]
+    else:
+        print(f"⚠️ No hay valores esperados para la edad {age}.")
 
-    altura_file = os.path.join(output_root, resumen_dir, f"G2_Altura_{contract_code}.png")
-    save_bar_chart(
-        x_labels=plots,
-        series=series,
-        title=f"Distribución de Altura - P{contract_code}",
-        output_path=altura_file,
-        ylabel="Altura promedio (ft)",
-        xlabel="Parcela",
-        colors=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']]
+    # 6) Agrupar por plot y calcular promedio
+    df_group = (
+        df.dropna(subset=["tht","mht"])
+          .groupby("plot")
+          .agg(tht_mean=("tht","mean"), mht_mean=("mht","mean"))
+          .reset_index()
+          .sort_values("tht_mean")
     )
 
-    # === 4. Gráficos individuales por parcela ===
-    for _, row in df_grouped.iterrows():
-        plot = int(row["Plot#"])
-        total = row["THT (ft)"]
-        comercial = row["Merch. HT (ft)"]
+    plots = df_group["plot"].tolist()
+    n     = len(plots)
+    x     = np.arange(n)
+    w     = 0.4
 
-        fig, ax = plt.subplots(figsize=(5, 5))
-        ax.bar(
-            ['Altura Total', 'Altura Comercial'],
-            [total, comercial],
-            color=[COLOR_PALETTE['primary_blue'], COLOR_PALETTE['accent_yellow']]
-        )
-        ax.set_ylim(0, max(total, comercial) + 2)
-        ax.set_ylabel("Altura (ft)")
-        ax.set_title(f'Altura - P{plot:02d}', fontsize=12, color=COLOR_PALETTE['primary_blue'])
+    # 7) Textos y paths
+    lang       = get_region_language(country)
+    title      = text_templates["chart_titles"]["height"][lang].format(code=contract_code)
+    ylabel     = text_templates["chart_axes"]["height_y"][lang]
+    resumen_dir = os.path.join(output_root, contract_code, "Resumen")
+    os.makedirs(resumen_dir, exist_ok=True)
+    out_png     = os.path.join(resumen_dir, f"G2_Altura_{contract_code}.png")
+    if os.path.exists(out_png):
+        print(f"⚠️ Ya existe: {out_png}")
+        return out_png
 
-        plot_file = os.path.join(altura_dir, f"{contract_code}_Altura_P{plot:02d}.png")
+    # 8) Plot de barras agrupadas
+    rcParams.update({"figure.autolayout": True})
+    fig, ax = plt.subplots(figsize=FIGSIZE)
+    ax.bar(x - w/2, df_group["tht_mean"], width=w, label="Altura total (m)", color=COLOR_PALETTE['primary_blue'], alpha=0.8)
+    ax.bar(x + w/2, df_group["mht_mean"], width=w, label="Altura comercial (m)", color=COLOR_PALETTE['secondary_green'], alpha=0.8)
 
-        if not os.path.exists(plot_file):
-            plt.tight_layout()
-            plt.savefig(plot_file, dpi=300, bbox_inches='tight', facecolor='white')
-            print(f"📈 Parcela {plot} guardada: {plot_file}")
-        else:
-            print(f"⚠️ Ya existe y no se sobreescribió: {plot_file}")
-        plt.close()
+    # 9) Líneas horizontales esperadas (solo si hay referencia)
+    if has_reference:
+        ax.hlines(exp_min, xmin=-w, xmax=n - 1 + w, linestyles='--',
+                  color=COLOR_PALETTE['accent_yellow'], label="Mínimo esperado")
+        ax.hlines(exp_max, xmin=-w, xmax=n - 1 + w, linestyles=':',
+                  color=COLOR_PALETTE['secondary_green'], label="Máximo esperado")
+
+    # 10) Configuración de ejes
+    ax.set_title(title, fontsize=11, color=COLOR_PALETTE['primary_blue'])
+    ax.set_ylabel(ylabel, fontsize=9)
+    ax.set_xlabel("Parcelas", fontsize=9)
+    ax.set_xticks(x)
+    ax.set_xticklabels("")
+    ax.grid(axis='y', linestyle='--', alpha=0.3)
+    ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0, frameon=False, fontsize=6)
 
 
-# === Ejecución directa ===
-if __name__ == "__main__":
-    engine = get_engine()
-    contracts_df = pd.read_sql(
-        'SELECT DISTINCT "id_contract" FROM public.cat_cr_inventory2025 ORDER BY "id_contract"',
-        engine
-    )
-    for code in contracts_df["id_contract"]:
-        generar_altura(code)
+    # 11) Guardar figura
+    _print_size_cm(fig)
+    fig.savefig(out_png, dpi=EXPORT_DPI, facecolor=None)
+    plt.close(fig)
+    print(f"📊 Bar chart agrupado de alturas guardado: {out_png}")
+    return out_png

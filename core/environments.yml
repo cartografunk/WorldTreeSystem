@@ -1,0 +1,16 @@
+name: worldtree
+channels:
+  - conda-forge
+dependencies:
+  - python=3.10
+  - pandas
+  - numpy
+  - matplotlib
+  - plotly
+  - openpyxl
+  - sqlalchemy
+  - psycopg2
+  - tqdm
+  - pip
+  - pip:
+      - python-docx

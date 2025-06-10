@@ -81,11 +81,11 @@ def process_inventory_table(engine, table):
 
     for contract_code, group in filtered_df.groupby(contract_col):
 
-        total_trees = len(df_group)
-        total_alive = df_group["alive_tree"].sum()
-        total_dead = df_group["dead_tree"].sum()
-        survival = round((total_alive / total_trees) * 100, 2)
-        mortality = round((total_dead / total_trees) * 100, 2)
+        total_alive = group["alive_tree"].sum()
+        total_dead = group["dead_tree"].sum()
+        total_trees = total_alive + total_dead
+        survival = round((total_alive / total_trees) * 100, 2) if total_trees else 0.0
+        mortality = round((total_dead / total_trees) * 100, 2) if total_trees else 0.0
 
         country_year = re.findall(r"inventory_([a-z]+)_(\d{4})", table)[0]
         country, year = country_year
@@ -188,6 +188,31 @@ def main():
 
     upsert_metrics(engine, all_rows)
     print("✅ Métricas actualizadas en masterdatabase.inventory_metrics")
+
+def create_cat_inventory_tables(engine, tables: list[str]):
+    """
+    Genera las tablas cat_inventory_<country>_<year> a partir de cada tabla inventory_<country>_<year>.
+    """
+    for table in tables:
+        m = re.match(r"inventory_([a-z]+)_(\d{4})", table)
+        if not m:
+            continue
+        country, year = m.groups()
+        target = f"cat_inventory_{country}_{year}"
+
+        try:
+            df = pd.read_sql(f"""
+                SELECT DISTINCT contractcode, cruisedate
+                FROM public.{table}
+                WHERE contractcode IS NOT NULL
+            """, engine)
+
+            df.to_sql(target, engine, if_exists="replace", index=False)
+            print(f"📁 Generada: {target} ({len(df)} contratos)")
+
+        except Exception as e:
+            print(f"⚠️  No se pudo crear {target}: {e}")
+
 
 
 if __name__ == "__main__":

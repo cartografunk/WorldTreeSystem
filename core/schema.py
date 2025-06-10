@@ -27,7 +27,7 @@ COLUMNS = [
   },
   {
     "key": "stand", "sql_name": "Stand#",
-    "aliases": ["Stand #", "# Posición", "_posicion_"],
+    "aliases": ["Stand #", "# Posición", "_posicion_", "StandID"],
     "dtype": "FLOAT",
     "source": "input"
   },

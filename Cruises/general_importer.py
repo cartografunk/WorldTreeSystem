@@ -118,7 +118,7 @@ def ensure_table(df, engine, table_name, recreate=False):
                 conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
 
             dtypes = get_dtypes_for_dataframe(df)
-            df.head(0).to_sql(table_name, conn, index=False, if_exists="replace", dtype=dtypes)
+            df.head(0).to_sql(table_name, conn, index=False, if_exists="append", dtype=dtypes)
 
             if 'id' in df.columns:
                 conn.execute(text(

@@ -1,9 +1,12 @@
 #InventoryMetrics/generate_metrics.py
 from core.libs import pd, create_engine, text
 from core.db import get_engine
+from InventoryMetrics.generate import create_cat_inventory_tables, get_inventory_tables
 
-# Conexión local a tu base de datos
 engine = get_engine()
+tables = get_inventory_tables(engine)
+
+create_cat_inventory_tables(engine, tables)
 
 # Año y países a considerar
 year = 2022

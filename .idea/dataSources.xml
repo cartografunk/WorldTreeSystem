@@ -1,10 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
   <component name="DataSourceManagerImpl" format="xml" multifile-model="true">
-    <data-source source="LOCAL" name="helloworldtree" uuid="b6183d19-510a-45d6-98ef-219849ac3fe5">
+    <data-source source="LOCAL" name="helloworldtree" uuid="e59b4de9-6e0d-4807-b839-41556a5a47e8">
       <driver-ref>postgresql</driver-ref>
       <synchronize>true</synchronize>
-      <configured-by-url>true</configured-by-url>
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql://localhost:5432/helloworldtree</jdbc-url>
       <working-dir>$ProjectFileDir$</working-dir>

@@ -1,14 +1,12 @@
 # __main__.py
-print("🌎 Hello World Tree!")
 
 import argparse
-from core.libs import pd
-from GeneradordeReportes.report_writer import crear_reporte
-from core.schema import COLUMNS
 from GeneradordeReportes.utils.db import get_engine
+from GeneradordeReportes.utils.libs import pd
+from GeneradordeReportes.report_writer import crear_reporte
+from Cruises.utils.schema import COLUMNS
 
 def main():
-    #print("🌎 Iniciando...")
     parser = argparse.ArgumentParser(
         description="Generar reportes .docx para contratos de inventario."
     )
@@ -42,10 +40,9 @@ def main():
     sql = f'SELECT DISTINCT "{contract_field}" FROM {detail_table}'
     contracts_df = pd.read_sql(sql, engine)
 
-    engine = get_engine()
     for code in contracts_df[contract_field]:
         print(f"\n🟢 Procesando contrato: {code}")
-        crear_reporte(code, args.country, args.year, engine)
+        crear_reporte(code)
 
 
 if __name__ == "__main__":

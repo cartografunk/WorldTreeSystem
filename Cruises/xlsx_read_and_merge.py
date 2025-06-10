@@ -65,11 +65,14 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
         xls = pd.ExcelFile(file_path)
         raw_sheets = xls.sheet_names
 
-        for s in raw_sheets:
-            if s.lower().strip() in ("input", "datainput"):
-                target = s
+        preferred_sheets = ["input (2)", "input", "datainput"]
+        target = None
+        for pref in preferred_sheets:
+            matches = [s for s in raw_sheets if s.lower().strip() == pref]
+            if matches:
+                target = matches[0]
                 break
-        else:
+        if not target:
             target = raw_sheets[0]
 
         df = pd.read_excel(xls, sheet_name=target, dtype=str, na_filter=False)
@@ -101,6 +104,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
 
         # 5️⃣ Devolver el DataFrame listo para pasar a normalize_catalogs
         meta = extract_metadata_from_excel(file_path) or {}
+        meta["sheet_used"] = target  # ← esto es clave
         return df, meta
 
     except Exception as e:

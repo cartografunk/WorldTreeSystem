@@ -1,5 +1,3 @@
-#MainDatabase/contract_tree_info
-
 import os
 import time
 import logging

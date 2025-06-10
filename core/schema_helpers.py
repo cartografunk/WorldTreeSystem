@@ -3,7 +3,7 @@
 from core.libs import pd, unicodedata, re
 from core.schema import COLUMNS
 
-from sqlalchemy import Text, Float, Numeric, Integer, DateTime, SmallInteger
+from sqlalchemy import Text, Float, Numeric, Integer, DateTime, SmallInteger, Date
 
 def rename_columns_using_schema(df):
   rename_map = {}
@@ -27,7 +27,7 @@ SQLALCHEMY_DTYPES = {
     "FLOAT": Float(),
     "NUMERIC": Numeric(),
     "INT": Integer(),
-    "DATE": DateTime(),
+    "DATE": Date(),
     "SMALLINT": SmallInteger(),
 }
 
@@ -95,30 +95,31 @@ def get_column(logical_name: str, df: pd.DataFrame = None) -> str:
 
 SQL_COLUMNS = { col["key"]: col["sql_name"] for col in COLUMNS }
 FINAL_ORDER = [
-    "Contract Code",
-    "FarmerName",
-    "CruiseDate",
+    "contractcode",
+    "farmername",
+    "cruisedate",
     "id",
     "id_error",
-    "Stand#",
-    "Plot#",
-    "PlotCoordinate",
-    "Tree#",
-    "Defect HT(ft)",
-    "DBH (in)",
-    "THT (ft)",
-    "Merch. HT (ft)",
-    "Short Note",
-    "cat_species_id",         # antes venía "Species" también, quítalo
-    "cat_defect_id",
-    "cat_pest_id",
-    "cat_coppiced_id",
-    "cat_permanent_plot_id",
-    "cat_disease_id",
+    "stand",
+    "plot",
+    "plot_coordinate",
+    "tree_number",
+    "defect_ht_ft",
+    "dbh_in",
+    "tht_ft",
+    "merch_ht_ft",
+    "short_note",
+    "Species_id",
+    "Defect_id",
+    "Pests_id",
+    "Coppiced_id",
+    "Permanent Plot_id",
+    "Disease_id",
     "doyle_bf",
     "dead_tree",
-    "alive_tree",
+    "alive_tree"
 ]
+
 DTYPES = {
     col["sql_name"]: col["dtype"]
     for col in COLUMNS

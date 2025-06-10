@@ -5,6 +5,7 @@ from core.libs import pd
 from core.db import get_engine
 from core.schema_helpers import FINAL_ORDER
 
+from Cruises.catalog_normalizer import parse_country_code
 from Cruises.general_reader import load_and_prepare_data
 from Cruises.general_importer import prepare_df_for_sql, ensure_table, save_inventory_to_sql, create_inventory_catalog, marcar_lote_completado, cast_dataframe
 from Cruises.general_processing import process_inventory_dataframe
@@ -32,7 +33,8 @@ def main():
     # Obtener engine
     engine = get_engine()
 
-    df_good, df_bad = process_inventory_dataframe(df_combined, engine, args.country_code)
+    country_code = parse_country_code(args.tabla_destino)
+    df_good, df_bad = process_inventory_dataframe(df_combined, engine, country_code)
 
     if not df_bad.empty:
         print(f"⚠️  {len(df_bad)} filas ignoradas por ID inválido.")
@@ -74,7 +76,14 @@ def main():
         recreate=args.recreate_table
     )
 
-    df_sql = df_sql.replace({pd.NA: None})
+    # 👇 Solo haz replace en columnas que NO son fecha
+    for col in df_sql.columns:
+        if "date" not in col.lower():
+            df_sql[col] = df_sql[col].replace({pd.NA: None})
+
+    # 🔒 Castea fechas a datetime.date, por si algo se perdió antes
+    if 'cruisedate' in df_sql.columns:
+        df_sql['cruisedate'] = pd.to_datetime(df_sql['cruisedate'], errors="coerce").dt.date
 
     #Normaliza dtypes una sola vez
     df_sql = cast_dataframe((df_sql))

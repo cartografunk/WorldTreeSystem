@@ -1,5 +1,5 @@
 #Cruises/general_importer.py
-from core.libs import text, inspect, pd
+from core.libs import text, inspect, pd, datetime, to_datetime
 from core.schema_helpers import rename_columns_using_schema, get_dtypes_for_dataframe, _SA_TO_PD, FINAL_ORDER, DTYPES
 from core.db import get_engine
 
@@ -237,20 +237,35 @@ def save_inventory_to_sql(df,
 
 def cast_dataframe(df):
     """Convierte in-place las columnas presentes al dtype esperado."""
-    from pandas import to_datetime
-    for col, sa_type in get_dtypes_for_dataframe(df).items():        # ← ya existe
+
+    for col, sa_type in get_dtypes_for_dataframe(df).items():
         pd_dtype = _SA_TO_PD.get(sa_type)
         if pd_dtype is None or col not in df.columns:
             continue
-        # Ya convertimos fechas a datetime.date en prepare_df_for_sql,
-        # no forzamos a Timestamp:
+
+        if col == "cruisedate":
+            # Primero, intenta con formato MM/DD/YYYY
+            dt = pd.to_datetime(df[col], errors="coerce", format="%m/%d/%Y")
+            # Si hay NaT, intenta con formato DD/MM/YYYY
+            if dt.isna().sum() > 0:
+                dt2 = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
+                dt = dt.combine_first(dt2)
+            # Si sigue habiendo NaT, intenta formato ISO
+            if dt.isna().sum() > 0:
+                dt3 = pd.to_datetime(df[col], errors="coerce", format="%Y-%m-%d")
+                dt = dt.combine_first(dt3)
+            # Convierte a date
+            df[col] = dt.dt.date
+            continue
+
         if pd_dtype == "datetime64[ns]":
-            # Si ya es date, no sobrescribimos. Solo convertir si no es date.
             if not pd.api.types.is_datetime64_any_dtype(df[col]):
                 df[col] = to_datetime(df[col], errors="coerce")
         else:
             df[col] = df[col].astype(pd_dtype, errors="ignore")
+
     return df
+
 
 def marcar_lote_completado(batch_imports_path, tabla_destino, tabla_sql):
     from core.libs import Path, json
@@ -279,7 +294,7 @@ def marcar_lote_completado(batch_imports_path, tabla_destino, tabla_sql):
 
 def upload_and_finalize(df_combined, df_good, df_bad, args, engine):
     if not df_good.empty:
-        prepare_df_for_sql(df_good)
+        df_good, _ = prepare_df_for_sql(df_good)
         df_good = cast_dataframe(df_good)
 
         save_inventory_to_sql(df_good, args.table, engine)

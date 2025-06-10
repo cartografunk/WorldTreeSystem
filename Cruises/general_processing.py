@@ -10,13 +10,22 @@ def process_inventory_dataframe(df, engine, country_code):
     df = clean_cruise_dataframe(df)
     df = remove_blank_rows(df)
     df = forward_fill_headers(df)
-    df = standardize_units(df)
+    if "sheet_used" in df.columns and country_code in {"CR", "MX", "GT"}:
+        input2_mask = df["sheet_used"].str.lower().eq("input (2)")
+        if input2_mask.any():
+            print(f"🧪 Saltando normalización de unidades para {input2_mask.sum()} filas de Input (2)")
+            df.loc[~input2_mask, :] = standardize_units(df.loc[~input2_mask, :])
+        else:
+            df = standardize_units(df)
+    else:
+        df = standardize_units(df)
 
     df = calculate_dead_alive(df, engine)
 
     df = normalize_catalogs(
         df,
-        engine
+        engine,
+        country_code
     )
 
     df = calculate_doyle(df)

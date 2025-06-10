@@ -18,6 +18,16 @@ ALIASES = {
     "no": "no"
 }
 
+import re
+
+def parse_country_code(tabla_destino: str) -> str:
+    # Busca el patrón inventory_{cc}_{year} (por ejemplo: inventory_cr_2025)
+    m = re.match(r"inventory_([a-z]{2})_\d{4}", tabla_destino, re.IGNORECASE)
+    if m:
+        return m.group(1).upper()
+    raise ValueError(f"No se pudo extraer country_code de '{tabla_destino}'")
+
+
 def parse_catalog_value(val: str):
     if pd.isna(val):
         return None
@@ -28,14 +38,14 @@ def parse_catalog_value(val: str):
 
 
 
-def normalize_catalogs(df, engine):
+def normalize_catalogs(df, engine, country_code):
     for col_def in COLUMNS:
         if col_def["source"] != "input" or "catalog_table" not in col_def:
             continue
 
         raw_col = col_def["key"]         # p. ej. "Pests" o "Defect" (tal como quedó tras rename_columns)
         catalog = col_def["catalog_table"]  # p. ej. "cat_pest"
-        campo_texto = "nombre"             # o "nombre_en", según cómo esté definido en tu tabla
+        campo_texto = PAIS_CONFIG[country_code.upper()]["col"]
         campo_id = "id"
 
         # 1) Leer todo el catálogo desde SQL:

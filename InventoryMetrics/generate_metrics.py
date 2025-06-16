@@ -9,7 +9,7 @@ tables = get_inventory_tables(engine)
 create_cat_inventory_tables(engine, tables)
 
 # Año y países a considerar
-year = 2022
+year = 2024
 countries = ["gt", "cr", "mx", "us"]
 
 # Construir consulta por país

@@ -2,6 +2,7 @@
 from core.libs import argparse, json
 from Cruises.xlsx_read_and_merge import combine_files
 from Cruises.import_summary import generate_summary_from_df
+from Cruises.general_preparation import contracts_missing_metrics
 from core.paths import resolve_inventory_paths
 
 def get_args():
@@ -30,23 +31,40 @@ def load_batch_config(tabla_destino, path="Cruises/batch_imports.json"):
 def load_and_prepare_data():
     args = get_args()
 
+    # 1. Cargar archivos desde batch si no vienen por argumento
     if not args.files:
         lote = load_batch_config(args.tabla_destino, args.batch_imports_path)
         args.files = lote.get("archivos", [])
         args.country_code = args.country_code or lote.get("pais", "")[:2].lower()
         args.year = args.year or lote.get("año")
 
-        # 🔧 CORREGIDO: ya no mete country ni year
-        args.files = resolve_inventory_paths(args.files)
+    # 2. Resolver paths absolutos
+    args.files = resolve_inventory_paths(args.files)
 
-        print(f"📦 Archivos desde lote: {args.files}")
+    # 3. Filtrar archivos si hay año definido
+    if args.year:
+        missing_contracts = contracts_missing_metrics(args.year)
+        files_filtered = []
+        for f in args.files:
+            cc = f.split('/')[-1].split('_')[0]
+            if cc in missing_contracts:
+                files_filtered.append(f)
+            else:
+                print(f"⏩ SKIP {f} (ya métricado)")
+        args.files = files_filtered
 
-        df_combined = combine_files(explicit_files=args.files)
+    # 4. Cargar los archivos (si quedaron)
+    if not args.files:
+        print("🎉 Todos los archivos ya están métricados. Nada que procesar.")
+        return args, None
 
-        if df_combined is not None and not df_combined.empty:
-            generate_summary_from_df(df_combined, args.files)
-        else:
-            print("⚠️ No se pudo generar el resumen porque el dataframe está vacío.")
+    df_combined = combine_files(explicit_files=args.files)
+
+    if df_combined is not None and not df_combined.empty:
+        generate_summary_from_df(df_combined, args.files)
+    else:
+        print("⚠️ No se pudo generar el resumen porque el dataframe está vacío.")
 
     return args, df_combined
+
 

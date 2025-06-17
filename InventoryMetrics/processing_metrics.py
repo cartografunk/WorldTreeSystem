@@ -1,9 +1,14 @@
 #InventoryMetrics/processing_metrics
-
+from core.libs import pd, np
 from core.schema_helpers import get_column
+from core.db import get_engine
+from InventoryMetrics.generate_helpers import add_cruise_date_to_metrics
+
+engine = get_engine()
 
 def aggregate_contracts(
     df,
+    engine,
     country=None,
     year=None,
     include_all_contracts=False,
@@ -41,34 +46,39 @@ def aggregate_contracts(
 
     grouped = df.groupby(contract_col)
     rows = []
+
     for contract_code, group in grouped:
+        # Calcula sobrevivencia/mortalidad
+        alive_col = get_column("alive_tree", group)
+        dead_col = get_column("dead_tree", group)
+        total_alive = group[alive_col].sum() if alive_col in group else np.nan
+        total_dead = group[dead_col].sum() if dead_col in group else np.nan
+        total_trees = total_alive + total_dead if not np.isnan(total_alive) and not np.isnan(total_dead) else np.nan
+        survival = round((total_alive / total_trees) * 100, 2) if total_trees else np.nan
+        mortality = round((total_dead / total_trees) * 100, 2) if total_trees else np.nan
+
+        # Redondeo y columnas igual que antes
         row = {
             "contract_code": contract_code,
-            "total_trees": group.shape[0]
+            "inventory_year": year,
+            "inventory_date": None,  # Se rellena después con el merge
+            "total_trees": total_trees,
+            "survival": f"{survival}%" if not np.isnan(survival) else None,
+            "mortality": f"{mortality}%" if not np.isnan(mortality) else None,
+            "dbh_mean": round(pd.to_numeric(group[get_column("dbh_in", group)], errors='coerce').mean(), 2),
+            "dbh_std": round(pd.to_numeric(group[get_column("dbh_in", group)], errors='coerce').std(), 2),
+            "tht_mean": round(pd.to_numeric(group[get_column("tht_ft", group)], errors='coerce').mean(), 2),
+            "tht_std": round(pd.to_numeric(group[get_column("tht_ft", group)], errors='coerce').std(), 2),
+            "mht_mean": round(pd.to_numeric(group[get_column("merch_ht_ft", group)], errors='coerce').mean(), 2),
+            "mht_std": round(pd.to_numeric(group[get_column("merch_ht_ft", group)], errors='coerce').std(), 2),
+            "doyle_bf_mean": round(pd.to_numeric(group[get_column("doyle_bf", group)], errors='coerce').mean(), 2),
+            "doyle_bf_std": round(pd.to_numeric(group[get_column("doyle_bf", group)], errors='coerce').std(), 2),
+            "doyle_bf_total": round(pd.to_numeric(group[get_column("doyle_bf", group)], errors='coerce').sum(), 2),
         }
-        if country:
-            row["country_code"] = country
-        if year:
-            row["year"] = year
-
-        # Campos críticos
-        for field in required_fields:
-            col = get_column(field, group)
-            row[f"{field}_mean"] = pd.to_numeric(group[col], errors='coerce').mean()
-
-        # Doyle total si está entre los requeridos
-        if "doyle_bf" in required_fields:
-            doyle_col = get_column("doyle_bf", group)
-            row["doyle_total"] = pd.to_numeric(group[doyle_col], errors='coerce').sum()
-
-        # Extras opcionales
-        if extra_cols:
-            for col in extra_cols:
-                row[col] = group[get_column(col, group)].mean()
-
         rows.append(row)
 
     df_metrics = pd.DataFrame(rows)
+    df_metrics = add_cruise_date_to_metrics(engine, df_metrics, country, year)
 
     # Mergea todos los contratos si se pide
     if include_all_contracts:

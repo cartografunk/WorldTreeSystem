@@ -1,9 +1,11 @@
 # inventory_metrics/generate.py
 
 from tqdm import tqdm
-
+from InventoryMetrics.processing_metrics import aggregate_contracts
 from InventoryMetrics.generate_helpers import safe_numeric
 from InventoryMetrics.inventory_retriever import get_inventory_tables, get_cruise_date
+from InventoryMetrics.generate_helpers import deduplicate_and_merge_metrics
+
 from core.libs import re, pd, text
 from core.db import get_engine
 from core.schema_helpers import get_column
@@ -79,6 +81,7 @@ def main():
         # Agrupa y calcula métricas
         df_metrics = aggregate_contracts(
             df,
+            engine,
             country=country,
             year=year,
             include_all_contracts=True  # <-- Así aseguras que no falte ninguno
@@ -86,7 +89,13 @@ def main():
         all_dfs.append(df_metrics)
 
     df_full = pd.concat(all_dfs, ignore_index=True)
-    df_full.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="replace", index=False)
+    if "cruise_date" in df_full.columns:
+        df_full["inventory_date"] = df_full["cruise_date"]
+        df_full = df_full.drop(columns=["cruise_date"])
+
+    # Aquí SOLO LLAMAS a la función de helpers, sin pre-drop ni pre-sort
+    df_final = deduplicate_and_merge_metrics(df_full)
+    df_full.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="append", index=False)
     print("✅ Métricas insertadas en masterdatabase.inventory_metrics")
 
 if __name__ == "__main__":

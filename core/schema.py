@@ -109,13 +109,13 @@ COLUMNS = [
   },
   {
     "key": "defect_id", "sql_name": "cat_defect_id",
-    "aliases": ["defect_id"],
+    "aliases": ["defect_id", "Defect_id"],
     "dtype": "SMALLINT",
     "source": "calculated"
   },
   {
     "key": "pests_id", "sql_name": "cat_pest_id",
-    "aliases": ["pests_id", "Plagas"],
+    "aliases": ["pests_id", "Plagas", "Pest_id", "Pests_id"],
     "dtype": "SMALLINT",
     "source": "calculated"
   },
@@ -133,7 +133,7 @@ COLUMNS = [
   },
   {
     "key": "disease_id", "sql_name": "cat_disease_id",
-    "aliases": ["disease_id", "Enfermedadas"],
+    "aliases": ["disease_id", "Enfermedadas", "Disease_id"],
     "dtype": "SMALLINT",
     "source": "calculated"
   },

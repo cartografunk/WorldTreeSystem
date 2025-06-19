@@ -47,7 +47,7 @@ DYNAMIC_BLOCKS = {
     "sql": '''
         SELECT COUNT(*) AS value
         FROM {table}
-        WHERE "{contractcode}" = '{code}' AND "{defect_id}" IS NOT NULL;
+        WHERE "Defect_id" IS NOT NULL AND "Defect_id" != 'None'
     '''
     },
     "contractcode": {
@@ -85,7 +85,7 @@ def fetch_dynamic_values(code: str, country: str, year: int):
     col_dbh = get_column("dbh_in")
     col_alive = get_column("alive_tree")
     col_contract = get_column("contractcode")
-    col_defect = get_column("defect_id")
+    col_defect = get_column("Defect_id")
 
     # Usar estos nombres en los .format()
     with engine.connect() as conn:
@@ -105,7 +105,6 @@ def fetch_dynamic_values(code: str, country: str, year: int):
                     merch_ht=col_mht,
                     tht=col_tht,
                     dbh=col_dbh,
-                    defect_id=col_defect,
                 )
 
                 row = conn.execute(text(sql_filled)).scalar_one_or_none()

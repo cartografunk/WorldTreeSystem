@@ -33,7 +33,7 @@ def generar_tabla_sanidad(contract_code: str, country: str, year: int, engine):
     query_template = """
     SELECT cat.{nombre_field}, COUNT(*) as total
     FROM public.{table_name} inv
-    JOIN public.cat_disease cat ON inv."Disease_id"::int = cat.id
+    JOIN public.{catalogo} cat ON inv."{campo}"::int = cat.id
     WHERE inv.contractcode = :contract_code
     GROUP BY cat.{nombre_field}
     ORDER BY total DESC
@@ -50,16 +50,17 @@ def generar_tabla_sanidad(contract_code: str, country: str, year: int, engine):
     grupos = {
         "Enfermedad": ("cat_disease", "Disease_id"),
         "Defecto": ("cat_defect", "Defect_id"),
-        "Plaga": ("cat_pest", "Pest_id"),
+        "Plaga": ("cat_pest", "Pests_id"),
     }
 
     resultados = []
 
     for grupo, (catalogo, campo) in grupos.items():
+        # Asegúrate que campo sea, por ejemplo, "Defect_id", "Pest_id", "Disease_id"
         query = text(query_template.format(
             table_name=table_name,
             catalogo=catalogo,
-            campo=campo,  # SIN comillas dobles, el template las pone
+            campo=campo,
             nombre_field=nombre_field
         ))
         df = pd.read_sql(query, engine, params={"contract_code": contract_code})

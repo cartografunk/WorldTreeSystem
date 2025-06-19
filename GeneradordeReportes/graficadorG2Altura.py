@@ -1,8 +1,7 @@
 #ReportGenerator/graficadorG2 Altura
 
 
-from core.libs import plt, rcParams, os, pd
-import numpy as np
+from core.libs import plt, rcParams, os, pd, np
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
 from GeneradordeReportes.utils.config import BASE_DIR, EXPORT_DPI
@@ -14,7 +13,7 @@ from GeneradordeReportes.utils.helpers import (
 )
 from GeneradordeReportes.utils.text_templates import text_templates
 from GeneradordeReportes.utils.crecimiento_esperado import df_altura  # DataFrame con columnas Año, Min, Max
-
+from GeneradordeReportes.utils.helpers import tiene_datos_campo
 
 def generar_altura(contract_code: str, country: str, year: int, engine=None, output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
     """
@@ -31,6 +30,14 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     mht_col   = resolve_column(engine, inv_table, "merch_ht_ft")
     plot_col  = resolve_column(engine, inv_table, "plot")
     code_col  = resolve_column(engine, inv_table, "contractcode")
+
+    # — Si no hay datos ni en THT ni en MHT, omitir el gráfico —
+    if not (
+            tiene_datos_campo(engine, inv_table, contract_code, tht_col) or
+            tiene_datos_campo(engine, inv_table, contract_code, mht_col)
+    ):
+        print(f"⚠️ Sin datos de altura (THT/MHT) para {contract_code}.")
+        return None
 
     # 3) Leer datos de inventario
     sql = f"""

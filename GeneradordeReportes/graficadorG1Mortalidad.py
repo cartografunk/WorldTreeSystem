@@ -8,6 +8,8 @@ from GeneradordeReportes.utils.plot import save_pie_chart
 from core.libs import pd, os
 from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES, BASE_DIR
 
+from GeneradordeReportes.utils.helpers import tiene_datos_campo
+
 def generar_mortalidad(contract_code: str, country: str, year: int,
                        engine=None,
                        output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
@@ -22,6 +24,12 @@ def generar_mortalidad(contract_code: str, country: str, year: int,
     col_code = resolve_column(engine, table_name, "contractcode")
     col_alive = resolve_column(engine, table_name, "alive_tree")
     col_dead = resolve_column(engine, table_name, "dead_tree")
+    if not (
+            tiene_datos_campo(engine, table_name, contract_code, "dead_tree") or
+            tiene_datos_campo(engine, table_name, contract_code, "alive_tree")
+    ):
+        print(f"⚠️ Sin datos de mortalidad para {contract_code}.")
+        return None
 
     query = f"""
         SELECT

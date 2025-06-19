@@ -11,10 +11,13 @@ from GeneradordeReportes.utils.helpers import (
     resolve_column
 )
 from GeneradordeReportes.utils.crecimiento_esperado import df_dbh
+from GeneradordeReportes.utils.helpers import tiene_datos_campo
+
 
 def generar_crecimiento(contract_code: str, country: str, year: int,
                         engine=None,
                         output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
+
     # 1) Setup
     year = int(year)
     engine = engine or get_engine()
@@ -23,6 +26,9 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     # 2) Resolver columnas
     plot_col  = resolve_column(engine, inv_table, "plot")
     dbh_col   = resolve_column(engine, inv_table, "DBH (in)")
+    if not tiene_datos_campo(engine, inv_table, contract_code, dbh_col):
+        print(f"⚠️ Sin datos de DBH para {contract_code}.")
+        return None
     code_col  = resolve_column(engine, inv_table, "contractcode")
 
     # 3) Leer DBH por parcela (filtrando outliers)

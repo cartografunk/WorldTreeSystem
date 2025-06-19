@@ -55,7 +55,8 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     # 2. Validación de gráficas generadas
     for key, path in paths.items():
         if not path or not os.path.isfile(path):
-            raise FileNotFoundError(f"Gráfica {key} no generada: {path}")
+            print(f"⚠️ Gráfica {key} no generada para {code}: {path}")
+            # path = None  # (opcional) explícitamente marcarlo como None
 
     # 3. Generar tabla de sanidad
     df_sanidad = generar_tabla_sanidad(code, country, year, engine)

@@ -33,6 +33,7 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
           AND "{dbh_col}" IS NOT NULL
           AND "{dbh_col}" BETWEEN 1 AND 50
     '''
+
     df = pd.read_sql(sql, engine, params={"code": contract_code})
 
     if df.empty:
@@ -48,6 +49,7 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
         FROM {meta}
         WHERE "{mc}" = %(code)s
     ''', engine, params={"code": contract_code})
+
     if plant.empty or plant.iloc[0,0] is None:
         print(f"⚠️ No hay año de plantación para {contract_code}.")
         return

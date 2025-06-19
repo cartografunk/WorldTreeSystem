@@ -1,5 +1,6 @@
-import os
-import matplotlib.pyplot as plt
+# GeneradordeReportes/utils/helpers.py
+from core.libs import os, plt, inspect, re, NoSuchTableError, text
+from core.schema import COLUMNS
 
 def guardar_figura(path, fig, facecolor='white'):
     if not os.path.exists(path):
@@ -33,12 +34,7 @@ def get_sql_column(key: str) -> str:
     raise KeyError(f"Key '{key}' not found in schema.")
 
 
-# GeneradordeReportes/utils/helpers.py
 
-from sqlalchemy import inspect
-from sqlalchemy.exc import NoSuchTableError
-from core.schema import COLUMNS
-import re
 
 def normalize(s: str) -> str:
     # todo a minúsculas, solo alfanuméricos
@@ -87,3 +83,14 @@ def resolve_column(engine, table_name, hint):
         return norm_real[nh]
 
     raise ValueError(f"No pude resolver '{hint}' en tabla {table_name!r}")
+
+def tiene_datos_campo(engine, table, contractcode, campo):
+    """True si existe al menos un valor NO nulo en el campo para el contrato dado."""
+    from sqlalchemy import text
+    sql = text(f'''
+        SELECT COUNT(*) FROM public.{table}
+        WHERE contractcode = :code AND "{campo}" IS NOT NULL
+    ''')
+    with engine.connect() as conn:
+        count = conn.execute(sql, {"code": contractcode}).scalar_one()
+    return count > 0

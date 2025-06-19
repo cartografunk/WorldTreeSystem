@@ -1,3 +1,6 @@
+#ReportGenerator/graficadorG2 Altura
+
+
 from core.libs import plt, rcParams, os, pd
 import numpy as np
 from GeneradordeReportes.utils.db import get_engine
@@ -32,12 +35,13 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     # 3) Leer datos de inventario
     sql = f"""
         SELECT
-          "{plot_col}" AS plot,
-          "{tht_col}"  AS tht,
-          "{mht_col}"  AS mht
+          {plot_col} AS plot,
+          {tht_col}  AS tht,
+          {mht_col}  AS mht
         FROM public.{inv_table}
-        WHERE "{code_col}" = %(code)s
+        WHERE {code_col} = %(code)s
     """
+
     df = pd.read_sql(sql, engine, params={"code": contract_code})
 
     #omitir atípicos

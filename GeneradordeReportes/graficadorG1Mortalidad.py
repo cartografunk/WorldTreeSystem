@@ -1,3 +1,5 @@
+#ReportGenerator/graficadorG1Mortalidad
+
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.helpers import get_region_language, get_inventory_table_name, get_sql_column, resolve_column
 from GeneradordeReportes.utils.text_templates import text_templates
@@ -23,10 +25,10 @@ def generar_mortalidad(contract_code: str, country: str, year: int,
 
     query = f"""
         SELECT
-          SUM("{col_dead}")   AS muertos,
-          SUM("{col_alive}")  AS vivos
+          SUM({col_dead})   AS muertos,
+          SUM({col_alive})  AS vivos
         FROM public.{table_name}
-        WHERE "{col_code}" = %(code)s
+        WHERE {col_code} = %(code)s
         """
     df = pd.read_sql(query, engine, params={"code": contract_code})
 

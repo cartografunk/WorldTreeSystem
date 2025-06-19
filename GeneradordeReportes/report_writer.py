@@ -1,9 +1,10 @@
-from core.libs import pd, os
+#GeneradodeReportes/report_writer
+
+from core.libs import pd, os, text
 from core.db import get_engine
 
 from docx import Document
 from docx.shared import Pt, Inches
-from sqlalchemy import text
 from GeneradordeReportes.utils.dynamic_text_blocks import fetch_dynamic_values, format_paragraphs
 from GeneradordeReportes.utils.docx_helpers import render_title, render_intro_and_table
 from GeneradordeReportes.graficadorG1Mortalidad import generar_mortalidad
@@ -41,6 +42,16 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     }
     metrics = get_mortality_metrics(engine, country, year, code)
 
+    # === 🚩 Agrega este bloque ===
+    if metrics["dead"] + metrics["alive"] == 0:
+        print(f"⏩ Contrato {code} sin árboles censados. Se omite.")
+        return  # Nada que reportar
+
+    if metrics["rate"] == 100:
+        print(f"⏩ Contrato {code} con 100% de mortalidad. Se omite.")
+        return  # Todo muerto, omitimos reporte
+    # ==============================
+
     # 2. Validación de gráficas generadas
     for key, path in paths.items():
         if not path or not os.path.isfile(path):
@@ -56,7 +67,7 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     render_title(doc, country, year)
 
     # 6. Sección introductoria: valores dinámicos y datos de contrato
-    values = fetch_dynamic_values(code)
+    values = fetch_dynamic_values(code, country, year)
     datos = {
         "contractcode": values.get("contractcode", code),
         "farmer_number": values.get("farmer_number", ''),
@@ -127,7 +138,7 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             # Agrega texto completo en la celda izquierda
             cell_text.paragraphs[0].add_run(mort_text).bold = True
             cell_text.add_paragraph(section2_title).runs[0].bold = True
-            for paragraph in format_paragraphs(values):
+            for paragraph in format_paragraphs(values, country):
                 cell_text.add_paragraph(paragraph)
 
             # Imagen G1 en la celda derecha

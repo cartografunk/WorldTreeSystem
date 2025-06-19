@@ -1,7 +1,12 @@
-from sqlalchemy import text
+#GeneradordeReportes/utils/dynamic_text_blocks
+
+from core.libs import text
 from GeneradordeReportes.utils.db     import get_engine
-from GeneradordeReportes.utils.helpers import get_region_language, get_inventory_table_name
 from GeneradordeReportes.utils.helpers import get_sql_column
+from sqlalchemy.exc import ProgrammingError, OperationalError
+from core.schema_helpers import get_column
+from GeneradordeReportes.utils.helpers import get_inventory_table_name, get_region_language
+
 
 # Bloques dinámicos: traducciones y SQL
 DYNAMIC_BLOCKS = {
@@ -67,33 +72,40 @@ DYNAMIC_BLOCKS = {
     },
 }
 
-from sqlalchemy.exc import ProgrammingError, OperationalError
 
-def fetch_dynamic_values(code: str, country: str = "cr", year: int = 2025):
+def fetch_dynamic_values(code: str, country: str, year: int):
     engine = get_engine()
     values = {}
     lang = get_region_language(country)
     table_name = get_inventory_table_name(country, year)
 
+    # Usa get_column para resolver todos los nombres de columnas
+    col_tht = get_column("tht_ft")       # altura total
+    col_mht = get_column("merch_ht_ft")  # altura comercial
+    col_dbh = get_column("dbh_in")
+    col_alive = get_column("alive_tree")
+    col_contract = get_column("contractcode")
+    col_defect = get_column("defect_id")
+
+    # Usar estos nombres en los .format()
     with engine.connect() as conn:
         trans = conn.begin()
         for key, info in DYNAMIC_BLOCKS.items():
             try:
-                # Determinar la plantilla SQL según idioma (si aplica)
                 if f"sql_{lang}" in info:
                     sql_raw = info[f"sql_{lang}"]
                 else:
                     sql_raw = info["sql"]
 
-                # Formatear con columnas reales
                 sql_filled = sql_raw.format(
                     code=code,
                     table=f"public.{table_name}",
-                    contractcode=get_sql_column("contractcode"),
-                    alive_tree=get_sql_column("alive_tree"),
-                    merch_ht=get_sql_column("merch_ht_ft"),
-                    dbh=get_sql_column("dbh_in"),
-                    defect_id=get_sql_column("defect_id")
+                    contractcode=col_contract,
+                    alive_tree=col_alive,
+                    merch_ht=col_mht,
+                    tht=col_tht,
+                    dbh=col_dbh,
+                    defect_id=col_defect,
                 )
 
                 row = conn.execute(text(sql_filled)).scalar_one_or_none()
@@ -102,29 +114,22 @@ def fetch_dynamic_values(code: str, country: str = "cr", year: int = 2025):
                     continue
                 values[key] = int(row) if key.startswith("count_") else row
 
-            except (ProgrammingError, OperationalError) as e:
-                print(f"⚠️ Consulta fallida para '{key}': {e.orig}")
+            except (ProgrammingError, OperationalError, KeyError) as e:
+                print(f"⚠️ Consulta fallida para '{key}': {e}")
                 trans.rollback()
                 trans = conn.begin()
                 continue
         trans.commit()
-
     return values
 
-
-
-
-def format_paragraphs(values):
-    lang = get_region_language()
+def format_paragraphs(values, country):
+    lang = get_region_language(country)
     paragraphs = []
-
-    # Claves que ya se usaron en la tabla introductoria
     omit_keys = {"contractcode", "farmer_number", "planting_year", "contract_trees"}
 
     for key, val in values.items():
         if key in omit_keys:
-            continue  # Omitir datos repetidos de la introducción
-
+            continue
         tmpl = DYNAMIC_BLOCKS[key][lang]
         try:
             if "{value" in tmpl:
@@ -136,5 +141,4 @@ def format_paragraphs(values):
             continue
 
     return paragraphs
-
 

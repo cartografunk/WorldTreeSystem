@@ -1,10 +1,11 @@
 # __main__.py
 
 import argparse
-from GeneradordeReportes.utils.db import get_engine
-from GeneradordeReportes.utils.libs import pd
+from core.db import get_engine
+from core.libs import pd
 from GeneradordeReportes.report_writer import crear_reporte
-from Cruises.utils.schema import COLUMNS
+from core.schema import COLUMNS
+from core.schema_helpers import get_column
 
 def main():
     parser = argparse.ArgumentParser(
@@ -36,13 +37,13 @@ def main():
         detail_table = f"public.{suffix}"
 
     # Leer contratos distintos de la tabla de detalle
-    contract_field = next(c["sql_name"] for c in COLUMNS if c["key"] == "contractcode")
-    sql = f'SELECT DISTINCT "{contract_field}" FROM {detail_table}'
+    contract_field = get_column("contractcode")  # Esto te da 'contractcode'
+    sql = f'SELECT DISTINCT {contract_field} FROM {detail_table}'
     contracts_df = pd.read_sql(sql, engine)
 
     for code in contracts_df[contract_field]:
         print(f"\n🟢 Procesando contrato: {code}")
-        crear_reporte(code)
+        crear_reporte(code, args.country, args.year, engine)
 
 
 if __name__ == "__main__":

@@ -1,7 +1,7 @@
 from sqlalchemy import text
-from GeneradordeReportes.utils.db import get_engine
-from GeneradordeReportes.utils.helpers import get_inventory_table_name, get_sql_column
-
+from core.db import get_engine
+from GeneradordeReportes.utils.helpers import get_inventory_table_name
+from core.schema_helpers import get_column
 
 def get_mortality_metrics(
     engine,
@@ -9,15 +9,6 @@ def get_mortality_metrics(
     year: int,
     contract_code: str
 ) -> dict:
-    """
-    Calcula métricas de mortalidad para un contrato dado.
-    Retorna un diccionario con:
-      - dead: número total de árboles muertos en campo
-      - alive: número total de árboles vivos en campo
-      - rate: porcentaje de mortalidad (0-100)
-      - dead_per_100: árboles muertos por cada 100 sembrados (redondeado)
-      - survivors_estimated: estimación de árboles vivos basada en árboles contratados (sin decimales)
-    """
     # Obtener número de árboles contratados desde cat_farmers
     with engine.connect() as conn:
         ct_sql = text(
@@ -28,21 +19,21 @@ def get_mortality_metrics(
 
     # Nombre de la tabla de inventario dinámico
     table_name = get_inventory_table_name(country, year)
-    # Columnas según esquema
-    dead_col = get_sql_column("dead_tree")
-    alive_col = get_sql_column("alive_tree")
-    contract_col = get_sql_column("contractcode")
+    # Columnas según esquema (¡ya todo con get_column!)
+    dead_col = get_column("dead_tree")
+    alive_col = get_column("alive_tree")
+    contract_col = get_column("contractcode")
 
     # Consultar sumas de muertos y vivos
     metrics_sql = f"""
-    SELECT
-        SUM("{dead_col}")   AS muertos,
-        SUM("{alive_col}")  AS vivos
-    FROM public.{table_name}
-    WHERE "{contract_col}" = :code
-    """
+        SELECT
+            SUM({dead_col}) AS muertos,
+            SUM({alive_col}) AS vivos
+        FROM public.{table_name}
+        WHERE {contract_col} = :code
+        """
     with engine.connect() as conn:
-        row = conn.execute(text(metrics_sql), {"code": contract_code}).mappings().one()
+        row = conn.execute(text(metrics_sql), {"code": contract_code}).mappings().one_or_none()
 
     dead = int(row.get('muertos') or 0)
     alive = int(row.get('vivos') or 0)

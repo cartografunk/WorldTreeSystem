@@ -11,7 +11,8 @@ from GeneradordeReportes.utils.helpers import (
     resolve_column
 )
 from GeneradordeReportes.utils.crecimiento_esperado import df_dbh
-from GeneradordeReportes.utils.helpers import tiene_datos_campo
+from GeneradordeReportes.utils.helpers import tiene_datos_campo, get_region_language
+from GeneradordeReportes.utils.text_templates import text_templates
 
 
 def generar_crecimiento(contract_code: str, country: str, year: int,
@@ -80,20 +81,24 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     plots = grp["plot"].astype(str).tolist()
     x     = np.arange(len(plots))
 
+    lang = get_region_language(country)
+    title = text_templates["chart_titles"]["growth"][lang].format(code=contract_code)
+    ylabel = text_templates["chart_axes"]["growth_y"][lang]
+    legend = text_templates["growth_legend"]
+
     # 7) Plot de barras
     rcParams.update({"figure.autolayout": True})
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.bar(x, grp["dbh_mean"], 0.6,
-           color=COLOR_PALETTE["secondary_green"], label="DAP promedio")
-    ax.hlines(exp_min,   -0.5, len(x)-0.5, linestyle="--",
-              color=COLOR_PALETTE["primary_blue"], label="DAP mínimo esperado")
-    ax.hlines(exp_ideal, -0.5, len(x)-0.5, linestyle="-.",
-              color=COLOR_PALETTE["primary_blue"],  label="DAP ideal esperado")
-    ax.hlines(exp_max,   -0.5, len(x)-0.5, linestyle=":",
-              color=COLOR_PALETTE["primary_blue"], label="DAP máximo esperado")
+           color=COLOR_PALETTE["secondary_green"], label=legend["mean"][lang])
+    ax.hlines(exp_min, -0.5, len(x) - 0.5, linestyle="--",
+              color=COLOR_PALETTE["primary_blue"], label=legend["min"][lang])
+    ax.hlines(exp_ideal, -0.5, len(x) - 0.5, linestyle="-.",
+              color=COLOR_PALETTE["primary_blue"], label=legend["ideal"][lang])
+    ax.hlines(exp_max, -0.5, len(x) - 0.5, linestyle=":",
+              color=COLOR_PALETTE["primary_blue"], label=legend["max"][lang])
 
-    ax.set_title(f"DAP Promedio por Parcela – {contract_code}", fontsize=11,
-                 color=COLOR_PALETTE["primary_blue"])
+    ax.set_title(title, fontsize=11, color=COLOR_PALETTE["primary_blue"])
     ax.set_ylabel("DAP (cm)", fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels('')

@@ -102,12 +102,18 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     w     = 0.4
 
     # 7) Textos y paths
-    lang       = get_region_language(country)
-    title      = text_templates["chart_titles"]["height"][lang].format(code=contract_code)
-    ylabel     = text_templates["chart_axes"]["height_y"][lang]
-    resumen_dir = os.path.join(output_root, contract_code, "Resumen")
+    lang = get_region_language(country)
+    title = text_templates["chart_titles"]["height"][lang].format(code=contract_code)
+    ylabel = text_templates["chart_axes"]["height_y"][lang]
+    xlabel = text_templates["chart_axes"]["height_x"][lang]
+    series = text_templates["chart_series"]["height"][lang]  # ["Altura total", "Altura comercial"]
+    legend_min = text_templates.get("height_legend_min", {}).get(lang, "Expected minimum")
+    legend_max = text_templates.get("height_legend_max", {}).get(lang, "Expected maximum")
+
+    resumen_dir = os.path.join(output_root, contract_code, "Resumen")  # <--- agrega esto AQUÍ
     os.makedirs(resumen_dir, exist_ok=True)
-    out_png     = os.path.join(resumen_dir, f"G2_Altura_{contract_code}.png")
+    out_png = os.path.join(resumen_dir, f"G2_Altura_{contract_code}.png")
+
     if os.path.exists(out_png):
         print(f"⚠️ Ya existe: {out_png}")
         return out_png
@@ -115,20 +121,20 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     # 8) Plot de barras agrupadas
     rcParams.update({"figure.autolayout": True})
     fig, ax = plt.subplots(figsize=FIGSIZE)
-    ax.bar(x - w/2, df_group["tht_mean"], width=w, label="Altura total (m)", color=COLOR_PALETTE['primary_blue'], alpha=0.8)
-    ax.bar(x + w/2, df_group["mht_mean"], width=w, label="Altura comercial (m)", color=COLOR_PALETTE['secondary_green'], alpha=0.8)
+    ax.bar(x - w / 2, df_group["tht_mean"], width=w, label=series[0], color=COLOR_PALETTE['primary_blue'], alpha=0.8)
+    ax.bar(x + w / 2, df_group["mht_mean"], width=w, label=series[1], color=COLOR_PALETTE['secondary_green'], alpha=0.8)
 
     # 9) Líneas horizontales esperadas (solo si hay referencia)
     if has_reference:
         ax.hlines(exp_min, xmin=-w, xmax=n - 1 + w, linestyles='--',
-                  color=COLOR_PALETTE['accent_yellow'], label="Mínimo esperado")
+                  color=COLOR_PALETTE['accent_yellow'], label=legend_min)
         ax.hlines(exp_max, xmin=-w, xmax=n - 1 + w, linestyles=':',
-                  color=COLOR_PALETTE['secondary_green'], label="Máximo esperado")
+                  color=COLOR_PALETTE['secondary_green'], label=legend_max)
 
     # 10) Configuración de ejes
     ax.set_title(title, fontsize=11, color=COLOR_PALETTE['primary_blue'])
     ax.set_ylabel(ylabel, fontsize=9)
-    ax.set_xlabel("Parcelas", fontsize=9)
+    ax.set_xlabel(xlabel, fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels("")
     ax.grid(axis='y', linestyle='--', alpha=0.3)

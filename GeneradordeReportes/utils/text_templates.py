@@ -47,8 +47,12 @@ text_templates = {
         },
         "height": {
             "es": "Alturas - {code}",
-            "en": "Height distribution - {code}",
-        }
+            "en": "Height - {code}",
+        },
+        "growth": {
+            "es": "DAP promedio por parcela – {code}",
+            "en": "Mean DBH per plot – {code}"
+        },
     },
     # Etiquetas para los gráficos
     "chart_labels": {
@@ -71,6 +75,10 @@ text_templates = {
             "es": "Altura (m)",
             "en": "Height (ft)",
         },
+        "growth_y": {     # <-- AGREGA ESTA
+            "es": "DAP (cm)",
+            "en": "DBH (in)"
+        },
     },
 
     "chart_series": {  # 👈 Sección nueva
@@ -79,7 +87,6 @@ text_templates = {
                 "en": ["Total Height", "Merchantable Height"]
             }
         },
-
     "section_headers": {
         "G1": {"es": "Sobrevivencia",    "en": "Survival"},
         "G2": {"es": "Alturas y DAP promedio de los árboles", "en": "Height and measures"},
@@ -89,6 +96,31 @@ text_templates = {
         "es": "Esto significa que, por cada 100 árboles sembrados, hay {dead_per_100} árboles muertos, quedando remanentes en la totalidad del proyecto {alive} árboles vivos.",
         "en": "It was found that, for every 100 trees planted, there are {dead_per_100} dead trees, leaving a total of {alive} live trees in the whole project.",
     },
-    
+    "growth_legend": {
+        "mean": {
+            "es": "DAP promedio",
+            "en": "Mean DBH"
+        },
+        "min": {
+            "es": "DAP mínimo esperado",
+            "en": "Expected minimum DBH"
+        },
+        "ideal": {
+            "es": "DAP ideal esperado",
+            "en": "Expected ideal DBH"
+        },
+        "max": {
+            "es": "DAP máximo esperado",
+            "en": "Expected maximum DBH"
+        },
+    },
+    "height_legend_min": {
+        "es": "Altura mínima esperada",
+        "en": "Expected minimum height"
+    },
+    "height_legend_max": {
+        "es": "Altura máxima esperada",
+        "en": "Expected maximum height"
+    },
 }
 

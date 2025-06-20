@@ -151,10 +151,10 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             g3_path = os.path.join(resumen_dir, f"G3_Crecimiento_{code}.png")
 
             if os.path.exists(g2_path):
-                doc.add_picture(g2_path, width=Inches(4.1))
+                doc.add_picture(g2_path)
 
             if os.path.exists(g3_path):
-                doc.add_picture(g3_path, width=Inches(4.1))
+                doc.add_picture(g3_path)
 
             continue  # Saltar a siguiente
 
@@ -169,7 +169,7 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             continue
 
         # Inserta la imagen y luego salta de página
-        doc.add_picture(img_path, width=Inches(6.125))
+        doc.add_picture(img_path)
 
     # 8. Tabla de sanidad
     if df_sanidad is not None and not df_sanidad.empty:

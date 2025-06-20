@@ -18,6 +18,7 @@ from GeneradordeReportes.utils.text_calculations import get_mortality_metrics
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Inches
+from GeneradordeReportes.utils.config import EXPORT_WIDTH_INCHES, EXPORT_HEIGHT_INCHES
 
 # Configuración de rutas
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -150,11 +151,23 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             g2_path = os.path.join(resumen_dir, f"G2_Altura_{code}.png")
             g3_path = os.path.join(resumen_dir, f"G3_Crecimiento_{code}.png")
 
-            if os.path.exists(g2_path):
-                doc.add_picture(g2_path)
-
-            if os.path.exists(g3_path):
-                doc.add_picture(g3_path)
+            if os.path.exists(g2_path) and os.path.exists(g3_path):
+                table_imgs = doc.add_table(rows=2, cols=1)
+                table_imgs.autofit = True  # Opcional
+                # Elimina bordes (opcional)
+                tbl = table_imgs._tbl
+                for border in tbl.xpath(".//w:tblBorders"):
+                    tbl.remove(border)
+                # G2
+                run_g2 = table_imgs.cell(0, 0).paragraphs[0].add_run()
+                run_g2.add_picture(g2_path, width=Inches(EXPORT_WIDTH_INCHES))
+                # G3
+                run_g3 = table_imgs.cell(1, 0).paragraphs[0].add_run()
+                run_g3.add_picture(g3_path, width=Inches(EXPORT_WIDTH_INCHES))
+            elif os.path.exists(g2_path):
+                doc.add_picture(g2_path, width=Inches(EXPORT_WIDTH_INCHES))
+            elif os.path.exists(g3_path):
+                doc.add_picture(g3_path, width=Inches(EXPORT_WIDTH_INCHES))
 
             continue  # Saltar a siguiente
 

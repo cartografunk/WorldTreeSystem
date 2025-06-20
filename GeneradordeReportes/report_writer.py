@@ -138,8 +138,8 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             )
 
             # Agrega texto completo en la celda izquierda
-            cell_text.paragraphs[0].add_run(mort_text).bold = True
-            cell_text.add_paragraph(section2_title).runs[0].bold = True
+            cell_text.paragraphs[0].add_run(mort_text)
+            cell_text.add_paragraph(section2_title, style="Heading 2")
             for paragraph in format_paragraphs(values, country):
                 cell_text.add_paragraph(paragraph)
 
@@ -200,7 +200,15 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     else:
         print(f"⚠️ No hay datos de sanidad para {code}")
 
-    # 9. Guardar documento
+    #9. Notas y observaciones
+    lang = get_region_language(country)
+    doc.add_heading(text_templates["section_headers"]["Notas"][lang], level=2)
+    doc.add_paragraph("")  # Un enter (párrafo vacío)
+    doc.add_paragraph("")  # Otro enter
+
+    doc.add_heading(text_templates["section_headers"]["Recomendaciones"][lang], level=2)
+
+    # 10. Guardar documento
     import time
     def guardar_documento(doc, out_path: str, intentos=3):
         for i in range(intentos):

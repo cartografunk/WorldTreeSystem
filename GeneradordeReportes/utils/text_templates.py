@@ -91,6 +91,8 @@ text_templates = {
         "G1": {"es": "Sobrevivencia",    "en": "Survival"},
         "G2": {"es": "Alturas y DAP promedio de los árboles", "en": "Height and measures"},
         "G3": {"es": "Crecimiento",      "en": "Growth"},
+        "Notas": {"es": "Notas", "en": "Notes"},
+        "Recomendaciones": {"es": "Recomendaciones", "en": "Recommendations"},
     },
     "mortality_text": {
         "es": "Esto significa que, por cada 100 árboles sembrados, hay {dead_per_100} árboles muertos, quedando remanentes en la totalidad del proyecto {alive} árboles vivos.",

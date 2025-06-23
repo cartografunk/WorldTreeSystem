@@ -43,48 +43,52 @@ def add_cruise_date_to_metrics(engine, df_metrics, country, year):
     # df_metrics['cruise_date'] = df_metrics['cruise_date_x'].combine_first(df_metrics['cruise_date_y'])
     return df_metrics
 
-
-def prefer_nonnull(series):
-    """
-    Elige el primer valor no nulo de la serie.
-    """
-    for val in series:
-        if pd.notnull(val) and not (isinstance(val, float) and np.isnan(val)):
-            return val
-    return series.iloc[0]
-
-def deduplicate_and_merge_metrics(df_full, keys=None):
-    """
-    Ordena y fusiona los registros de métricas, priorizando los registros con más datos calculados.
-    Devuelve un DataFrame final listo para guardar.
-    """
-    if keys is None:
-        keys = ["contract_code", "inventory_year", "inventory_date"]
-    # 1. Ordena priorizando los que tengan total_trees, survival, mortality
-    df_full = df_full.sort_values(
-        by=["total_trees", "survival", "mortality"],
-        ascending=[False, False, False]
-    )
-    # 2. Agrupa y fusiona
-    df_final = df_full.groupby(keys, dropna=False).agg(prefer_nonnull).reset_index()
-    # 3. Calcula pkid por si falta
-    if "pkid" not in df_final.columns or df_final["pkid"].isnull().any():
-        df_final["pkid"] = df_final["contract_code"].astype(str) + " " + df_final["inventory_year"].astype(str)
-    # 4. (Opcional) Limpia progress
-    df_final["progress"] = df_final.apply(
-        lambda row: "OK" if pd.notnull(row.get("total_trees")) and pd.notnull(row.get("survival")) else "error", axis=1
-    )
-    return df_final
-
 def fuse_rows(group):
-    # Si solo hay una fila, regresa esa fila
+    # Fusiona columna a columna: toma el primer valor no nulo (útil) de cada campo.
     if len(group) == 1:
         return group.iloc[0]
-    # Si hay más, recorre columna a columna y fusiona
     result = {}
     for col in group.columns:
         vals = group[col]
-        # Elige el primer valor no nulo/ni vacío, si todos son nulos deja nulo
         value = next((v for v in vals if pd.notnull(v) and v != ''), None)
         result[col] = value
     return pd.Series(result)
+
+def clean_and_fuse_metrics(df_full):
+    """
+    Toma el DataFrame combinado (df_full), fusiona filas duplicadas por clave,
+    asegura columnas del schema y rellena campos faltantes.
+    """
+    # Homogeneiza nombres de columna (cruise_date → inventory_date)
+    if "cruise_date" in df_full.columns:
+        df_full["inventory_date"] = df_full["cruise_date"]
+        df_full = df_full.drop(columns=["cruise_date"])
+
+    # Llaves de unicidad (ajusta si tu lógica de pipeline lo requiere)
+    keys = ["contract_code", "inventory_year", "inventory_date"]
+    df_final = df_full.groupby(keys, dropna=False).apply(fuse_rows).reset_index(drop=True)
+
+    # Calcula pkid si falta
+    if "pkid" not in df_final.columns or df_final["pkid"].isnull().any():
+        df_final["pkid"] = df_final["contract_code"].astype(str) + " " + df_final["inventory_year"].astype(str)
+
+    # Recalcula progress
+    df_final["progress"] = df_final.apply(
+        lambda row: "OK" if pd.notnull(row.get("total_trees")) and pd.notnull(row.get("survival")) else "error", axis=1
+    )
+
+    # **Asegura todas las columnas del schema en orden correcto**
+    schema = [
+        "rel_path", "contract_code", "inventory_year", "inventory_date", "survival",
+        "tht_mean", "tht_std", "mht_mean", "mht_std", "mht_pct_of_target",
+        "dbh_mean", "dbh_std", "dbh_pct_of_target", "doyle_bf_mean", "doyle_bf_std",
+        "doyle_bf_total", "projected_dbh", "projected_doyle_bf", "pkid", "progress",
+        "total_trees", "mortality"
+    ]
+    # Asegura que todas estén, si no existen, rellena con None
+    for col in schema:
+        if col not in df_final.columns:
+            df_final[col] = None
+    # Reordena
+    df_final = df_final[schema]
+    return df_final

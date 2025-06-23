@@ -4,65 +4,67 @@ from tqdm import tqdm
 from InventoryMetrics.processing_metrics import aggregate_contracts
 from InventoryMetrics.generate_helpers import safe_numeric
 from InventoryMetrics.inventory_retriever import get_inventory_tables, get_cruise_date
-from InventoryMetrics.generate_helpers import deduplicate_and_merge_metrics
+from InventoryMetrics.generate_helpers import clean_and_fuse_metrics
 
 from core.libs import re, pd, text
 from core.db import get_engine
 from core.schema_helpers import get_column
 
-def upsert_metrics(engine, rows):
-    if not rows:
-        return
-
-    df = pd.DataFrame(rows)
-
-    # Asegurar que la tabla tenga la estructura correcta
-    with engine.begin() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS masterdatabase.inventory_metrics (
-                contract_code TEXT,
-                inventory_year INTEGER,
-                inventory_date TEXT,
-                dbh_mean NUMERIC,
-                dbh_std NUMERIC,
-                tht_mean NUMERIC,
-                tht_std NUMERIC,
-                mht_mean NUMERIC,
-                mht_std NUMERIC,
-                doyle_bf_mean NUMERIC,
-                doyle_bf_std NUMERIC,
-                doyle_bf_total NUMERIC,
-                PRIMARY KEY (contract_code, inventory_date)
-            )
-        """))
-
-        for _, row in df.iterrows():
-            conn.execute(text("""
-                INSERT INTO masterdatabase.inventory_metrics (
-                    contract_code, inventory_year, inventory_date,
-                    dbh_mean, dbh_std,
-                    tht_mean, tht_std,
-                    mht_mean, mht_std,
-                    doyle_bf_mean, doyle_bf_std, doyle_bf_total
-                ) VALUES (
-                    :contract_code, :inventory_year, :inventory_date,
-                    :dbh_mean, :dbh_std,
-                    :tht_mean, :tht_std,
-                    :mht_mean, :mht_std,
-                    :doyle_bf_mean, :doyle_bf_std, :doyle_bf_total
-                )
-                ON CONFLICT (contract_code, inventory_date) DO UPDATE SET
-                    dbh_mean = EXCLUDED.dbh_mean,
-                    dbh_std = EXCLUDED.dbh_std,
-                    tht_mean = EXCLUDED.tht_mean,
-                    tht_std = EXCLUDED.tht_std,
-                    mht_mean = EXCLUDED.mht_mean,
-                    mht_std = EXCLUDED.mht_std,
-                    doyle_bf_mean = EXCLUDED.doyle_bf_mean,
-                    doyle_bf_std = EXCLUDED.doyle_bf_std,
-                    doyle_bf_total = EXCLUDED.doyle_bf_total,
-                    inventory_date = EXCLUDED.inventory_date
-            """), row.to_dict())
+# def upsert_metrics(engine, rows):
+#     if not rows:
+#         return
+#
+#     df = pd.DataFrame(rows)
+#
+#     # Asegurar que la tabla tenga la estructura correcta
+#     with engine.begin() as conn:
+#         conn.execute(text("""
+#             CREATE TABLE IF NOT EXISTS masterdatabase.inventory_metrics (
+#                 contract_code TEXT,
+#                 inventory_year INTEGER,
+#                 inventory_date TEXT,
+#                 dbh_mean NUMERIC,
+#                 dbh_std NUMERIC,
+#                 tht_mean NUMERIC,
+#                 tht_std NUMERIC,
+#                 mht_mean NUMERIC,
+#                 mht_std NUMERIC,
+#                 doyle_bf_mean NUMERIC,
+#                 doyle_bf_std NUMERIC,
+#                 doyle_bf_total NUMERIC,
+#                 pkid TEXT PRIMARY KEY
+#             )
+#         """))
+#
+#         for _, row in df.iterrows():
+#             conn.execute(text("""
+#                 INSERT INTO masterdatabase.inventory_metrics (
+#                     contract_code, inventory_year, inventory_date,
+#                     dbh_mean, dbh_std,
+#                     tht_mean, tht_std,
+#                     mht_mean, mht_std,
+#                     doyle_bf_mean, doyle_bf_std, doyle_bf_total
+#                 ) VALUES (
+#                     :pkid, :contract_code, :inventory_year, :inventory_date,
+#                     :dbh_mean, :dbh_std,
+#                     :tht_mean, :tht_std,
+#                     :mht_mean, :mht_std,
+#                     :doyle_bf_mean, :doyle_bf_std, :doyle_bf_total
+#                 )
+#                 ON CONFLICT (pkid) DO UPDATE SET
+#                     contract_code = EXCLUDED.contract_code,
+#                     inventory_year = EXCLUDED.inventory_year,
+#                     inventory_date = EXCLUDED.inventory_date,
+#                     dbh_mean = EXCLUDED.dbh_mean,
+#                     dbh_std = EXCLUDED.dbh_std,
+#                     tht_mean = EXCLUDED.tht_mean,
+#                     tht_std = EXCLUDED.tht_std,
+#                     mht_mean = EXCLUDED.mht_mean,
+#                     mht_std = EXCLUDED.mht_std,
+#                     doyle_bf_mean = EXCLUDED.doyle_bf_mean,
+#                     doyle_bf_std = EXCLUDED.doyle_bf_std,
+#                     doyle_bf_total = EXCLUDED.doyle_bf_total
+#             """), row.to_dict())
 
 
 def main():
@@ -89,13 +91,9 @@ def main():
         all_dfs.append(df_metrics)
 
     df_full = pd.concat(all_dfs, ignore_index=True)
-    if "cruise_date" in df_full.columns:
-        df_full["inventory_date"] = df_full["cruise_date"]
-        df_full = df_full.drop(columns=["cruise_date"])
+    df_final = clean_and_fuse_metrics(df_full)
 
-    # Aquí SOLO LLAMAS a la función de helpers, sin pre-drop ni pre-sort
-    df_final = deduplicate_and_merge_metrics(df_full)
-    df_full.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="append", index=False)
+    df_final.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="replace", index=False)
     print("✅ Métricas insertadas en masterdatabase.inventory_metrics")
 
 if __name__ == "__main__":

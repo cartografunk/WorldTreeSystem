@@ -27,13 +27,13 @@ COLUMNS = [
   },
   {
     "key": "stand", "sql_name": "Stand#",
-    "aliases": ["Stand #", "# Posición", "_posicion_", "StandID"],
+    "aliases": ["Stand #", "# Posición", "_posicion_", "StandID", "Stands::StandNumber"],
     "dtype": "FLOAT",
     "source": "input"
   },
   {
     "key": "plot", "sql_name": "Plot#",
-    "aliases": ["Plot #", "# Parcela", "_parcela", "plot", "Plot#"],
+    "aliases": ["Plot #", "# Parcela", "_parcela", "plot", "Plot#", "Points::PointNumber"],
     "dtype": "TEXT",
     "source": "input"
   },
@@ -45,43 +45,43 @@ COLUMNS = [
   },
   {
     "key": "tree_number", "sql_name": "Tree#",
-    "aliases": ["Tree #", "# Árbol", "# Arbol", "_arbol", "tree", "tree_#", "arbol", "#_arbol", "tree_number", "_árbol", "árbol", "#_árbol", "TreeID"],
+    "aliases": ["Tree #", "# Árbol", "# Arbol", "_arbol", "tree", "tree_#", "arbol", "#_arbol", "tree_number", "_árbol", "árbol", "#_árbol", "TreeID", "GradingsSerialNumberAtPoint"],
     "dtype": "FLOAT",
     "source": "input"
   },
   {
     "key": "defect_ht_ft", "sql_name": "Defect HT",
-    "aliases": ["Defect HT (ft)", "AT del Defecto (m)", "at_del_defecto_m"],
+    "aliases": ["Defect HT (ft)", "AT del Defecto (m)", "at_del_defecto_m", "WT DHT"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
     "key": "dbh_in", "sql_name": "DBH",
-    "aliases": ["DBH (in)", "DAP (cm)", "dap_cm", "dbh_in"],
+    "aliases": ["DBH (in)", "DAP (cm)", "dap_cm", "dbh_in", "WT DBH"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
     "key": "tht_ft", "sql_name": "THT",
-    "aliases": ["THT (ft)", "AT (m)", "at_m", "tht_ft", "THt (ft)", "THt (m)"],
+    "aliases": ["THT (ft)", "AT (m)", "at_m", "tht_ft", "THt (ft)", "THt (m)", "WT THT"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
     "key": "merch_ht_ft", "sql_name": "Merch. HT",
-    "aliases": ["Merch. HT (ft)", "Alt. Com. (m)", "alt_com_m", "merch_ht_ft", "MHt (ft)", "MHt (m)"],
+    "aliases": ["Merch. HT (ft)", "Alt. Com. (m)", "alt_com_m", "merch_ht_ft", "MHt (ft)", "MHt (m)", "WT MHT"],
     "dtype": "NUMERIC",
     "source": "input"
   },
   {
     "key": "short_note", "sql_name": "Short Note",
-    "aliases": ["Short Note", "Nota Breve", "nota_breve"],
+    "aliases": ["Short Note", "Nota Breve", "nota_breve", "GradingsComment"],
     "dtype": "TEXT",
     "source": "input"
   },
   {
     "key": "Status", "sql_name": "status",
-    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion", "TreeStatus"],
+    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion", "TreeStatus", "WT Status"],
     "dtype": "TEXT",
     "source": "input",
     "catalog_table": "cat_status",
@@ -101,7 +101,7 @@ COLUMNS = [
   },
   {
     "key": "Species", "sql_name": "species",
-    "aliases": ["Species", "Especie", "especie"],
+    "aliases": ["Species", "Especie", "especie", "WT Species"],
     "source": "input",
     "catalog_table": "cat_species",
     "catalog_field": "id",
@@ -109,7 +109,7 @@ COLUMNS = [
   },
   {
     "key": "defect_id", "sql_name": "cat_defect_id",
-    "aliases": ["defect_id", "Defect_id"],
+    "aliases": ["defect_id", "Defect_id", "WT Defect"],
     "dtype": "SMALLINT",
     "source": "calculated"
   },
@@ -164,7 +164,7 @@ COLUMNS = [
   },
   {
     "key": "Pests", "sql_name": "pest",
-    "aliases": ["Pests", "Plagas", "plagas"],
+    "aliases": ["Pests", "Plagas", "plagas", "WT Pests"],
     "source": "input",
     "catalog_table": "cat_pest",
     "catalog_field": "id"

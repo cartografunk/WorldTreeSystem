@@ -18,8 +18,6 @@ ALIASES = {
     "no": "no"
 }
 
-import re
-
 def parse_country_code(tabla_destino: str) -> str:
     # Busca el patrón inventory_{cc}_{year} (por ejemplo: inventory_cr_2025)
     m = re.match(r"inventory_([a-z]{2})_\d{4}", tabla_destino, re.IGNORECASE)
@@ -65,3 +63,41 @@ def normalize_catalogs(df, engine, country_code):
         df.drop(columns=[raw_col, col_def["key"] + "_raw"], inplace=True)
 
     return df
+
+def ensure_catalog_entries(df: pd.DataFrame, engine, field: str, catalog_table: str, name_field: str = "nombre"):
+    """
+    Garantiza que todos los valores únicos en df[field] existan en el catálogo dado.
+    Si faltan, los inserta y pausa para edición manual.
+    """
+    # 1. Leer catálogo
+    sql = f"SELECT * FROM {catalog_table}"
+    cat = pd.read_sql(sql, engine)
+    # Normalizar ambos sets
+    clean = lambda s: str(s).strip().lower() if pd.notna(s) else ""
+    catalog_values = set(map(clean, cat[name_field].dropna().unique()))
+    field_values = set(map(clean, df[field].dropna().unique()))
+    missing_values = sorted(field_values - catalog_values)
+    # Evitar insertar vacíos
+    missing_values = [v for v in missing_values if v and v != 'nan']
+    if missing_values:
+        print(f"⚠️ Hay {len(missing_values)} valores nuevos en '{field}' no presentes en {catalog_table}:")
+        for val in missing_values:
+            print(f"   - '{val}'")
+        # Insertar automáticamente
+        with engine.begin() as conn:
+            for val in missing_values:
+                conn.execute(
+                    text(f"INSERT INTO {catalog_table} ({name_field}) VALUES (:val) ON CONFLICT DO NOTHING"),
+                    {"val": val}
+                )
+        print(f"✅ Nuevos valores añadidos a {catalog_table}. Completa los campos faltantes manualmente.")
+
+        # Pausa para edición
+        resp = input(f"⏸️ Pausado. ¿Ya actualizaste los valores en {catalog_table}? (y/n): ").strip().lower()
+        if resp != "y":
+            raise RuntimeError(f"⛔ Proceso detenido para edición manual de {catalog_table}.")
+
+        # Recargar catálogo
+        cat = pd.read_sql(sql, engine)
+
+    return cat

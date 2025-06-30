@@ -1,7 +1,7 @@
 # GeneradordeReportes/graficadorG3Crecimiento.py
 
-from core.libs import plt, rcParams, os, pd
-import numpy as np
+from core.libs import plt, rcParams, os, pd, np
+from core.units import UNITS_BLOCK
 from GeneradordeReportes.utils.db import get_engine
 from GeneradordeReportes.utils.colors import COLOR_PALETTE
 from GeneradordeReportes.utils.config import BASE_DIR, EXPORT_DPI
@@ -63,13 +63,21 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     age = year - int(plant.iloc[0,0])
 
     # 5) Valores esperados de DBH
+    lang = get_region_language(country)
+    dbh_units = UNITS_BLOCK["dbh"][lang]  # esto elige factor y label
+
+    # 5.1. Selecciona la referencia correcta para la edad
     ref = df_dbh[df_dbh["Año"] == age]
     if ref.empty:
         print(f"⚠️ No hay referencia de DBH para edad {age}.")
         return
-    exp_min   = float(ref["Min"].iloc[0])
-    exp_ideal = float(ref["Ideal"].iloc[0])
-    exp_max   = float(ref["Max"].iloc[0])
+
+    # 5.2. Aplica el factor SIEMPRE a las referencias
+    exp_min = float(ref["Min"].iloc[0]) * dbh_units["factor"]
+    exp_ideal = float(ref["Ideal"].iloc[0]) * dbh_units["factor"]
+    exp_max = float(ref["Max"].iloc[0]) * dbh_units["factor"]
+
+
 
     # 6) Agrupar por plot y media de DBH
     grp = (
@@ -80,6 +88,12 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     )
     plots = grp["plot"].astype(str).tolist()
     x     = np.arange(len(plots))
+
+    # 6.2. Tus datos de inventario SIEMPRE están en pulgadas (DBH in)
+    # Así que solo conviertes si quieres mostrar en cm
+    if lang == "es":
+        grp["dbh_mean"] = grp["dbh_mean"] * 2.54  # convierte a cm solo para graficar
+    # Si lang == "en", dejas grp["dbh_mean"] igual (pulgadas)
 
     lang = get_region_language(country)
     title = text_templates["chart_titles"]["growth"][lang].format(code=contract_code)
@@ -99,7 +113,7 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
               color=COLOR_PALETTE["primary_blue"], label=legend["max"][lang])
 
     ax.set_title(title, fontsize=11, color=COLOR_PALETTE["primary_blue"])
-    ax.set_ylabel("DAP (cm)", fontsize=9)
+    ax.set_ylabel(text_templates["chart_axes"]["growth_y"][lang], fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels('')
     ax.grid(axis="y", linestyle="--", alpha=0.3)

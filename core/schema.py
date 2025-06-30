@@ -51,7 +51,7 @@ COLUMNS = [
   },
   {
     "key": "defect_ht_ft", "sql_name": "Defect HT",
-    "aliases": ["Defect HT (ft)", "AT del Defecto (m)", "at_del_defecto_m", "WT DHT"],
+    "aliases": ["Defect HT (ft)", "AT del Defecto (m)", "at_del_defecto_m"],
     "dtype": "NUMERIC",
     "source": "input"
   },
@@ -157,7 +157,7 @@ COLUMNS = [
   },
     {
     "key": "Defect", "sql_name": "defect",
-    "aliases": ["Defect", "Defecto", "defecto"],
+    "aliases": ["Defect", "Defecto", "defecto", "WT Defect"],
     "source": "input",
     "catalog_table": "cat_defect",
     "catalog_field": "id"

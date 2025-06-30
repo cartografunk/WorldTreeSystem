@@ -21,21 +21,21 @@ DYNAMIC_BLOCKS = {
     '''
     },
     "count_over_2m": {
-    "es": "Número de árboles con altura ≥ 2 m: {value:d}",
-    "en": "Number of trees with height ≥ 2 m: {value:d}",
+    "es": "Número de árboles con altura comercial ≥ 2 m: {value:d}",
+    "en": "Number of trees with merchable height ≥ 6 ft: {value:d}",
     "sql": '''
         SELECT COUNT(*) AS value
         FROM {table}
         WHERE "{contractcode}" = '{code}'
           AND "{merch_ht}" BETWEEN 1 AND 100
-          AND "{merch_ht}" >= 2;
+          AND "{merch_ht}" >= 6;
     '''
     },
     "avg_dbh": {
     "es": "Diámetro promedio (DBH): {value:.2f} cm",
     "en": "Average diameter (DBH): {value:.2f} in",
     "sql": '''
-        SELECT AVG("{tht}") AS value
+        SELECT AVG("{dbh}") AS value
         FROM {table}
         WHERE "{contractcode}" = '{code}' AND "{alive_tree}" = 1
           AND "{dbh}" BETWEEN 1 AND 50;

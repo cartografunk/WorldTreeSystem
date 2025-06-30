@@ -46,7 +46,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
     try:
         path = Path(file_path)
         max_retries = 3
-        delay_base = 2  # segundos
+        delay_base = 8  # segundos
 
         for attempt in range(1, max_retries + 1):
             success = force_download(path)
@@ -65,7 +65,7 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
         xls = pd.ExcelFile(file_path)
         raw_sheets = xls.sheet_names
 
-        preferred_sheets = ["input (2)", "input", "datainput"]
+        preferred_sheets = ["input (2)", "input", "datainput", "Sheet1"]
         target = None
         for pref in preferred_sheets:
             matches = [s for s in raw_sheets if s.lower().strip() == pref]

@@ -1,3 +1,5 @@
+#Cruises/general_processing
+
 from Cruises.utils.cleaners import clean_cruise_dataframe, remove_blank_rows, standardize_units
 from Cruises.filldown import forward_fill_headers
 from Cruises.catalog_normalizer import normalize_catalogs
@@ -21,6 +23,12 @@ def process_inventory_dataframe(df, engine, country_code):
         df = standardize_units(df)
 
     df = calculate_dead_alive(df, engine)
+
+    # 1️⃣ - *Asegura* que todos los catálogos tengan los valores antes de normalizar
+    ensure_catalog_entries(df, engine, field="Defect", catalog_table="cat_defect")
+    ensure_catalog_entries(df, engine, field="Disease", catalog_table="cat_disease")
+    ensure_catalog_entries(df, engine, field="Species", catalog_table="cat_species")
+    # Puedes meter más si agregas otros catálogos
 
     df = normalize_catalogs(
         df,

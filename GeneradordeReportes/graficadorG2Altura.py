@@ -134,7 +134,7 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     # 10) Configuración de ejes
     ax.set_title(title, fontsize=11, color=COLOR_PALETTE['primary_blue'])
     ax.set_ylabel(ylabel, fontsize=9)
-    ax.set_xlabel(xlabel, fontsize=9)
+    #ax.set_xlabel(xlabel, fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels("")
     ax.grid(axis='y', linestyle='--', alpha=0.3)

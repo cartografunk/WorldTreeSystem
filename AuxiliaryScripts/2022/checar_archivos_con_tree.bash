@@ -1,7 +1,7 @@
 # Define la ruta base (carpeta que contiene las "madre")
 $base = "C:\Users\HeyCe\World Tree Technologies Inc\Forest Inventory - Documentos\Costa Rica\2022_ForestInventory\8-ForestMetrix_Projects"
 $base = "C:\Users\HeyCe\World Tree Technologies Inc\Forest Inventory - Documentos\Guatemala\2022_ForestInventory\4-ForestMetrix_Projects"
-$base = "C:\Users\HeyCe\World Tree Technologies Inc\Forest Inventory - Documentos\Mexico\2022_ForestInventory\4-ForestMetrix_Projects"
+$base = "C:\Users\HeyCe\World Tree Technologies Inc\Forest Inventory - Documentos\Guatemala\2022_ForestInventory\4-ForestMetrix_Projects"
 
 # Solo carpetas de primer nivel (no recursivo)
 $folders = Get-ChildItem $base -Directory

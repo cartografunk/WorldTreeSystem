@@ -4,6 +4,7 @@ from core.schema import COLUMNS
 from core.schema_helpers import get_column
 from sqlalchemy import text
 
+
 PAIS_CONFIG = {
     "GT": {"col": "nombre"},
     "MX": {"col": "nombre"},

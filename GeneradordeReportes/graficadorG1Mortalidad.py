@@ -15,7 +15,7 @@ def generar_mortalidad(contract_code: str, country: str, year: int,
                        output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
     engine = engine or get_engine()
     table_name = get_inventory_table_name(country, year)
-    resumen_dir = os.path.join(output_root, contract_code, "Resumen")
+    resumen_dir = os.path.join(output_root, contract_code)
     os.makedirs(resumen_dir, exist_ok=True)
 
     table_name = get_inventory_table_name(country, year)

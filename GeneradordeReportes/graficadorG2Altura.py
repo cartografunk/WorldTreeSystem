@@ -110,7 +110,7 @@ def generar_altura(contract_code: str, country: str, year: int, engine=None, out
     legend_min = text_templates.get("height_legend_min", {}).get(lang, "Expected minimum")
     legend_max = text_templates.get("height_legend_max", {}).get(lang, "Expected maximum")
 
-    resumen_dir = os.path.join(output_root, contract_code, "Resumen")  # <--- agrega esto AQUÍ
+    resumen_dir = os.path.join(output_root, contract_code)  # <--- agrega esto AQUÍ
     os.makedirs(resumen_dir, exist_ok=True)
     out_png = os.path.join(resumen_dir, f"G2_Altura_{contract_code}.png")
 

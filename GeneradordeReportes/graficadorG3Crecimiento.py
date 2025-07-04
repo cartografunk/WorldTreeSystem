@@ -17,8 +17,8 @@ from GeneradordeReportes.utils.text_templates import text_templates
 
 def generar_crecimiento(contract_code: str, country: str, year: int,
                         engine=None,
-                        output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")):
-
+                        output_root: str = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs"),
+                        chart_type: str = "bar"):
     # 1) Setup
     year = int(year)
     engine = engine or get_engine()
@@ -77,30 +77,69 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
     exp_ideal = float(ref["Ideal"].iloc[0]) * dbh_units["factor"]
     exp_max = float(ref["Max"].iloc[0]) * dbh_units["factor"]
 
+    # 6) Preparar leyendas y títulos
+    title = text_templates["chart_titles"]["growth"][lang].format(code=contract_code)
+    ylabel = text_templates["chart_axes"]["growth_y"][lang]
+    legend = text_templates["growth_legend"]
 
 
-    # 6) Agrupar por plot y media de DBH
+    # ====================
+    #     SCATTER ORDENADO
+    # ====================
+    if chart_type == "scatter" and lang == "en":
+        rcParams.update({"figure.autolayout": True})
+        fig, ax = plt.subplots(figsize=FIGSIZE)
+
+        # Expected range (rectángulo)
+        ax.axhspan(exp_min, exp_max, color=COLOR_PALETTE["primary_blue"], alpha=0.20, label="Expected range")
+        # Línea ideal
+        ax.axhline(exp_ideal, linestyle="--", color=COLOR_PALETTE["primary_blue"], label=legend["ideal"][lang])
+
+        # Ordenar todos los valores de DBH (sin importar parcela)
+        dbhs_sorted = np.sort(df["dbh"].values)
+        x = np.arange(1, len(dbhs_sorted) + 1)
+
+        # Scatter: cada árbol, solo ordenados
+        ax.scatter(x, dbhs_sorted,
+                   color=COLOR_PALETTE["secondary_green"],
+                   edgecolor="k", linewidths=.2, alpha=0.7, s=30, label="DBH per tree")
+
+        ax.set_title(f"DBH per tree – {contract_code}", fontsize=11, color=COLOR_PALETTE["primary_blue"])
+        ax.set_ylabel(ylabel, fontsize=9)
+        #ax.set_xlabel("Sample (ordered)", fontsize=8)
+        ax.set_xticks([])
+        ax.grid(axis="y", linestyle="--", alpha=0.3)
+        ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0, frameon=False, fontsize=6)
+
+        # Guardar directamente en el folder de outputs (NO en Resumen)
+        out_dir = os.path.join(output_root, contract_code)
+        os.makedirs(out_dir, exist_ok=True)
+        out_png = os.path.join(out_dir, f"G3_Crecimiento_Scatter_{contract_code}.png")
+        _print_size_cm(fig)
+        fig.savefig(out_png, dpi=EXPORT_DPI, facecolor=None)
+        plt.close(fig)
+        print(f"🌱 Scatter plot de crecimiento (DBH) guardado: {out_png}")
+        return out_png
+
+    # ====================
+    #     BAR CHART
+    # ====================
+    # Agrupar por plot y media de DBH
     grp = (
         df.groupby("plot")["dbh"]
-          .mean()
-          .reset_index(name="dbh_mean")
-          .sort_values("dbh_mean")
+        .mean()
+        .reset_index(name="dbh_mean")
+        .sort_values("dbh_mean")
     )
     plots = grp["plot"].astype(str).tolist()
-    x     = np.arange(len(plots))
+    x = np.arange(len(plots))
 
-    # 6.2. Tus datos de inventario SIEMPRE están en pulgadas (DBH in)
+    # Tus datos de inventario SIEMPRE están en pulgadas (DBH in)
     # Así que solo conviertes si quieres mostrar en cm
     if lang == "es":
         grp["dbh_mean"] = grp["dbh_mean"] * 2.54  # convierte a cm solo para graficar
     # Si lang == "en", dejas grp["dbh_mean"] igual (pulgadas)
 
-    lang = get_region_language(country)
-    title = text_templates["chart_titles"]["growth"][lang].format(code=contract_code)
-    ylabel = text_templates["chart_axes"]["growth_y"][lang]
-    legend = text_templates["growth_legend"]
-
-    # 7) Plot de barras
     rcParams.update({"figure.autolayout": True})
     fig, ax = plt.subplots(figsize=FIGSIZE)
     ax.bar(x, grp["dbh_mean"], 0.6,
@@ -113,14 +152,14 @@ def generar_crecimiento(contract_code: str, country: str, year: int,
               color=COLOR_PALETTE["primary_blue"], label=legend["max"][lang])
 
     ax.set_title(title, fontsize=11, color=COLOR_PALETTE["primary_blue"])
-    ax.set_ylabel(text_templates["chart_axes"]["growth_y"][lang], fontsize=9)
+    ax.set_ylabel(ylabel, fontsize=9)
     ax.set_xticks(x)
     ax.set_xticklabels('')
     ax.grid(axis="y", linestyle="--", alpha=0.3)
     ax.legend(loc='center left', bbox_to_anchor=(1.02, 0.5), borderaxespad=0, frameon=False, fontsize=6)
 
-    # 8) Guardar
-    out_dir = os.path.join(output_root, contract_code, "Resumen")
+    # Guardar en folder principal (NO en Resumen)
+    out_dir = os.path.join(output_root, contract_code)
     os.makedirs(out_dir, exist_ok=True)
     out_png = os.path.join(out_dir, f"G3_Crecimiento_{contract_code}.png")
     _print_size_cm(fig)

@@ -34,12 +34,16 @@ os.makedirs(IMG_TMP_DIR, exist_ok=True)
 def crear_reporte(code: str, country: str, year: int, engine) -> str:
     """Función principal para generar el reporte completo"""
 
+    lang = get_region_language(country)
+    is_us = (country.lower() == "us" or lang == "en")
+    g3_chart_type = "scatter" if is_us else "bar"
+
     # 1. Generación de gráficas
     output_root = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs")
     paths = {
         'G1': generar_mortalidad(code, country, year, engine, output_root=output_root),
         'G2': generar_altura(code, country, year, engine, output_root=output_root),
-        'G3': generar_crecimiento(code, country, year, engine, output_root=output_root),
+        'G3': generar_crecimiento(code, country, year, engine, output_root=output_root, chart_type="scatter"),
     }
     metrics = get_mortality_metrics(engine, country, year, code)
 
@@ -94,19 +98,32 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
     )
 
     # — 8) Insertar solo las imágenes G1–G3 con encabezados y contenidos dinámicos —
-    resumen_dir = os.path.join(BASE_DIR, "GeneradordeReportes", "outputs", code, "Resumen")
-    grafs = [
+    graf_keys = [
         ("G1", "G1_Mortality_"),
         ("G2", "G2_Altura_"),
         ("G3", "G3_Crecimiento_"),
     ]
-    lang = get_region_language(country)
 
-    for key, prefix in grafs:
-        img_path = os.path.join(resumen_dir, f"{prefix}{code}.png")
-        if not os.path.exists(img_path):
-            print(f"⚠️ Gráfica {key} no encontrada: {img_path}")
-            continue
+    for key, prefix in graf_keys:
+        # Todas las gráficas ahora viven en: outputs/{code}/
+        img_path = os.path.join(output_root, code, f"{prefix}{code}.png")
+
+        # Para la G3, revisa si toca scatter plot
+        if key == "G3":
+            g3_bar_path = os.path.join(output_root, code, f"G3_Crecimiento_{code}.png")
+            g3_scatter_path = os.path.join(output_root, code, f"G3_Crecimiento_Scatter_{code}.png")
+            # Si es US o idioma inglés, busca primero el scatter
+            if is_us and os.path.exists(g3_scatter_path):
+                img_path = g3_scatter_path
+            elif os.path.exists(g3_bar_path):
+                img_path = g3_bar_path
+            else:
+                print(f"⚠️ Gráfica {key} no encontrada: {g3_bar_path} ni {g3_scatter_path}")
+                continue
+        else:
+            if not os.path.exists(img_path):
+                print(f"⚠️ Gráfica {key} no encontrada: {img_path}")
+                continue
 
         if key == "G1":
             # Título dinámico de mortalidad
@@ -147,14 +164,16 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
             run = cell_img.paragraphs[0].add_run()
             run.add_picture(img_path, width=Inches(8.5 / 2.54), height=Inches(5.8 / 2.54))
 
-            # Después de la tabla, insertar gráficas G2 y G3
-            g2_path = os.path.join(resumen_dir, f"G2_Altura_{code}.png")
-            g3_path = os.path.join(resumen_dir, f"G3_Crecimiento_{code}.png")
+            # Después de la tabla, insertar gráficas G2 y G3 si existen
+            g2_path = os.path.join(output_root, code, f"G2_Altura_{code}.png")
+            g3_bar_path = os.path.join(output_root, code, f"G3_Crecimiento_{code}.png")
+            g3_scatter_path = os.path.join(output_root, code, f"G3_Crecimiento_Scatter_{code}.png")
+            # Elige el path correcto para G3
+            g3_path = g3_scatter_path if is_us and os.path.exists(g3_scatter_path) else g3_bar_path
 
             if os.path.exists(g2_path) and os.path.exists(g3_path):
                 table_imgs = doc.add_table(rows=2, cols=1)
-                table_imgs.autofit = True  # Opcional
-                # Elimina bordes (opcional)
+                table_imgs.autofit = True
                 tbl = table_imgs._tbl
                 for border in tbl.xpath(".//w:tblBorders"):
                     tbl.remove(border)
@@ -171,20 +190,16 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
 
             continue  # Saltar a siguiente
 
-
         elif key == "G2":
-
-            continue
-
+            continue  # Ya fue agregada arriba
 
         elif key == "G3":
+            continue  # Ya fue agregada arriba
 
-            continue
-
-        # Inserta la imagen y luego salta de página
+        # Si por alguna razón caes aquí, inserta la imagen normal
         doc.add_picture(img_path)
 
-    # 8. Tabla de sanidad
+    # 9. Tabla de sanidad
     if df_sanidad is not None and not df_sanidad.empty:
         doc.add_heading('Distribución de Plagas, Defectos y Enfermedades', level=2)
         table = doc.add_table(rows=1, cols=len(df_sanidad.columns), style='Table Grid')
@@ -226,7 +241,11 @@ def crear_reporte(code: str, country: str, year: int, engine) -> str:
                     pass
         return False
 
-    out_name = f"Reporte_{code}.docx"
+    if lang == "en":
+        out_name = f"Report_{code}.docx"
+    else:
+        out_name = f"Reporte_{code}.docx"
+
     out_path = os.path.join(OUTPUT_DIR, out_name)
     if guardar_documento(doc, out_path):
         print(f"✅ Reporte creado: {out_path}")

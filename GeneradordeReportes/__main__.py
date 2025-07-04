@@ -1,4 +1,4 @@
-# __main__.py
+#GeneradordeReportes/__main__.py
 
 import argparse
 from core.db import get_engine

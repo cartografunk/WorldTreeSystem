@@ -7,6 +7,7 @@ from core.doyle_calculator import calculate_doyle
 from Cruises.dead_alive_calculator import calculate_dead_alive
 from Cruises.dead_tree_imputer import add_imputed_dead_rows
 from Cruises.tree_id import split_by_id_validity
+from Cruises.catalog_normalizer import ensure_catalog_entries
 
 def process_inventory_dataframe(df, engine, country_code):
     df = clean_cruise_dataframe(df)

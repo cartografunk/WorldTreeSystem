@@ -66,11 +66,14 @@ from core.schema_helpers import get_column
 #                     doyle_bf_total = EXCLUDED.doyle_bf_total
 #             """), row.to_dict())
 
+from InventoryMetrics.generate_helpers import create_cat_inventory_tables
+from InventoryMetrics.inventory_retriever import get_inventory_tables
 
 def main():
     print("📊 Generando métricas de inventario...")
     engine = get_engine()
     tables = get_inventory_tables(engine)
+    create_cat_inventory_tables(engine, tables)
 
     all_dfs = []
     for table in tqdm(tables, desc="Procesando tablas"):

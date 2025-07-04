@@ -53,25 +53,33 @@ COLUMNS = [
     "key": "defect_ht_ft", "sql_name": "Defect HT",
     "aliases": ["Defect HT (ft)", "AT del Defecto (m)", "at_del_defecto_m"],
     "dtype": "NUMERIC",
-    "source": "input"
+    "source": "input",
+    "convertible": True,      # ← ¡Esta bandera es suficiente!
+    "unit_type": "height"     # ← Opcional: conecta con tu UNITS_BLOCK ("dbh" o "height")
   },
   {
     "key": "dbh_in", "sql_name": "DBH",
     "aliases": ["DBH (in)", "DAP (cm)", "dap_cm", "dbh_in", "WT DBH"],
     "dtype": "NUMERIC",
-    "source": "input"
+    "source": "input",
+    "convertible": True,      # ← ¡Esta bandera es suficiente!
+    "unit_type": "dbh"     # ← Opcional: conecta con tu UNITS_BLOCK ("dbh" o "height")
   },
   {
     "key": "tht_ft", "sql_name": "THT",
     "aliases": ["THT (ft)", "AT (m)", "at_m", "tht_ft", "THt (ft)", "THt (m)", "WT THT"],
     "dtype": "NUMERIC",
-    "source": "input"
+    "source": "input",
+    "convertible": True,      # ← ¡Esta bandera es suficiente!
+    "unit_type": "height"     # ← Opcional: conecta con tu UNITS_BLOCK ("dbh" o "height")
   },
   {
     "key": "merch_ht_ft", "sql_name": "Merch. HT",
     "aliases": ["Merch. HT (ft)", "Alt. Com. (m)", "alt_com_m", "merch_ht_ft", "MHt (ft)", "MHt (m)", "WT MHT"],
     "dtype": "NUMERIC",
-    "source": "input"
+    "source": "input",
+    "convertible": True,      # ← ¡Esta bandera es suficiente!
+    "unit_type": "height"     # ← Opcional: conecta con tu UNITS_BLOCK ("dbh" o "height")
   },
   {
     "key": "short_note", "sql_name": "Short Note",
@@ -191,3 +199,5 @@ COLUMNS = [
     "catalog_field": "id"
   }
 ]
+
+

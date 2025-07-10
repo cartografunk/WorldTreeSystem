@@ -64,6 +64,11 @@ def clean_and_fuse_metrics(df_full):
         df_full["inventory_date"] = df_full["cruise_date"]
         df_full = df_full.drop(columns=["cruise_date"])
 
+    # if "inventory_date" in df_full.columns:
+    #     print("🔎 inventory_date types:")
+    #     print(df_full["inventory_date"].apply(type).value_counts())
+    #     print("🔎 Ejemplos de valores:", df_full["inventory_date"].unique()[:10])
+
     # Llaves de unicidad (ajusta si tu lógica de pipeline lo requiere)
     keys = ["contract_code", "inventory_year", "inventory_date"]
     df_final = df_full.groupby(keys, dropna=False).apply(fuse_rows).reset_index(drop=True)

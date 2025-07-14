@@ -23,6 +23,7 @@ import json
 import time
 import traceback
 from time import sleep
+import shutil
 
 # ───── Regex & CLI ─────
 import re
@@ -33,7 +34,6 @@ from sqlalchemy import create_engine, inspect, text
 import psycopg2
 from psycopg2.extras import execute_values
 from pandas import to_datetime
-from sqlalchemy import inspect
 from sqlalchemy.exc import NoSuchTableError
 
 

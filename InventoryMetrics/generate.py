@@ -9,6 +9,7 @@ from InventoryMetrics.generate_helpers import clean_and_fuse_metrics
 from core.libs import re, pd, text
 from core.db import get_engine
 from core.schema_helpers import get_column
+from core.db import backup_table
 
 # def upsert_metrics(engine, rows):
 #     if not rows:
@@ -95,6 +96,9 @@ def main():
 
     df_full = pd.concat(all_dfs, ignore_index=True)
     df_final = clean_and_fuse_metrics(df_full)
+
+    # 🛡️ Backup antes de reemplazar
+    backup_table("inventory_metrics")
 
     df_final.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="replace", index=False)
     print("✅ Métricas insertadas en masterdatabase.inventory_metrics")

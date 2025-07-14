@@ -65,3 +65,18 @@ def inspect_tables(
             print("\n→ Estadísticas descriptivas:\n", df.describe(include='all'))
         except Exception as e:
             print(f"⚠️ Error consultando {sql_tabla}: {e}")
+
+def backup_table(table, schema="masterdatabase"):
+    """
+    Crea un respaldo rápido de la tabla SQL como backup con fecha y hora.
+    Si la tabla no existe, ignora el error.
+    """
+    engine = get_engine()
+    now = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_table = f"{schema}.{table}_bkp_{now}"
+    try:
+        with engine.connect() as conn:
+            conn.execute(text(f"CREATE TABLE {backup_table} AS TABLE {schema}.{table}"))
+        print(f"🛡️  Backup creado: {backup_table}")
+    except Exception as e:
+        print(f"⚠️  No se pudo respaldar {schema}.{table}: {e}")

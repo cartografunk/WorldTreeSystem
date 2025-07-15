@@ -42,7 +42,7 @@ def aggregate_contracts(
     # Filtra registros válidos si aplica
     if filter_valid:
         for field in required_fields:
-            df = df[df[get_column(field, df)].notna()]
+            df = df[df[get_column(field, df)].notna()]\
 
     grouped = df.groupby(contract_col)
     rows = []
@@ -67,6 +67,7 @@ def aggregate_contracts(
             "mortality": f"{mortality}%" if not np.isnan(mortality) else None,
             "dbh_mean": round(pd.to_numeric(group[get_column("dbh_in", group)], errors='coerce').mean(), 2),
             "dbh_std": round(pd.to_numeric(group[get_column("dbh_in", group)], errors='coerce').std(), 2),
+            "noncom_dbh_count": group[get_column("dbh_in", group)].lt(8).sum(),
             "tht_mean": round(pd.to_numeric(group[get_column("tht_ft", group)], errors='coerce').mean(), 2),
             "tht_std": round(pd.to_numeric(group[get_column("tht_ft", group)], errors='coerce').std(), 2),
             "mht_mean": round(pd.to_numeric(group[get_column("merch_ht_ft", group)], errors='coerce').mean(), 2),

@@ -22,6 +22,7 @@ SELECT
     mht_pct_of_target,
     dbh_mean,
     dbh_std,
+    noncom_dbh_count,
     dbh_pct_of_target,
     doyle_bf_mean,
     doyle_bf_std,
@@ -43,8 +44,10 @@ WHERE rn = 1;
 -- Asegura que todos los contratos existan en metrics_current (aunque sean NULL)
 INSERT INTO masterdatabase.inventory_metrics_current (
     rel_path, contract_code, type_of_metric, contract_status, inventory_year, inventory_date, survival,
-    tht_mean, tht_std, mht_mean, mht_std, mht_pct_of_target, dbh_mean, dbh_std, dbh_pct_of_target,
-    doyle_bf_mean, doyle_bf_std, doyle_bf_total, projected_dbh, projected_doyle_bf,
+    tht_mean, tht_std, mht_mean, mht_std, mht_pct_of_target,
+    dbh_mean, dbh_std, noncom_dbh_count, dbh_pct_of_target,
+    doyle_bf_mean, doyle_bf_std, doyle_bf_total,
+    projected_dbh, projected_doyle_bf,
     pkid, progress, total_trees, mortality, rn
 )
 SELECT
@@ -62,6 +65,7 @@ SELECT
     NULL,                 -- mht_pct_of_target
     NULL,                 -- dbh_mean
     NULL,                 -- dbh_std
+    NULL,                 -- noncom_dbh_count
     NULL,                 -- dbh_pct_of_target
     NULL,                 -- doyle_bf_mean
     NULL,                 -- doyle_bf_std

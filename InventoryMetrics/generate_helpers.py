@@ -84,9 +84,9 @@ def clean_and_fuse_metrics(df_full):
 
     # **Asegura todas las columnas del schema en orden correcto**
     schema = [
-        "rel_path", "contract_code", "inventory_year", "inventory_date", "survival",
+        "rel_path", "contract_code", "planting_year", "tree_age", "inventory_year", "inventory_date", "survival",
         "tht_mean", "tht_std", "mht_mean", "mht_std", "mht_pct_of_target",
-        "dbh_mean", "dbh_std", "dbh_pct_of_target", "doyle_bf_mean", "doyle_bf_std",
+        "dbh_mean", "dbh_std", "noncom_dbh_count", "dbh_pct_of_target", "doyle_bf_mean", "doyle_bf_std",
         "doyle_bf_total", "projected_dbh", "projected_doyle_bf", "pkid", "progress",
         "total_trees", "mortality"
     ]

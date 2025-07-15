@@ -2,7 +2,7 @@ from core.db import get_engine
 from core.libs import text
 
 def set_year_dates_to_oct_1():
-    year = 2021
+    year = 2022
     engine = get_engine()
     TARGET_DATE = f'{year}-10-01'
     pattern = f"^inventory_.*_{year}$"
@@ -32,27 +32,14 @@ def set_year_dates_to_oct_1():
             {'pattern': pattern}
         )
         for (table_name,) in result:
-            # Checa si la columna cruise_date existe
-            col_check = conn.execute(
-                text("""
-                    SELECT 1
-                    FROM information_schema.columns
-                    WHERE table_schema = 'public'
-                      AND table_name = :table
-                      AND column_name = 'cruise_date'
-                """), {'table': table_name}
-            ).fetchone()
-            if col_check:
-                print(f"Actualizando cruise_date en {table_name}...")
-                try:
-                    conn.execute(
-                        text(f"UPDATE public.{table_name} SET cruise_date = :date"),
-                        {'date': TARGET_DATE}
-                    )
-                except Exception as e:
-                    print(f"⚠️  No se pudo actualizar {table_name}: {e}")
-            else:
-                print(f"⏩ Tabla {table_name} no tiene cruise_date, se omite.")
+            print(f"Actualizando cruise_date en {table_name}...")
+            try:
+                conn.execute(
+                    text(f"UPDATE public.{table_name} SET cruise_date = :date"),
+                    {'date': TARGET_DATE}
+                )
+            except Exception as e:
+                print(f"⚠️  No se pudo actualizar {table_name}: {e}")
 
     print(f"✅ Todas las fechas de inventarios {year} cambiadas a 01/Oct/{year}.")
 

@@ -3,7 +3,7 @@ from core.libs import pd
 import openpyxl
 import os
 
-EXCEL_PATH = "masterdatabase_export.xlsx"
+EXCEL_PATH = "../DatabaseExports/masterdatabase_export.xlsx"
 CHANGELOG_SHEET = "ChangeLog"
 
 # Paso 1: Cargar ChangeLog si existe

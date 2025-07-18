@@ -24,6 +24,7 @@ import time
 import traceback
 from time import sleep
 import shutil
+import sys
 
 # ───── Regex & CLI ─────
 import re

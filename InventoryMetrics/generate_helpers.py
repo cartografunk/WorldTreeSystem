@@ -8,9 +8,10 @@ def safe_numeric(series):
         return pd.Series([None] * len(series), index=series.index)
 
 
-def create_cat_inventory_tables(engine, tables: list[str]):
+def create_cat_inventory_tables(engine, tables: list[str], where: str = None):
     """
     Genera las tablas cat_inventory_<country>_<year> a partir de cada tabla inventory_<country>_<year>.
+    Permite filtrar usando un WHERE SQL (por ejemplo, solo contratos de Guatemala).
     """
     for table in tables:
         m = re.match(r"inventory_([a-z]+)_(\d{4})", table)
@@ -20,12 +21,19 @@ def create_cat_inventory_tables(engine, tables: list[str]):
         target = f"cat_inventory_{country}_{year}"
 
         try:
-            df = pd.read_sql(f"""
+            base_query = f"""
                 SELECT DISTINCT contractcode, cruisedate
                 FROM public.{table}
                 WHERE contractcode IS NOT NULL
-            """, engine)
+            """
+            # Si se pasa un filtro extra, agréguelo al WHERE (con AND)
+            if where and where.strip() != "1=1":
+                base_query = base_query.rstrip() + f" AND {where}\n"
 
+            df = pd.read_sql(base_query, engine)
+
+            # Antes de guardar, filtra los nulos
+            df = df[df['cruisedate'].notnull()]
             df.to_sql(target, engine, if_exists="append", index=False)
             print(f"📁 Generada: {target} ({len(df)} contratos)")
 
@@ -81,6 +89,15 @@ def clean_and_fuse_metrics(df_full):
     df_final["progress"] = df_final.apply(
         lambda row: "OK" if pd.notnull(row.get("total_trees")) and pd.notnull(row.get("survival")) else "error", axis=1
     )
+
+    # Normaliza y evita columnas duplicadas
+    if 'planting_year_y' in df_final.columns:
+        df_final['planting_year'] = df_final['planting_year_y']
+    if 'planting_date_y' in df_final.columns:
+        df_final['planting_date'] = df_final['planting_date_y']
+    for col in ['planting_year_x', 'planting_year_y', 'planting_date_x', 'planting_date_y']:
+        if col in df_final.columns:
+            df_final.drop(col, axis=1, inplace=True)
 
     # **Asegura todas las columnas del schema en orden correcto**
     schema = [

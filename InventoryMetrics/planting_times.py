@@ -18,6 +18,10 @@ def months_diff(date1, date2):
     return round(delta, 1)
 
 def pretty_tree_age(date1, date2):
+    """
+    Calcula la edad entre dos fechas y la devuelve como 'año mes/12', ej: 1 6/12
+    """
+    import pandas as pd
     if pd.isnull(date1) or pd.isnull(date2):
         return None
     d1, d2 = pd.to_datetime(date1), pd.to_datetime(date2)
@@ -29,36 +33,36 @@ def pretty_tree_age(date1, date2):
     if months == 12:
         years += 1
         months = 0
-    return f"{years} year{'s' if years!=1 else ''} {months} month{'s' if months!=1 else ''}"
+    return f"{years} {months}/12"
 
 
-def update_tree_age_metrics():
+def update_tree_age_metrics(where="1=1"):
     engine = get_engine()
-    # 1. Traer planting_date por contrato
+    # 1. Traer planting_date por contrato con filtro dinámico
     contracts = pd.read_sql(
-        "SELECT contract_code, planting_date FROM masterdatabase.contract_tree_information", engine)
+        f"SELECT contract_code, planting_date FROM masterdatabase.contract_tree_information WHERE {where}", engine)
     contracts["planting_date"] = pd.to_datetime(contracts["planting_date"])
 
-    # 2. Traer metrics con fechas
+    # 2. Traer metrics con fechas SOLO para los contratos seleccionados
+    # (opcional: podrías filtrar aquí también, pero basta con el merge)
     metrics = pd.read_sql(
         "SELECT contract_code, inventory_date FROM masterdatabase.inventory_metrics", engine)
     metrics["inventory_date"] = pd.to_datetime(metrics["inventory_date"])
 
-    # 3. Merge y cálculo
-
-    merged = metrics.merge(contracts, how="left", on="contract_code")
+    # 3. Merge y cálculo SOLO para los contratos filtrados
+    merged = metrics.merge(contracts, how="inner", on="contract_code")
     merged["tree_age"] = [
         pretty_tree_age(row["planting_date"], row["inventory_date"])
         for _, row in merged.iterrows()
     ]
 
-    # 4. Actualiza ambos campos
+    # 4. Actualiza tree_age solo para ese subconjunto
     with engine.begin() as conn:
         for _, row in merged.iterrows():
             conn.execute(
-                text(  # <-- AQUÍ AGREGA text()
+                text(
                     "UPDATE masterdatabase.inventory_metrics "
-                    "SET tree_age = :tree_age"
+                    "SET tree_age = :tree_age "
                     "WHERE contract_code = :contract_code AND inventory_date = :inventory_date"
                 ),
                 {
@@ -67,7 +71,10 @@ def update_tree_age_metrics():
                     "inventory_date": row["inventory_date"].date() if not pd.isnull(row["inventory_date"]) else None
                 }
             )
-    print("✅ tree_age actualizados en masterdatabase.inventory_metrics.")
+    print(f"✅ tree_age actualizado para contratos filtrados con: {where}")
 
 if __name__ == "__main__":
-    update_tree_age_metrics()
+    parser = argparse.ArgumentParser()
+    parser.add_argument('--where', type=str, default="1=1", help="Filtro WHERE SQL, ej: \"region = 'Guatemala'\" o \"contract_code LIKE 'GT%'\"")
+    args = parser.parse_args()
+    update_tree_age_metrics(where=args.where)

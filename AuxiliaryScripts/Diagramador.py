@@ -4,7 +4,7 @@ import subprocess
 from glob import glob
 
 project_root = os.path.abspath("D:/LOCAL/WorldTreeSystem")
-cruises_path = os.path.join(project_root, "Cruises")
+cruises_path = os.path.join(project_root, "CruisesProcessor")
 output_dot = os.path.join(project_root, "cruises_ast_map.dot")
 output_png = os.path.join(project_root, "cruises_ast_map.png")
 

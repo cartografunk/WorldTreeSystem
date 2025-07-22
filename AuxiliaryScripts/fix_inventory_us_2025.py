@@ -2,7 +2,7 @@ from core.db import get_engine
 from core.schema_helpers import rename_columns_using_schema, FINAL_ORDER, get_dtypes_for_dataframe
 from core.libs import pd
 from sqlalchemy import text
-from Cruises.catalog_normalizer import normalize_catalogs
+from CruisesProcessor.catalog_normalizer import normalize_catalogs
 
 def fix_inventory_us():
     engine = get_engine()

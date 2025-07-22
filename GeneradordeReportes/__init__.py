@@ -1,2 +1,0 @@
-from GeneradordeReportes.utils.db import get_engine
-from GeneradordeReportes.utils.colors import COLOR_PALETTE

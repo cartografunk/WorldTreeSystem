@@ -1,6 +1,6 @@
 #WorldTreeSystem/main.py
 import argparse
-from Cruises.importador_batch import correr_batch
+from CruisesProcessor.importador_batch import correr_batch
 
 def main():
     parser = argparse.ArgumentParser(description="Procesador de importación por lotes")

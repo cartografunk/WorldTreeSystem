@@ -4,12 +4,16 @@ from core.libs import Path, os, safe_mkdir
 
 # === Rutas base ===
 INVENTORY_BASE = Path(r"C:\Users\HeyCe\World Tree Technologies Inc\Forest Inventory - Documentos")
+OPERATIONS_BASE = Path(r"C:\Users\HeyCe\World Tree Technologies Inc\Operations - Documentos\Main Database")
 
 BASE_DIR = Path(__file__).resolve().parent.parent  # WorldTreeSystem/
 DATA_DIR = BASE_DIR / "data"
 OUTPUTS_DIR = BASE_DIR / "outputs"
 TEMP_DIR = BASE_DIR / "tmp"
 REPORTS_DIR = BASE_DIR / "reports"
+MONTHLY_REPORT_DIR = OPERATIONS_BASE / "Monthly Report"
+
+
 
 # === Funciones dinámicas ===
 
@@ -26,8 +30,7 @@ def get_graph_path(contract_code, graph_key):
     return get_resumen_path(contract_code) / f"{graph_key}_{contract_code}.png"
 
 def ensure_all_paths_exist():
-    """Crea las carpetas si no existen"""
-    for path in [DATA_DIR, OUTPUTS_DIR, TEMP_DIR, REPORTS_DIR]:
+    for path in [DATA_DIR, OUTPUTS_DIR, TEMP_DIR, REPORTS_DIR, MONTHLY_REPORT_DIR]:
         safe_mkdir(path)
 
 def resolve_inventory_paths(file_list):

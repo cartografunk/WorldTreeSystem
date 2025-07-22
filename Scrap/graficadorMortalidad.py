@@ -1,7 +1,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 from sqlalchemy import create_engine
-from GeneradordeReportes.utils.colors import COLOR_PALETTE
+from ReportGenerator.utils.colors import COLOR_PALETTE
 import os
 from crecimientoesperadoCR import get_expected_diameter_growth
 

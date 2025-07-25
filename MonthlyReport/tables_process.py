@@ -16,21 +16,20 @@ def get_allocation_type(etp_year):
     else:
         return ['ETP']
 
-def apply_allocation_split(df, alloc, allocation_type):
-    # Elige el campo de porcentaje según allocation_type
-    allocation_field = "canada_allocation_pct" if allocation_type == "COP" else "usa_allocation_pct"
+def build_etp_trees(engine, etp_year, allocation_type):
+    alloc = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
 
-    # Haz el merge
-    df = df.merge(alloc[["contract_code", allocation_field]], on="contract_code", how="left")
+    if allocation_type == "COP":
+        df = alloc[alloc['etp_year'] == etp_year]
+        df_grouped = df.groupby("region")["total_can_allocation"].sum().reset_index()
+        df_grouped.rename(columns={"total_can_allocation": "Total Trees"}, inplace=True)
+    elif allocation_type == "ETP":
+        df = alloc[alloc['etp_year'] == etp_year]
+        df_grouped = df.groupby("region")["usa_trees_planted"].sum().reset_index()
+        df_grouped.rename(columns={"usa_trees_planted": "Total Trees"}, inplace=True)
+    else:
+        raise ValueError("allocation_type debe ser COP o ETP")
 
-    # Aplica el split a los campos que quieras (contract, planted, surviving...)
-    for col in ["trees_contract", "planted"]:
-        df[col] = df[col] * (df[allocation_field] / 100.0)
-
-    # Si tienes surviving, igual
-    if "surviving" in df.columns:
-        df["surviving"] = df["surviving"] * (df[allocation_field] / 100.0)
-
-    return df
+    return df_grouped
 
 

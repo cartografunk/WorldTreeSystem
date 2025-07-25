@@ -1,63 +1,93 @@
 from core.libs import pd
 from core.db import get_engine
-from MonthlyReport.tables_process import weighted_mean, apply_allocation_split
 
-def build_etp_summary(year, allocation_type=None):
-    engine = get_engine()
+def build_etp_summary(engine):
+
+    # 1. Extrae todos los contratos y status
     cti = pd.read_sql(
-        f"""
-           SELECT 
-               cti.contract_code, 
-               cti.etp_year, 
-               cti.region,
-               cti.trees_contract,
-               cti.planted
-           FROM masterdatabase.contract_tree_information AS cti
-           WHERE cti.etp_year = {year}
-        """, engine
+        """
+        SELECT 
+            cti.contract_code, 
+            cti.etp_year, 
+            cfi.status, 
+            cti.region
+        FROM masterdatabase.contract_tree_information AS cti
+        LEFT JOIN masterdatabase.contract_farmer_information AS cfi
+          ON cti.contract_code = cfi.contract_code
+        """,
+        engine
     )
 
-    if allocation_type in ["COP", "ETP"]:
-        alloc = pd.read_sql(
-            "SELECT contract_code, canada_allocation_pct, usa_allocation_pct FROM masterdatabase.contract_allocation",
-            engine
-        )
+    if cti.empty:
+        print(f"⚠️  No hay contratos en la base")
+        return pd.DataFrame(columns=["region", "etp_year", "Total", "Survival"])
 
-        cti = apply_allocation_split(cti, alloc, allocation_type)
+    # 2. Total contratos por región y etp_year
+    total = cti.groupby(["region", "etp_year"])["contract_code"].count().rename("Total")
 
-    # Pivot Contracted
-    contracted = cti.pivot_table(index='etp_year', columns='region', values='trees_contract', aggfunc='sum', fill_value=0)
-    contracted['Type'] = 'Contracted'
+    # 3. Pivot de status
+    pivot = pd.pivot_table(
+        cti,
+        index=["region", "etp_year"],
+        columns="status",
+        values="contract_code",
+        aggfunc="count",
+        fill_value=0
+    )
 
-    # Pivot Planted
-    planted = cti.pivot_table(index='etp_year', columns='region', values='planted', aggfunc='sum', fill_value=0)
-    planted['Type'] = 'Planted'
+    # 4. Une totales y pivot
+    summary = pd.concat([total, pivot], axis=1)
 
-    # Surviving (trae de metrics, join por contract_code, calcula por región)
+    # 5. Survival: join con metrics (sin filtrar year)
     metrics = pd.read_sql(
-        f"""
+        """
         SELECT contract_code, total_trees, survival
         FROM masterdatabase.inventory_metrics
-        WHERE inventory_year = {year}
-        """, engine
+        """,
+        engine
     )
-    metrics["surviving"] = metrics["total_trees"] * (metrics["survival"].str.replace('%','').astype(float) / 100)
-    cti = cti.merge(metrics[['contract_code', 'surviving']], on='contract_code', how='left')
-    surviving = cti.pivot_table(index='etp_year', columns='region', values='surviving', aggfunc='sum', fill_value=0)
-    surviving['Type'] = 'Surviving'
+    merged = cti.merge(metrics, on="contract_code", how="left")
 
-    # Junta todo
-    tabla = pd.concat([contracted, planted, surviving])
-    tabla.reset_index(inplace=True)
-    # Ordena columnas (puedes personalizar)
-    order_cols = ['etp_year', 'Type'] + [c for c in tabla.columns if c not in ['etp_year', 'Type']]
-    tabla = tabla[order_cols]
+    if not merged.empty and merged["survival"].notna().any():
+        merged["survival"] = pd.to_numeric(merged["survival"].str.replace('%', ''), errors='coerce') / 100
+        merged["survivors"] = merged["total_trees"] * merged["survival"]
 
-    return tabla
+        def survival_pct(g):
+            trees = g["total_trees"].sum()
+            survivors = g["survivors"].sum()
+            return 100 * survivors / trees if trees > 0 else None
+
+        region_survival = (
+            merged.groupby(["region", "etp_year"])
+            .apply(survival_pct)
+            .round(0)
+            .astype("Int64")
+            .astype(str) + "%"
+        )
+        summary["Survival"] = region_survival
+        summary["Survival"] = summary["Survival"].replace('<NA>%', 'N/A').fillna('N/A')
+    else:
+        summary["Survival"] = 'N/A'
+
+    # 6. Rellena con 0s si faltan status
+    status_cols = list(pivot.columns)
+    for col in status_cols:
+        if col not in summary.columns:
+            summary[col] = 0
+
+    # 7. Ordena columnas
+    summary = summary.reset_index()
+    dynamic_status = [c for c in summary.columns if c not in ["region", "etp_year", "Total", "Survival"]]
+    cols = ["region", "etp_year", "Total"] + dynamic_status + ["Survival"]
+    summary = summary[cols]
+
+    # 8. (Opcional) Puedes agregar totales por año, región, o ambos aquí si quieres
+
+    return summary
 
 if __name__ == "__main__":
-    year = 2018
-    allocation_type = "COP"
-    df = build_etp_summary(year, allocation_type)
+    engine = get_engine()
+    df = build_etp_summary(engine)
     print(df)
-    df.to_excel(f"etp_summary_{year}_{allocation_type}.xlsx", index=False)
+    df.to_excel("etp_summary_ALL.xlsx", index=False)
+

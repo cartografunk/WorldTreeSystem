@@ -31,7 +31,7 @@ import re
 import argparse
 
 # ───── SQL ─────
-from sqlalchemy import create_engine, inspect, text
+from sqlalchemy import create_engine, inspect, text, Integer, Text
 import psycopg2
 from psycopg2.extras import execute_values
 from pandas import to_datetime

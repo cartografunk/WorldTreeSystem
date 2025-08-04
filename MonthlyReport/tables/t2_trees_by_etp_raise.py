@@ -1,61 +1,87 @@
 # MonthlyReport/tables/t2_trees_by_etp_raise.py
-
 from core.libs import pd
+from MonthlyReport.tables_process import get_allocation_type, get_survival_data, format_survival_summary
 
-from core.libs import pd
-
-def build_etp_trees_table2(engine, df_survival):
-    # 1. Leer datos bases (puedes ajustar nombres de columnas si cambian)
+def build_etp_trees_table2(engine):
+    # Cargar tablas
     ca = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
     cti = pd.read_sql("SELECT contract_code, etp_year, region, trees_contract, planted FROM masterdatabase.contract_tree_information", engine)
 
-    # 2. Merge para tener region, etp_year en ca
+    # 🚨 Hacer merge de inmediato para asegurar que ca ya tenga etp_year y region
     ca = ca.merge(cti[["contract_code", "etp_year", "region"]], on="contract_code", how="left")
 
-    # 3. Preparar allocation_types a procesar
-    allocation_types = ['COP', 'ETP']
     records = []
 
-    for allocation_type in allocation_types:
-        if allocation_type == "COP":
-            grouped = ca.groupby(["etp_year", "region"], dropna=False)["total_can_allocation"].sum().reset_index()
-            grouped["contract_trees_status"] = "Contracted"
-            grouped.rename(columns={"total_can_allocation": "value"}, inplace=True)
-        elif allocation_type == "ETP":
-            grouped = ca.groupby(["etp_year", "region"], dropna=False)["usa_trees_planted"].sum().reset_index()
-            grouped["contract_trees_status"] = "Planted"
-            grouped.rename(columns={"usa_trees_planted": "value"}, inplace=True)
+    df_survival = get_survival_data(engine)
+
+
+    for year in df_survival["etp_year"].unique():
+        allocation_types = get_allocation_type(year)
+
+        if allocation_types == ['COP']:
+            df = ca[ca["etp_year"] == year].copy()
+            df_grouped = df.groupby("region", dropna=False)[
+                ["canada_trees_contracted", "total_can_allocation"]
+            ].sum().reset_index()
+
+            df_grouped["etp_year"] = year
+            df_grouped["allocation_type"] = "COP"
+            df_grouped.rename(columns={
+                "canada_trees_contracted": "Contracted",
+                "total_can_allocation": "Planted"
+            }, inplace=True)
+
+        elif allocation_types == ['ETP']:
+            df = cti[cti["etp_year"] == year].copy()
+            df_grouped = df.groupby("region", dropna=False)[
+                ["trees_contract", "planted"]
+            ].sum().reset_index()
+
+            df_grouped["etp_year"] = year
+            df_grouped["allocation_type"] = "ETP"
+            df_grouped.rename(columns={
+                "trees_contract": "Contracted",
+                "planted": "Planted"
+            }, inplace=True)
+
+        elif allocation_types == ['COP', 'ETP']:
+            df = ca[ca["etp_year"] == year].copy()
+            df_grouped = df.groupby("region", dropna=False)[
+                ["canada_trees_contracted", "usa_trees_contracted", "total_can_allocation", "usa_trees_planted"]
+            ].sum().reset_index()
+
+            df_grouped["etp_year"] = year
+            df_grouped["allocation_type"] = "COP/ETP"
+            df_grouped["Contracted"] = df_grouped["canada_trees_contracted"] + df_grouped["usa_trees_contracted"]
+            df_grouped["Planted"] = df_grouped["total_can_allocation"] + df_grouped["usa_trees_planted"]
+            df_grouped = df_grouped[["region", "etp_year", "allocation_type", "Contracted", "Planted"]]
+
         else:
             continue
-        grouped["allocation_type"] = allocation_type
-        records.append(grouped)
+
+        records.append(df_grouped)
 
     df_long = pd.concat(records, ignore_index=True)
 
-    # 4. Unir Contracted y Planted para hacer Surviving
-    # Pivot para juntar Contracted y Planted en columnas
-    temp = df_long.pivot_table(index=["etp_year", "allocation_type", "region"], columns="contract_trees_status", values="value", fill_value=0).reset_index()
+    # 1. Agrega Survival desde df_survival
+    df_survival["Survival_pct"] = pd.to_numeric(df_survival["Survival"].str.replace("%", ""), errors="coerce") / 100
+    df_long = df_long.merge(df_survival[["etp_year", "region", "Survival_pct"]], on=["etp_year", "region"], how="left")
 
-    # 5. Agregar Survival desde df_survival
-    # Asegúrate que survival esté en formato numérico (sin %), con columnas: etp_year, region, Survival
-    df_survival["Survival_pct"] = pd.to_numeric(df_survival["Survival"].str.replace("%",""), errors="coerce") / 100
-    temp = temp.merge(df_survival[["etp_year", "region", "Survival_pct"]], on=["etp_year", "region"], how="left")
+    # 2. Calcular Surviving
+    df_long["Surviving"] = (df_long["Planted"] * df_long["Survival_pct"]).round(0).astype("Int64")
 
-    # 6. Calcular Surviving
-    temp["Surviving"] = (temp["Planted"] * temp["Survival_pct"]).round(0).astype("Int64")
-
-    # 7. Convierte de wide a long, para tener contract_trees_status (Contracted, Planted, Surviving)
-    final_long = temp.melt(
+    # 3. Convertir a formato largo (Contracted, Planted, Surviving)
+    final_long = df_long.melt(
         id_vars=["etp_year", "allocation_type", "region"],
         value_vars=["Contracted", "Planted", "Surviving"],
         var_name="contract_trees_status",
         value_name="value"
     )
 
-    # 8. Crea columna etp (tipo + año, sin decimales)
-    final_long["etp"] = final_long["allocation_type"] + " " + final_long["etp_year"].astype(int).astype(str)
+    # 4. Crear campo etp
+    final_long["etp"] = final_long["allocation_type"] + " " + final_long["etp_year"].astype(str)
 
-    # 9. Pivotea para regiones como columnas
+    # 5. Pivoteo
     df_pivot = final_long.pivot_table(
         index=["etp", "contract_trees_status"],
         columns="region",
@@ -64,16 +90,25 @@ def build_etp_trees_table2(engine, df_survival):
         fill_value=0
     ).reset_index()
 
-    # 10. Ordena columnas y suma total
-    region_cols = [col for col in ["Costa Rica", "Guatemala", "Mexico", "USA"] if col in df_pivot.columns]
+    # 6. Extraer año y tipo
+    df_pivot["type"] = df_pivot["etp"].str.extract(r"^(COP|ETP|COP/ETP)")
+    df_pivot["year"] = df_pivot["etp"].str.extract(r"(\d{4})").astype(int)
+    df_pivot.drop(columns=["etp"], inplace=True)
+
+    # 7. Total y orden
+    region_cols = [c for c in ["Costa Rica", "Guatemala", "Mexico", "USA"] if c in df_pivot.columns]
     df_pivot["Total"] = df_pivot[region_cols].sum(axis=1)
-    cols = ["etp", "contract_trees_status"] + region_cols + ["Total"]
+
+    cols = ["year", "type", "contract_trees_status"] + region_cols + ["Total"]
     df_pivot = df_pivot[cols]
+
+    df_pivot.rename(columns={"type": "etp"}, inplace=True)
+    df_pivot["contract_trees_status"] = pd.Categorical(
+        df_pivot["contract_trees_status"],
+        categories=["Contracted", "Planted", "Surviving"],
+        ordered=True
+    )
+    df_pivot.sort_values(by=["year", "etp", "contract_trees_status"], inplace=True, ignore_index=True)
 
     return df_pivot
 
-# Ejemplo de uso:
-# engine = get_engine()
-# df1 = build_etp_summary(engine)  # Tu tabla 1, ya calculada y lista
-# df2 = build_etp_trees_table2(engine, df1)
-# df2.to_excel("etp_trees_pivot.xlsx", index=False)

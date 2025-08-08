@@ -8,7 +8,8 @@ def build_etp_summary(engine):
         """
         SELECT 
             cti.contract_code, 
-            cti.etp_year, 
+            cti.etp_year,
+            cti.trees_contract, 
             cfi.status, 
             cti.region
         FROM masterdatabase.contract_tree_information AS cti
@@ -38,36 +39,35 @@ def build_etp_summary(engine):
     # 4. Une totales y pivot
     summary = pd.concat([total, pivot], axis=1)
 
-    # 5. Survival: join con metrics (sin filtrar year)
-    metrics = pd.read_sql(
+    # 5. Survival: usar survival_current y solo contratos Active
+    survival_df = pd.read_sql(
         """
-        SELECT contract_code, total_trees, survival
-        FROM masterdatabase.inventory_metrics
+        SELECT contract_code, current_survival_pct, current_surviving_trees
+        FROM masterdatabase.survival_current
         """,
         engine
     )
-    merged = cti.merge(metrics, on="contract_code", how="left")
 
-    if not merged.empty and merged["survival"].notna().any():
-        merged["survival"] = pd.to_numeric(merged["survival"].str.replace('%', ''), errors='coerce') / 100
-        merged["survivors"] = merged["total_trees"] * merged["survival"]
+    # Filtramos contratos activos y añadimos survival
+    active_cti = cti[cti["status"] == "Active"]
+    merged = active_cti.merge(survival_df, on="contract_code", how="left")
 
-        def survival_pct(g):
-            trees = g["total_trees"].sum()
-            survivors = g["survivors"].sum()
-            return 100 * survivors / trees if trees > 0 else None
+    def weighted_survival_pct(g):
+        total_trees = g["trees_contract"].sum()
+        surviving_trees = g["current_surviving_trees"].sum()
+        if pd.notna(total_trees) and total_trees > 0:
+            return round(100 * surviving_trees / total_trees, 1)
+        return None
 
-        region_survival = (
-            merged.groupby(["region", "etp_year"])
-            .apply(survival_pct)
-            .round(0)
-            .astype("Int64")
-            .astype(str) + "%"
-        )
-        summary["Survival"] = region_survival
-        summary["Survival"] = summary["Survival"].replace('<NA>%', 'N/A').fillna('N/A')
-    else:
-        summary["Survival"] = 'N/A'
+    region_survival = (
+        merged.groupby(["region", "etp_year"])
+        .apply(weighted_survival_pct)
+        .apply(lambda x: f"{x}%" if x is not None else "N/A")
+    )
+
+    # Mapear survival calculado al summary
+    summary = summary.reset_index()
+    summary["Survival"] = summary.set_index(["region", "etp_year"]).index.map(region_survival).fillna("N/A")
 
     # 6. Rellena con 0s si faltan status
     status_cols = list(pivot.columns)

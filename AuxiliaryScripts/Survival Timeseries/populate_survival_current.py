@@ -24,7 +24,8 @@ JOIN public.cat_survival_fields c
     ON TRIM(s.survival_metric_source) = TRIM(c.survival_metric_source)
 WHERE s.survival_pct IS NOT NULL
   AND s.survival_count IS NOT NULL
-ORDER BY s.contract_code, c.priority DESC;
+ORDER BY s.contract_code, c.priority ASC;
+
 """
 
 with engine.connect() as conn:

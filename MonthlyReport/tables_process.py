@@ -58,22 +58,81 @@ def get_survival_data(engine):
     df["etp_year"] = df["etp_year"].astype("Int64")
     return df[["etp_year", "region", "Survival"]]
 
-
-
-def format_survival_summary(df_survival):
+def _coerce_survival_pct(df: pd.DataFrame) -> pd.Series:
     """
-    Devuelve un resumen de supervivencia por etp_year como string con media, mediana y rango.
+    Devuelve una serie en [0,1] con survival pct, aceptando distintos nombres y formatos.
+    Preferencias:
+      1) Columna ya de survival (% o fracción)
+      2) Derivarla de surviving/contracted o alive/total
     """
-    df = df_survival.copy()
-    df["Survival_pct"] = pd.to_numeric(df["Survival"].str.replace("%", ""), errors="coerce") / 100
+    df = df.copy()
 
-    resumen = df.groupby("etp_year")["Survival_pct"].agg(
-        mean=lambda x: f"{x.mean():.1%}",
-        median=lambda x: f"{x.median():.1%}",
-        range=lambda x: f"{(x.max()-x.min()):.1%}"
-    ).reset_index()
+    candidates = ["Survival", "Survival %", "survival", "survival_pct", "current_survival_pct"]
+    for col in candidates:
+        if col in df.columns:
+            s = df[col]
+            # Texto con "%"
+            if s.dtype == object:
+                s = pd.to_numeric(
+                    s.astype(str).str.replace("%", "", regex=False).str.replace(",", ""),
+                    errors="coerce"
+                ) / 100.0
+            else:
+                s = pd.to_numeric(s, errors="coerce")
+                # Si parece 0–100, pásalo a 0–1
+                if s.max(skipna=True) is not None and s.max(skipna=True) > 1:
+                    s = s / 100.0
+            return s.clip(0, 1)
 
-    resumen["Resumen"] = resumen.apply(
-        lambda row: f"Mean: {row['mean']}, Median: {row['median']}, Range: {row['range']}", axis=1
+    # Derivar de contadores si existen
+    if {"current_surviving_trees", "trees_contract"}.issubset(df.columns):
+        num = pd.to_numeric(df["current_surviving_trees"], errors="coerce")
+        den = pd.to_numeric(df["trees_contract"], errors="coerce")
+        return (num / den).replace([pd.NA, pd.NaT], pd.NA).clip(0, 1)
+
+    if {"Alive", "Total Trees"}.issubset(df.columns):
+        num = pd.to_numeric(df["Alive"], errors="coerce")
+        den = pd.to_numeric(df["Total Trees"], errors="coerce")
+        return (num / den).replace([pd.NA, pd.NaT], pd.NA).clip(0, 1)
+
+    raise KeyError(
+        "No encontré columnas para calcular Survival ( intenta proveer 'current_survival_pct' "
+        "o 'current_surviving_trees' y 'trees_contract')."
     )
-    return resumen[["etp_year", "Resumen"]]
+
+def format_survival_summary(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Recibe el DF original (como llega a enrich_with_obligations_and_stats) y agrega columnas normalizadas
+    'Survival_pct' (0–1) y 'Survival' (texto con %), sin depender de un nombre fijo de origen.
+    """
+    df = df.copy()
+    surv = _coerce_survival_pct(df)
+    df["Survival_pct"] = surv
+    df["Survival"] = (surv * 100).round(2).astype("Float64").astype(str) + "%"
+
+    # Si aquí haces más agregaciones/resúmenes, continúa igual…
+    # Ejemplo (ajústalo a tu lógica actual):
+    # resumen = df.groupby("etp_year", dropna=False)["Survival_pct"].mean().reset_index()
+    # resumen["Survival"] = (resumen["Survival_pct"] * 100).round(2).astype(str) + "%"
+    # return resumen
+
+    return df
+
+
+def clean_t2a_for_excel(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Limpia la tabla T2A antes de exportar:
+    - Elimina columnas de stats numéricas que no se exportan (mean, median, mode, max, min, range)
+    - Reordena columnas para que Survival_Summary quede antes de Obligation_Remaining (si existen)
+    """
+    scrap_cols = ["mean", "median", "mode", "max", "min", "range"]
+    df_clean = df.drop(columns=[c for c in scrap_cols if c in df.columns], errors="ignore")
+
+    if "Survival_Summary" in df_clean.columns and "Obligation_Remaining" in df_clean.columns:
+        cols = list(df_clean.columns)
+        cols.remove("Survival_Summary")
+        idx = cols.index("Obligation_Remaining")
+        cols.insert(idx, "Survival_Summary")
+        df_clean = df_clean[cols]
+
+    return df_clean

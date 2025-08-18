@@ -9,7 +9,7 @@ import schedule
 
 # Importar engine y mapeo de campos desde main_database_mapping
 from ReportGenerator.utils.db import get_engine
-from MainDatabase.main_database_mapping import field_schema
+from MasterDatabaseManagement.main_database_mapping import field_schema
 
 # Configuración de rutas y tablas
 EXCEL_PATH = os.environ.get(

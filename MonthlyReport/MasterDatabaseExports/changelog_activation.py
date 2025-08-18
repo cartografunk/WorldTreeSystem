@@ -3,8 +3,8 @@ from core.db import get_engine
 from openpyxl import load_workbook
 
 # Rutas de los archivos
-EXCEL_FILE = r"C:\Users\HeyCe\World Tree Technologies Inc\Operations - Documentos\WorldTreeSystem\DatabaseExports\masterdatabase_export.xlsx"
-CATALOG_FILE = r"C:\Users\HeyCe\World Tree Technologies Inc\Operations - Documentos\WorldTreeSystem\DatabaseExports\changelog.xlsx"
+EXCEL_FILE = r"/DatabaseExports/masterdatabase_export.xlsx"
+CATALOG_FILE = r"/DatabaseExports/changelog.xlsx"
 EXCEL_BACKUP = EXCEL_FILE.replace(".xlsx", "_backup.xlsx")
 SHEET_NAME = "ChangeLog"
 

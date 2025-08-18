@@ -1,4 +1,4 @@
-#DatabaseExports/masterdatabase_to_Excel
+#MasterDatabaseExports/masterdatabase_to_Excel
 
 from core.db import get_engine
 from core.libs import pd
@@ -18,7 +18,7 @@ def remove_tz(df):
         df[col] = df[col].dt.tz_localize(None)
     return df
 
-with pd.ExcelWriter("masterdatabase_export.xlsx", engine="openpyxl") as writer:
+with pd.ExcelWriter("../../DatabaseExports/masterdatabase_export.xlsx", engine="openpyxl") as writer:
     for table in tables:
         print(f"Exportando {table} ...")
         df = pd.read_sql(f'SELECT * FROM masterdatabase."{table}"', engine)

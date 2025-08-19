@@ -13,7 +13,8 @@ TEMP_DIR = BASE_DIR / "tmp"
 REPORTS_DIR = BASE_DIR / "reports"
 MONTHLY_REPORT_DIR = OPERATIONS_BASE / "Monthly Report"
 
-
+# 👇 NUEVO: carpeta “DatabaseExports” para secretarías (exactamente la que ya usas)
+DATABASE_EXPORTS_DIR = BASE_DIR / "DatabaseExports"  # -> C:\...\WorldTreeSystem\DatabaseExports
 
 # === Funciones dinámicas ===
 

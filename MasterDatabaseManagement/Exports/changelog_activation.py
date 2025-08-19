@@ -1,14 +1,20 @@
-from core.libs import pd, openpyxl, shutil, text
+# MasterDatabaseManagement/Exports/changelog_activation.py
+
+from pathlib import Path
+from sqlalchemy import text  # 👈 usa sqlalchemy.text en vez de core.libs.text
+from core.libs import pd, openpyxl, shutil
 from core.db import get_engine
+from core.paths import DATABASE_EXPORTS_DIR, ensure_all_paths_exist
 from openpyxl import load_workbook
 
-# Rutas de los archivos
-EXCEL_FILE = r"/DatabaseExports/masterdatabase_export.xlsx"
-CATALOG_FILE = r"/DatabaseExports/changelog.xlsx"
-EXCEL_BACKUP = EXCEL_FILE.replace(".xlsx", "_backup.xlsx")
+# Rutas de los archivos (fijas a tu carpeta DatabaseExports)
+EXCEL_FILE = Path(DATABASE_EXPORTS_DIR) / "masterdatabase_export.xlsx"
+CATALOG_FILE = Path(DATABASE_EXPORTS_DIR) / "changelog.xlsx"
+EXCEL_BACKUP = EXCEL_FILE.with_name(EXCEL_FILE.stem + "_backup.xlsx")
 SHEET_NAME = "ChangeLog"
 
 engine = get_engine()
+ensure_all_paths_exist()
 
 def backup_excel():
     shutil.copyfile(EXCEL_FILE, EXCEL_BACKUP)
@@ -19,13 +25,13 @@ def read_catalogs():
     reasons = pd.read_excel(CATALOG_FILE, sheet_name="ChangeReasonsCatalog")
     return fields, reasons
 
-def get_table_for_field(fields_catalog, field):
+def get_table_for_field(fields_catalog: pd.DataFrame, field: str) -> str | None:
     matches = fields_catalog[fields_catalog['target_field'] == field]
     if not matches.empty:
         return matches['target_table'].iloc[0]
     return None
 
-def process_changelog_and_update_sql(fields_catalog):
+def process_changelog_and_update_sql(fields_catalog: pd.DataFrame):
     wb = load_workbook(CATALOG_FILE)
     ws = wb[SHEET_NAME]
     # Detecta encabezados
@@ -37,46 +43,46 @@ def process_changelog_and_update_sql(fields_catalog):
     status_col = header_map.get("change_in_db")
     changes_applied = 0
 
-    # Procesa solo filas donde status_col está vacío
     for i, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row), start=2):
         done = row[status_col-1].value
         if done and str(done).strip().lower() == "done":
             continue
+
         contract_code = row[code_col-1].value
         target_field = row[field_col-1].value
         change = row[change_col-1].value
         if not contract_code or not target_field:
             continue
+
         table = get_table_for_field(fields_catalog, target_field)
         if not table:
             print(f"❌ Campo '{target_field}' no encontrado en FieldsCatalog")
             continue
-        # Detección de tipo de dato (numérico o string)
-        if isinstance(change, (int, float)) or (isinstance(change, str) and change.replace('.', '', 1).isdigit()):
-            change_value = change
-        else:
-            change_value = f"'{change}'"
-        sql = f"""
+
+        # Construye UPDATE con parámetros (seguro para strings/números)
+        stmt = text(f"""
             UPDATE masterdatabase.{table}
-            SET {target_field} = {change_value}
-            WHERE contract_code = '{contract_code}'
-        """
-        print("Ejecutando:", sql)
+            SET {target_field} = :val
+            WHERE contract_code = :cc
+        """)
+
         with engine.begin() as conn:
-            conn.execute(text(sql))
+            conn.execute(stmt, {"val": change, "cc": str(contract_code)})
         # Marca la celda como Done
         ws.cell(row=i, column=status_col, value="Done")
         changes_applied += 1
-    wb.save(CATALOG_FILE)
-    print(f"✅ Cambios aplicados: {changes_applied}. Solo columna 'change_in_db' modificada (dropdowns conservados).")
 
-def remove_tz(df):
-    for col in df.select_dtypes(include=["datetimetz"]).columns:
-        df[col] = df[col].dt.tz_localize(None)
+    wb.save(CATALOG_FILE)
+    print(f"✅ Cambios aplicados: {changes_applied}. Solo se actualizó 'change_in_db' en el changelog.")
+
+def remove_tz(df: pd.DataFrame) -> pd.DataFrame:
+    for col in df.columns:
+        if pd.api.types.is_datetime64tz_dtype(df[col]):
+            df[col] = df[col].dt.tz_localize(None)
     return df
 
-def refresh_tables_in_excel(ordered_tables):
-    """Sobrescribe las hojas, solo las tablas de datos."""
+def refresh_tables_in_excel(ordered_tables: list[str]):
+    """Sobrescribe las hojas del Excel con los datos actualizados."""
     print("⏳ Sobrescribiendo Excel...")
     with pd.ExcelWriter(EXCEL_FILE, engine="openpyxl", mode="w") as writer:
         for table in ordered_tables:
@@ -94,7 +100,7 @@ def main():
         "contract_farmer_information",
         "contract_allocation",
         "inventory_metrics",
-        "inventory_metrics_current"
+        "inventory_metrics_current",
     ]
     print("💾 Realizando backup del Excel original...")
     backup_excel()

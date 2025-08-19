@@ -1,4 +1,4 @@
-# MasterDatabaseManagement/Exports/changelog_activation.py
+# MasterDatabaseManagement/Changes/changelog_activation.py
 
 from pathlib import Path
 from sqlalchemy import text  # 👈 usa sqlalchemy.text en vez de core.libs.text

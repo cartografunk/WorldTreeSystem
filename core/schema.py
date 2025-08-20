@@ -197,7 +197,33 @@ COLUMNS = [
     "source": "input",
     "catalog_table": "cat_permanent_plot",
     "catalog_field": "id"
-  }
+  },
+  # === NewContractInput: mínimos para que NO descarte filas ===
+  {"key":"region",        "sql_name":"region",         "aliases":["Region"],                                   "dtype":"TEXT"},
+  {"key":"contractname",  "sql_name":"contract_name",  "aliases":["Contract Name"],                            "dtype":"TEXT"},
+  {"key":"plantingyear",  "sql_name":"planting_year",  "aliases":["Planting Year","ETP Year"],                 "dtype":"INT"},
+  {"key":"treescontract", "sql_name":"trees_contract", "aliases":["#TreesContract","Trees Contract","TreesContract"], "dtype":"INT"},
+  # recomendado (tu PK visible si viene en el Excel)
+  {"key":"contractcode",  "sql_name":"contract_code",  "aliases":["Contract Code","ContractCode","contract_code"], "dtype":"TEXT"},
+  # === Extras de CFI/CTI (opcionales) ===
+  {"key":"representative",     "sql_name":"representative",       "aliases":["Representative"],          "dtype":"TEXT"},
+  {"key":"farmernumber",       "sql_name":"farmer_number",        "aliases":["Farmer#","Farmer Number"],"dtype":"TEXT"},
+  {"key":"phone",              "sql_name":"phone",                "aliases":["Phone"],                  "dtype":"TEXT"},
+  {"key":"email",              "sql_name":"email",                "aliases":["Email"],                  "dtype":"TEXT"},
+  {"key":"address",            "sql_name":"address",              "aliases":["Address"],                "dtype":"TEXT"},
+  {"key":"shippingaddress",    "sql_name":"shipping_address",     "aliases":["Shipping Address"],       "dtype":"TEXT"},
+  {"key":"status",             "sql_name":"status",               "aliases":["Status"],                 "dtype":"TEXT"},
+  {"key":"notes",              "sql_name":"notes",                "aliases":["Notes"],                  "dtype":"TEXT"},
+
+  {"key":"land_location_gps",  "sql_name":"land_location_gps",    "aliases":["Land Location (GPS)"],    "dtype":"TEXT"},
+  {"key":"latitude",           "sql_name":"latitude",             "aliases":["Latitude"],               "dtype":"FLOAT"},
+  {"key":"longitude",          "sql_name":"longitude",            "aliases":["Longitude"],              "dtype":"FLOAT"},
+  {"key":"planted",            "sql_name":"planted",              "aliases":["#Planted"],               "dtype":"INT"},
+  {"key":"strain",             "sql_name":"strain",               "aliases":["Strain"],                 "dtype":"TEXT"},
+  {"key":"plantingdate",       "sql_name":"planting_date",        "aliases":["Planting date"],          "dtype":"DATE"},
+  {"key":"species",            "sql_name":"species",              "aliases":["Species"],                "dtype":"TEXT"},
+  {"key":"harvest_year_10",    "sql_name":"harvest_year_10",      "aliases":["Harvest Year (10 year)","Harvest Year\n(10 year)"], "dtype":"INT"},
+  {"key":"planting_obligation","sql_name":"planting_obligation",  "aliases":["Planting Obligation"],    "dtype":"TEXT"}
 ]
 
 

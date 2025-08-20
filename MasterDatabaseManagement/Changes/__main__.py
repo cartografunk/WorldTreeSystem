@@ -1,7 +1,5 @@
 # MasterDatabaseManagement/Changes/__main__.py
 import argparse
-from MasterDatabaseManagement.Changes.changelog_activation import main as run_changelog
-from MasterDatabaseManagement.Changes.new_contract_input_activation import main as run_new_contracts
 
 def parse_args():
     p = argparse.ArgumentParser("MasterDatabaseManagement.Changes")
@@ -18,8 +16,10 @@ def parse_args():
 def main():
     args = parse_args()
     if args.cmd == "changelog":
+        from .changelog_activation import main as run_changelog
         run_changelog(dry_run=args.dry_run)
     elif args.cmd == "new-contracts":
+        from .new_contract_input_activation import main as run_new_contracts
         run_new_contracts(dry_run=args.dry_run)
 
 if __name__ == "__main__":

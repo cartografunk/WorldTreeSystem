@@ -1,6 +1,6 @@
 # core/db.py
 from core.libs import create_engine, pd, datetime, text
-
+from core.backup import backup_table as backup_table_util, backup_tables as backup_tables_util
 
 def get_engine():
     """
@@ -78,3 +78,14 @@ def backup_table(table, schema="masterdatabase"):
         print(f"🛡️  Backup creado: {backup_table}")
     except Exception as e:
         print(f"⚠️  No se pudo respaldar {schema}.{table}: {e}")
+
+
+def backup_table(table, schema="masterdatabase"):
+    """Wrapper: usa core.backup.backup_table"""
+    engine = get_engine()
+    return backup_table_util(engine, table, schema=schema)
+
+def backup_tables(tables, schema="masterdatabase"):
+    """Wrapper múltiple."""
+    engine = get_engine()
+    return backup_tables_util(engine, tables, schema=schema)

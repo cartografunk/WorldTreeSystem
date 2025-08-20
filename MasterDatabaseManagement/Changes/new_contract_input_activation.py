@@ -1,31 +1,26 @@
-# MasterDatabaseManagement/Changes/new_contract_input_activation.py
-
 from core.libs import pd, Path
 from sqlalchemy import text
 from core.db import get_engine
 from core.paths import DATABASE_EXPORTS_DIR
 from core.region import get_prefix
-# Asegúrate que este módulo exponga extract_group_params y read_cell_by_key
-from core.schema_helpers_db_management import extract_group_params, read_cell_by_key
-from openpyxl import load_workbook
+from core.schema_helpers_db_management import extract_group_params
+from core.sheets import Sheet
+from core.backup import backup_tables, backup_excel
 
 # === Config ===
 CATALOG_FILE = Path(DATABASE_EXPORTS_DIR) / "changelog.xlsx"
-# Si tu hoja real se llama "NewContractInputLog", cámbiala aquí:
 SHEET_NAME = "NewContractInputLog_test"
-
-engine = get_engine()
 
 
 def _fetch_max(engine, prefix: str) -> int:
-    """Máximo consecutivo actual por prefijo (US/MX/CR/GT)."""
-    q = """
-    SELECT MAX(CAST(SUBSTRING(contract_code,3) AS INT)) AS maxnum
-    FROM masterdatabase.contract_farmer_information
-    WHERE contract_code LIKE :pfx
-    """
-    df = pd.read_sql(q, engine, params={"pfx": f"{prefix}%"})
-    return int(df.iloc[0]["maxnum"]) if not df.empty and pd.notna(df.iloc[0]["maxnum"]) else 0
+    q = text("""
+        SELECT COALESCE(MAX(CAST(SUBSTRING(contract_code FROM 3) AS INT)), 0) AS maxnum
+        FROM masterdatabase.contract_farmer_information
+        WHERE contract_code LIKE :pfx
+    """)
+    with engine.begin() as conn:
+        val = conn.execute(q, {"pfx": f"{prefix}%"}).scalar()
+    return int(val or 0)
 
 
 # --- Parsers mínimos --------------------------------------------------------
@@ -44,30 +39,30 @@ def _to_date(v):
     return t.date() if pd.notna(t) else None
 
 
-# --- Helpers de validación (deben ir antes de main) -------------------------
+# --- Validación mínima ------------------------------------------------------
 REQUIRED_KEYS = ["region", "contractname", "plantingyear", "treescontract"]
 
-def _reason_for_skip(row, headers, hdr_df):
-    """Devuelve (razón, vals) si debe saltarse, o (None, vals) si está OK."""
+def _is_ready(v) -> bool:
+    return bool(v) and str(v).strip().lower() == "ready"
+
+def _reason_for_skip(sheet: Sheet, row):
     def _blank(x):
         return x is None or (isinstance(x, str) and x.strip() == "")
 
-    missing = []
     vals = {}
+    missing = []
     for k in REQUIRED_KEYS:
-        v = read_cell_by_key(row, headers, hdr_df, k)
+        v = sheet.read(row, k)
         vals[k] = v
         if _blank(v):
             missing.append(k)
     if missing:
         return f"faltan campos {missing}", vals
 
-    # Prefijo válido
     pfx = get_prefix(vals["region"])
     if not pfx:
         return f"prefijo inválido para region='{vals['region']}'", vals
 
-    # Números válidos
     tc = pd.to_numeric(vals["treescontract"], errors="coerce")
     if pd.isna(tc):
         return f"treescontract no numérico: {vals['treescontract']}", vals
@@ -76,41 +71,31 @@ def _reason_for_skip(row, headers, hdr_df):
     if pd.isna(py):
         return f"plantingyear no numérico: {vals['plantingyear']}", vals
 
-    return None, vals  # OK
+    return None, vals
 
 
 def main(dry_run: bool = False):
-    wb = load_workbook(CATALOG_FILE)
-    ws = wb[SHEET_NAME]
+    engine = get_engine()
 
-    # Headers del sheet (mantener orden para indexar celdas)
-    headers = [c.value for c in ws[1]]
-    hdr_df = pd.DataFrame(columns=headers)  # DF “de headers” para que los helpers resuelvan aliases del schema
+    # Sheet centralizado
+    sheet = Sheet(CATALOG_FILE, SHEET_NAME)
+    cc_idx     = sheet.ensure_column("Contract Code")
+    status_idx = sheet.ensure_column("change_in_db")  # ← columna de control única
 
-    # --- Columnas de control (las ÚNICAS que escribimos) --------------------
-    # Contract Code
-    try:
-        cc_idx = headers.index("Contract Code") + 1
-    except ValueError:
-        ws.cell(row=1, column=len(headers) + 1, value="Contract Code")
-        headers.append("Contract Code")
-        cc_idx = len(headers)
+    print(f"📄 Hoja {SHEET_NAME} tiene {sheet.ws.max_row - 1} filas de datos y {len(sheet.headers)} columnas")
 
-    # Done  (status tipo changelog: string “Done”, case-insensitive para leer; marcamos exactamente “Done”)
-    try:
-        done_idx = headers.index("Done") + 1
-    except ValueError:
-        ws.cell(row=1, column=len(headers) + 1, value="Done")
-        headers.append("Done")
-        done_idx = len(headers)
+    # Backups (solo en vivo)
+    if not dry_run:
+        backup_excel(CATALOG_FILE)
+        backup_tables(
+            engine,
+            ["contract_farmer_information", "contract_tree_information"],
+            schema="masterdatabase",
+            label="pre_newcontracts"
+        )
 
-    def is_done(cell_value) -> bool:
-        return bool(cell_value) and str(cell_value).strip().lower() == "done"
-
-    # --- Transforms por grupo (aplicados por extract_group_params) ----------
-    CFI_XFORM = {
-        "phone": lambda x: str(x).strip() if x else None,
-    }
+    # Transforms por grupo (aplicados por extract_group_params)
+    CFI_XFORM = {"phone": lambda x: str(x).strip() if x else None}
     CTI_XFORM = {
         "plantingyear": _to_int,
         "harvest_year_10": _to_int,
@@ -121,7 +106,7 @@ def main(dry_run: bool = False):
         "longitude": _to_float,
     }
 
-    # --- SQL (no destructivo) ----------------------------------------------
+    # SQL (no destructivo)
     sql_cfi = text("""
         INSERT INTO masterdatabase.contract_farmer_information
         (contract_code, contract_name, representative, farmer_number, phone, email, address,
@@ -142,30 +127,21 @@ def main(dry_run: bool = False):
         ON CONFLICT (contract_code) DO NOTHING
     """)
 
-    # --- Estado de corrida --------------------------------------------------
-    counters = {}  # prefijo -> último consecutivo asignado localmente
-    applied = 0
-    failed = 0
-
-    # Info rápida de la hoja
-    df = pd.DataFrame(ws.values)
-    print(f"📄 Hoja {SHEET_NAME} tiene {len(df) - 1} filas de datos y {len(df.columns)} columnas")
-
-    # Acumuladores de preview en dry-run
+    counters = {}
+    applied  = 0
+    failed   = 0
     to_cfi_preview, to_cti_preview = [], []
 
-    # --- Loop de filas: respeta orden del sheet -----------------------------
-    for r, row in enumerate(ws.iter_rows(min_row=2, max_row=ws.max_row), start=2):
+    # Loop
+    for r, row in sheet.iter_rows():
         print(f"➡️  Fila {r}: inspeccionando…")
 
-        # Skip si ya está Done (igual que changelog_activation)
-        done_cell = ws.cell(row=r, column=done_idx)
-        if is_done(done_cell.value):
-            print(f"⏭️  Fila {r} saltada: ya estaba 'Done'")
+        # ✅ Solo procesa si change_in_db == "Ready"
+        status_val = sheet.get_cell(r, status_idx).value
+        if not _is_ready(status_val):
             continue
 
-        # Requisitos mínimos y validaciones
-        reason, vals = _reason_for_skip(row, headers, hdr_df)
+        reason, vals = _reason_for_skip(sheet, row)
         if reason:
             print(f"⛔ Fila {r} descartada: {reason} | vals={vals}")
             continue
@@ -175,9 +151,9 @@ def main(dry_run: bool = False):
         planting_year  = vals["plantingyear"]
         trees_contract = vals["treescontract"]
 
-        # Contract Code: respeta si ya existe; si no, serializa por prefijo en orden de fila
-        cc_cell = ws.cell(row=r, column=cc_idx)
-        contract_code = (cc_cell.value or "").strip()
+        # Contract Code existente / serializar por prefijo
+        cc_cell = sheet.get_cell(r, cc_idx)
+        contract_code = (cc_cell.value or "").strip() if cc_cell.value else ""
         if not contract_code:
             pfx = get_prefix(region)
             if pfx not in counters:
@@ -186,13 +162,13 @@ def main(dry_run: bool = False):
             contract_code = f"{pfx}{counters[pfx]:04d}"
             print(f"🆕 Fila {r}: asignado contract_code={contract_code}")
             if not dry_run:
-                cc_cell.value = contract_code  # solo esta celda
+                cc_cell.value = contract_code
 
-        # Construcción de parámetros usando helpers por grupo
-        cfi_params = extract_group_params(row, headers, hdr_df, "cfi", transforms=CFI_XFORM)
-        cti_params = extract_group_params(row, headers, hdr_df, "cti", transforms=CTI_XFORM)
+        # Params por grupo usando schema/aliases
+        cfi_params = extract_group_params(row, sheet.headers, sheet.hdr_df, "cfi", transforms=CFI_XFORM)
+        cti_params = extract_group_params(row, sheet.headers, sheet.hdr_df, "cti", transforms=CTI_XFORM)
 
-        # Ajustes CTI: planting_year/etp_year/harvest_year_10
+        # Ajustes CTI calculados
         py_num = _to_int(planting_year)
         cti_params["planting_year"] = py_num
         if cti_params.get("harvest_year_10") is None and py_num is not None:
@@ -200,7 +176,6 @@ def main(dry_run: bool = False):
 
         print(f"🧩 Fila {r}: ready | region={region} | name={contract_name} | py={py_num} | trees={trees_contract}")
 
-        # Inserciones o preview
         if dry_run:
             to_cfi_preview.append({"contract_code": contract_code, **cfi_params})
             to_cti_preview.append({"contract_code": contract_code, **cti_params})
@@ -209,18 +184,17 @@ def main(dry_run: bool = False):
                 with engine.begin() as conn:
                     conn.execute(sql_cfi, {"contract_code": contract_code, **cfi_params})
                     conn.execute(sql_cti, {"contract_code": contract_code, **cti_params})
-                done_cell.value = "Done"
+                # ✅ marcar Done SOLO en change_in_db
+                sheet.mark_done(r, status_idx, "Done")
                 applied += 1
                 print(f"✅ Fila {r} aplicada y marcada Done")
             except Exception as e:
                 failed += 1
                 print(f"💥 Fila {r} error: {e}")
 
-    # Guardado si no es dry-run
     if not dry_run:
-        wb.save(CATALOG_FILE)
+        sheet.save()
 
-    # Preview si es dry-run
     if dry_run:
         if to_cfi_preview or to_cti_preview:
             print("=== Preview CFI (top 3) ===")

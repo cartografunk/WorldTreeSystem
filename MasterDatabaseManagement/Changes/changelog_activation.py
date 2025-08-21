@@ -1,14 +1,24 @@
-from pathlib import Path
-from sqlalchemy import text
-from core.libs import pd
+#MasterDatabaseManagement\Changes\changelog_activation.py
+from core.libs import pd, text, Path
 from core.db import get_engine
 from core.paths import DATABASE_EXPORTS_DIR, ensure_all_paths_exist
 from core.backup import backup_excel, backup_tables
-from core.sheets import Sheet, read_changelog_catalogs, get_table_for_field, export_tables_to_excel
+from core.sheets import Sheet, read_changelog_catalogs, get_table_for_field, export_tables_to_excel, STATUS_DONE
+from MasterDatabaseManagement.Changes.farmer_personal_information import apply_changelog_change
+import warnings
+warnings.filterwarnings("ignore", message="Data Validation extension is not supported and will be removed")
+
+
 
 EXCEL_FILE = Path(DATABASE_EXPORTS_DIR) / "masterdatabase_export.xlsx"
 CATALOG_FILE = Path(DATABASE_EXPORTS_DIR) / "changelog.xlsx"
 SHEET_NAME = "ChangeLog"
+
+sheet = Sheet(CATALOG_FILE, SHEET_NAME)
+status_col = sheet.ensure_status_column("change_in_db")
+code_col   = sheet.index_of("contract_code")
+field_col  = sheet.index_of("target_field")
+change_col = sheet.index_of("change")
 
 ensure_all_paths_exist()
 
@@ -17,88 +27,122 @@ def _is_ready(v) -> bool:
     return bool(v) and str(v).strip().lower() == "ready"
 
 
-def process_changelog_and_update_sql(engine, fields_catalog: pd.DataFrame):
-    if engine is None:
-        engine = get_engine()
-
+def process_changelog_and_update_sql(engine, fields_catalog: pd.DataFrame, reasons_df: pd.DataFrame, dry_run: bool = False):
     sheet = Sheet(CATALOG_FILE, SHEET_NAME)
 
+    status_col = sheet.ensure_status_column("change_in_db")
     code_col   = sheet.index_of("contract_code")
     field_col  = sheet.index_of("target_field")
     change_col = sheet.index_of("change")
-    status_col = sheet.index_of("change_in_db")  # ← usamos change_in_db
-    if not all([code_col, field_col, change_col, status_col]):
+    reason_col = (
+        sheet.index_of("reason_id")
+        or sheet.index_of("reason")
+        or sheet.index_of("change_reason")
+        or sheet.index_of("change_reason_id")
+    )
+
+    if not all([status_col, code_col, field_col, change_col]):
         raise RuntimeError("❌ Falta alguna columna en ChangeLog (contract_code, target_field, change, change_in_db).")
 
-    changes_applied = 0
-    for r, row in sheet.iter_rows():
-        status_val = sheet.get_cell(r, status_col).value
-        # Solo procesa si está EXACTAMENTE "Ready" (case-insensitive)
-        if not _is_ready(status_val):
-            continue
+    counts = {"ready": 0, "applied": 0, "single": 0, "propagated": 0, "skipped": 0, "failed": 0}
 
-        contract_code = sheet.get_cell(r, code_col).value
-        target_field  = sheet.get_cell(r, field_col).value
-        change        = sheet.get_cell(r, change_col).value
-        if not contract_code or not target_field:
-            continue
+    with engine.begin() as conn:
+        for r, row in sheet.iter_ready_rows(status_col):
+            counts["ready"] += 1
+            contract_code = sheet.get_cell(r, code_col).value
+            target_field  = sheet.get_cell(r, field_col).value
+            change_val    = sheet.get_cell(r, change_col).value
+            reason_val    = sheet.get_cell(r, reason_col).value if reason_col else None
 
-        table = get_table_for_field(fields_catalog, target_field)
-        if not table:
-            print(f"❌ Campo '{target_field}' no encontrado en FieldsCatalog")
-            continue
+            # Resuelve tabla destino
+            table = get_table_for_field(fields_catalog, target_field)
+            if not table:
+                counts["skipped"] += 1
+                print(f"⏭️  Fila {r} omitida: '{target_field}' no está en FieldsCatalog")
+                continue
 
-        stmt = text(f'''
-            UPDATE masterdatabase."{table}"
-            SET "{target_field}" = :val
-            WHERE contract_code = :cc
-        ''')
+            try:
+                if dry_run:
+                    # Preview: no tocar DB ni Excel
+                    print(
+                        f"👀 DRY-RUN fila {r}: "
+                        f"UPDATE masterdatabase.\"{table}\" SET \"{target_field}\" = {change_val!r} "
+                        f"WHERE contract_code = {contract_code!r} (reason={reason_val!r})"
+                    )
+                    continue
 
-        with engine.begin() as conn:
-            conn.execute(stmt, {"val": change, "cc": str(contract_code)})
+                # ---- LIVE: aplica con la regla de personal info ----
+                res = apply_changelog_change(
+                    conn,
+                    contract_code=str(contract_code),
+                    target_field=str(target_field),
+                    change_val=change_val,
+                    reason_val=reason_val,
+                    fields_catalog=fields_catalog,
+                )
 
-        # ✅ Si llegó aquí, lo marcamos como Done
-        sheet.mark_done(r, status_col, "Done")
-        changes_applied += 1
+                if res.ok:
+                    sheet.mark_status(r, status_col, STATUS_DONE)
+                    counts["applied"] += 1
+                    if res.mode == "propagated":
+                        counts["propagated"] += 1
+                    elif res.mode == "single":
+                        counts["single"] += 1
+                    else:
+                        counts["skipped"] += 1  # e.g. skipped_no_table / skipped_missing_farmer / skipped_not_personal
+                    # opcional: log
+                    # print(f"✅ fila {r}: {res.mode} — {res.info}")
+                else:
+                    counts["skipped"] += 1
+                    print(f"⏭️  Fila {r} omitida: {res.info}")
 
-    sheet.save()
-    print(f"✅ Cambios aplicados: {changes_applied}. (Se procesaron solo filas con change_in_db='Ready')")
+            except Exception as e:
+                counts["failed"] += 1
+                print(f"💥 Error en fila {r} (cc={contract_code}, field={target_field}): {e}")
+
+    if not dry_run:
+        sheet.save()
+
+    print(f"✅ ready={counts['ready']} | applied={counts['applied']} | single={counts['single']} | "
+          f"propagated={counts['propagated']} | skipped={counts['skipped']} | failed={counts['failed']} | dry_run={dry_run}")
 
 
-def main():
+def main(dry_run: bool = False):
     engine = get_engine()
 
-    # Backups centralizados (archivos)
-    print("💾 Backup Excel export...")
-    backup_excel(EXCEL_FILE)
-    print("💾 Backup changelog...")
-    backup_excel(CATALOG_FILE)
+    # Backups solo en vivo
+    if not dry_run:
+        print("💾 Backup Excel export...")
+        backup_excel(EXCEL_FILE)
+        print("💾 Backup changelog...")
+        backup_excel(CATALOG_FILE)
 
     print("📚 Leyendo catálogos...")
-    fields_catalog, _ = read_changelog_catalogs(CATALOG_FILE)
+    fields_catalog, reasons_catalog = read_changelog_catalogs(CATALOG_FILE)
 
-    # Backups centralizados (tablas que puede tocar el changelog)
-    try:
-        candidate_tables = sorted(
-            t for t in fields_catalog["target_table"].dropna().astype(str).unique()
-        )
-        if candidate_tables:
-            print(f"🛡️  Backup tablas antes de aplicar cambios: {candidate_tables}")
-            backup_tables(engine, candidate_tables, schema="masterdatabase", label="pre_changelog")
-    except Exception as e:
-        print(f"⚠️  No se pudieron determinar tablas a respaldar: {e}")
+    # Backup de tablas afectadas solo en vivo
+    if not dry_run:
+        try:
+            candidate_tables = sorted(t for t in fields_catalog["target_table"].dropna().astype(str).unique())
+            if candidate_tables:
+                print(f"🛡️  Backup tablas antes de aplicar cambios: {candidate_tables}")
+                backup_tables(engine, candidate_tables, schema="masterdatabase", label="pre_changelog")
+        except Exception as e:
+            print(f"⚠️  No se pudieron determinar tablas a respaldar: {e}")
 
-    print("🚩 Aplicando cambios pendientes (solo 'Ready')...")
-    process_changelog_and_update_sql(engine, fields_catalog)
+    print(f"🚩 Aplicando cambios pendientes (solo 'Ready')... dry_run={dry_run}")
+    process_changelog_and_update_sql(engine, fields_catalog, reasons_catalog, dry_run=dry_run)
 
-    print("💾 Re-escribiendo Excel actualizado...")
-    export_tables_to_excel(engine, [
-        "contract_tree_information",
-        "contract_farmer_information",
-        "contract_allocation",
-        "inventory_metrics",
-        "inventory_metrics_current",
-    ], out_path=EXCEL_FILE)
+    # Export a Excel solo en vivo
+    if not dry_run:
+        print("💾 Re-escribiendo Excel actualizado...")
+        export_tables_to_excel(engine, [
+            "contract_tree_information",
+            "contract_farmer_information",
+            "contract_allocation",
+            "inventory_metrics",
+            "inventory_metrics_current",
+        ], out_path=EXCEL_FILE)
 
     print("🏁 Flujo completo terminado.")
 

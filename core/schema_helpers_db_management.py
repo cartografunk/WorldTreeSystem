@@ -2,7 +2,8 @@
 from core.schema_helpers import get_column, clean_column_name  # si estás dentro del mismo archivo, omite este import
 from typing import Dict, List, Callable, Optional
 
-# Qué keys lógicas pertenecen a cada tabla destino
+# --- SOLO reemplaza el bloque TABLE_KEYS por este ---
+
 TABLE_KEYS: Dict[str, List[str]] = {
     # masterdatabase.contract_farmer_information
     "cfi": [
@@ -10,15 +11,17 @@ TABLE_KEYS: Dict[str, List[str]] = {
         "address", "shippingaddress", "region", "status", "notes"
     ],
     # masterdatabase.contract_tree_information
+    # ⛔️ Quitamos 'harvest_year_10' (se calcula), 'latitude', 'longitude'
     "cti": [
-        "plantingyear", "harvest_year_10", "treescontract", "planted", "strain",
-        "plantingdate", "species", "latitude", "longitude", "land_location_gps"
+        "plantingyear", "treescontract", "planted", "strain",
+        "plantingdate", "species", "land_location_gps"
     ],
-    # masterdatabase.contract_allocation (ajusta según tu schema real)
+    # masterdatabase.contract_allocation (si aplica)
     "ca": [
         "usa_trees_planted", "total_can_allocation"
     ],
 }
+
 
 # Cómo se llaman las columnas en BD (snake_case). Centralizar **aquí** excepciones.
 DB_COLUMNS: Dict[str, str] = {

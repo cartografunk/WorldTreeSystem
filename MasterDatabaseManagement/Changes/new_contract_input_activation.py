@@ -254,6 +254,5 @@ def main(dry_run: bool = False):
         else:
             print("🪵 No hay preview: todas las filas fueron descartadas (revisa razones arriba).")
 
-    print("")
     print("✅ Contract Code serializado por prefijo y orden de fila.")
     print(f"✅ Filas marcadas como 'Done': {counts['applied']} | ❌ fallidos: {counts['failed']} | no_ready: {counts['not_ready']} | skipped: {counts['skipped']} | dry_run={dry_run}")

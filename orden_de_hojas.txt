@@ -1,6 +1,0 @@
-1. ChangeLog
-2. contract_tree_information
-3. contract_farmer_information
-4. contract_allocation
-5. inventory_metrics
-6. inventory_metrics_current

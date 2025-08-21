@@ -1,0 +1,381 @@
+requester,change_reason,date,contract_code,target_field,change,note,change_in_db
+Kara,"RFTs, rescinded",2025-07-12 00:00:00,CR0072,status,Rescinded,,Done
+Kara,"RFTs, rescinded",15/07/2025,US0050,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0081,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0098,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0070,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0056,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0057,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0088,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0013,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0028,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0029,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,GT0011,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,GT0025,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,GT0039,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,GT0032,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,GT0012,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0097,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0087,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0064,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0058,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0055,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0039,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0078,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0137,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0125,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0111,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0025,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0060,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,US0009,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,CR0036,status,Out of Program,completed RFT process,Done
+Kara,"RFTs, rescinded",15/07/2025,GT0028,status,Out of Program,completed RFT process,Done
+Kara,personal information change,17/07/2025,CR0001,land_location,"9.592445, -84.056404",,Done
+Kara,personal information change,17/07/2025,CR0002,land_location,"9.616331, -83.962018",,Done
+Kara,personal information change,17/07/2025,CR0003,land_location,"10.145299386243805, -84.34903504823272",,Done
+Kara,personal information change,17/07/2025,CR0004,land_location," 9.637013, -83.9480",,Done
+Kara,personal information change,17/07/2025,CR0005,land_location,"10.092262, -84.415180",,Done
+Kara,personal information change,17/07/2025,CR0006,land_location,"9.648094, -84.025314",,Done
+Kara,personal information change,17/07/2025,CR0007,land_location,"9.592423, -84.076438",,Done
+Kara,personal information change,17/07/2025,CR0008,land_location,"9.607136, -84.086778",,Done
+Kara,personal information change,17/07/2025,CR0009,land_location,"9.61531, -83.9649",,Done
+Kara,personal information change,17/07/2025,CR0010,land_location,"9.599934, -83.967602",,Done
+Kara,personal information change,17/07/2025,CR0011,land_location,"10.129139, -84.353389",,Done
+Kara,personal information change,17/07/2025,CR0012,land_location,"10.156746464826096, -84.36153974720318",,Done
+Kara,personal information change,17/07/2025,CR0015,land_location,"10.092262, -84.415180",,Done
+Kara,personal information change,17/07/2025,CR0016,land_location,"9.948853, -83.912934",,Done
+Kara,personal information change,17/07/2025,CR0017,land_location,"10.03002, -84.4588",,Done
+Kara,personal information change,17/07/2025,CR0018,land_location,"9.639730, -83.988155",,Done
+Kara,personal information change,17/07/2025,CR0019,land_location,"10.14815, -84.3476",,Done
+Kara,personal information change,17/07/2025,CR0020,land_location," 9.637013, -83.9480",,Done
+Kara,personal information change,17/07/2025,CR0021,land_location,"10.115731, -84.245339",,Done
+Kara,personal information change,17/07/2025,CR0022,land_location,"9.614964, -83.963403",,Done
+Kara,personal information change,17/07/2025,CR0023,land_location,"9.800483, -83.989281",,Done
+Kara,personal information change,17/07/2025,CR0024,land_location,"9.831721, -84.171382",,Done
+Kara,personal information change,17/07/2025,CR0025,land_location,"9.607136, -84.086778",,Done
+Kara,personal information change,17/07/2025,CR0026,land_location,"9.61531, -83.9635",,Done
+Kara,personal information change,17/07/2025,CR0027,land_location,"9.912110720985366, -83.94945776901817",,Done
+Kara,personal information change,17/07/2025,CR0014,land_location,"10.145540993975324, -84.36977100256567",,Done
+Kara,personal information change,17/07/2025,CR0031,land_location,"10.115731, -84.245339",,Done
+Kara,personal information change,17/07/2025,CR0032,land_location,"9.780361, -84.055419",,Done
+Kara,personal information change,17/07/2025,CR0033,land_location,"9.492735, -83.4512",,Done
+Kara,personal information change,17/07/2025,CR0034,land_location,"10.145540993975324, -84.36977100256567",,Done
+Kara,personal information change,17/07/2025,CR0038,land_location,"11.0005320, -85.2015820",,Done
+Kara,personal information change,17/07/2025,GT0002,land_location,"14.676667, -91.608333",,Done
+Kara,personal information change,17/07/2025,GT0003,land_location,"14.720000, -91.744167",,Done
+Kara,personal information change,17/07/2025,GT0004,land_location,"14.739722, -91.707778",,Done
+Kara,personal information change,17/07/2025,GT0005,land_location,"14.693333, -91.607500",,Done
+Kara,personal information change,17/07/2025,GT0008,land_location,"14.648611, -91.699167",,Done
+Kara,personal information change,17/07/2025,GT0010,land_location,"14.723611, -91.815278",,Done
+Kara,personal information change,17/07/2025,CR0080,land_location,"10.141989, -84.345863",,Done
+Kara,personal information change,17/07/2025,CR0083,land_location,"9.831721, -84.171382",,Done
+Kara,personal information change,17/07/2025,CR0085,land_location,"9.61531, -83.9649",,Done
+Kara,personal information change,17/07/2025,MX0001,land_location,"21.079418, -101.907360",,Done
+Kara,personal information change,17/07/2025,MX0002,land_location,,,Done
+Kara,personal information change,17/07/2025,CR0054,land_location,"9.791472, -83.914333",,Done
+Kara,personal information change,17/07/2025,CR0079,land_location,"10.143793, -84.382349",,Done
+Kara,personal information change,17/07/2025,GT0022,land_location,"14.693333, -91.607500",,Done
+Kara,personal information change,17/07/2025,MX0045,land_location,"18.8159861, -96.9633167",,Done
+Kara,personal information change,17/07/2025,MX0084,land_location,"17.491062, -94.436408",,Done
+Kara,personal information change,17/07/2025,GT0019,land_location,"14.1278628, -91.6262344",,Done
+Kara,personal information change,17/07/2025,GT0020,land_location,"14.696389, -91.614167",,Done
+Kara,personal information change,17/07/2025,GT0026,land_location,"14.862008, -91.680298",,Done
+Kara,personal information change,17/07/2025,MX0004,land_location,"20.742392, -100.867894",,Done
+Kara,personal information change,17/07/2025,MX0006,land_location,"25.940528, -108.388556",,Done
+Kara,personal information change,17/07/2025,MX0007,land_location,"25.940528, -108.388556",,Done
+Kara,personal information change,17/07/2025,MX0008,land_location,"20.738034, -100.881319",,Done
+Kara,personal information change,17/07/2025,MX0010,land_location,"21.526252, -101.95930621",,Done
+Kara,personal information change,17/07/2025,MX0011,land_location,"21.316639, -101.339972",,Done
+Kara,personal information change,17/07/2025,MX0015,land_location,"17.552611, -95.367722",,Done
+Kara,personal information change,17/07/2025,MX0016,land_location,"21.316833, -101.339944",,Done
+Kara,personal information change,17/07/2025,MX0017,land_location,"21.326888, -101.356834",,Done
+Kara,personal information change,17/07/2025,MX0020,land_location,"21.398222, -101.255389",,Done
+Kara,personal information change,17/07/2025,MX0082,land_location,"18.021515650799625, -95.43151895369918",,Done
+Kara,personal information change,17/07/2025,CR0090,land_location,"9.134511, -83.533200",,Done
+Kara,personal information change,17/07/2025,CR0091,land_location,"9.645706, -84.114748",,Done
+Kara,personal information change,17/07/2025,CR0093,land_location,"10.152412, -84.384034",,Done
+Kara,personal information change,17/07/2025,CR0094,land_location,"9.631844, -83.974478",,Done
+Kara,personal information change,17/07/2025,CR0095,land_location,"10.110107, -84.384851",,Done
+Kara,personal information change,17/07/2025,CR0096,land_location,"9.61531, -83.9649",,Done
+Kara,personal information change,17/07/2025,CR0107,land_location,"10.198515, -83.551444",,Done
+Kara,personal information change,17/07/2025,US0015,land_location,"38.924631, -79.115736",,Done
+Kara,personal information change,17/07/2025,US0016,land_location,"30.507875, -96.677142",,Done
+Kara,personal information change,17/07/2025,US0017,land_location,"38.97308658743254, -81.85390750716458",,Done
+Kara,personal information change,17/07/2025,US0019,land_location,"40.146041, -75.902765",,Done
+Kara,personal information change,17/07/2025,US0020,land_location,"32.920002, -81.857590",,Done
+Kara,personal information change,17/07/2025,US0021,land_location,"32.084553, -88.272101",,Done
+Kara,personal information change,17/07/2025,US0026,land_location,"49.174988, -123.992556",,Done
+Kara,personal information change,17/07/2025,US0033,land_location,"33.080107, -84.858179",,Done
+Kara,personal information change,17/07/2025,US0036,land_location," 30.836336, -84.884128",,Done
+Kara,personal information change,17/07/2025,US0044,land_location,"31.1808, -85.5426",,Done
+Kara,personal information change,17/07/2025,US0048,land_location,"31.491922, -87.827034",,Done
+Kara,personal information change,17/07/2025,US0050,land_location,"33.012014, -84.475939",,Done
+Kara,personal information change,17/07/2025,US0053,land_location,"32.048595, -82.372231",,Done
+Kara,personal information change,17/07/2025,US0066,land_location,"32.650205, -86.164934",,Done
+Kara,personal information change,17/07/2025,US0093,land_location,"30.820767, -84.808612",,Done
+Kara,personal information change,17/07/2025,US0105,land_location,"31.157609, -85.167070",,Done
+Kara,personal information change,17/07/2025,US0089,land_location,"31.435859, -82.676627",,Done
+Kara,personal information change,17/07/2025,US0110,land_location,"34.719320, -97.722168",,Done
+Kara,personal information change,17/07/2025,US0111,land_location,"32.504364, -96.432625",,Done
+Kara,personal information change,17/07/2025,US0122,land_location,"32.453596, -82.227908",,Done
+Kara,personal information change,17/07/2025,US0125,land_location,"31.091828, -85.145523",,Done
+Kara,"RFTs, rescinded",28/07/2025,US0119,status,Out of Program,RFT process completed,Ready
+Kara,"RFTs, rescinded",31/07/2025,GT0027,status,Out of Program,RFT process completed,Ready
+Kara,"RFTs, rescinded",31/07/2025,CR0083,status,Out of Program,RFT process completed,Ready
+Kara,"RFTs, rescinded",31/07/2025,CR0067,status,Out of Program,RFT process completed,Ready
+Kara,personal information change,14/08/2025,MX0053,planting_date,27-sep-24,,
+Kara,personal information change,14/08/2025,MX0053,address,"Calle Miguel Hidalgo N° 49, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0053,shipping_address,"Ejido Los Liberales, Municipio de Uxpanapa, Estado de Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0053,email,NA,,
+Kara,personal information change,14/08/2025,MX0053,phone,NA,,
+Kara,personal information change,14/08/2025,MX0053,representative,,,
+Kara,personal information change,14/08/2025,MX0054,address,"Calle 20 de Noviembre N° 36, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0054,email,NA,,
+Kara,personal information change,14/08/2025,MX0054,planting_date,19-oct-24,,
+Kara,personal information change,14/08/2025,MX0054,representative,,,
+Kara,personal information change,14/08/2025,MX0055,planting_date,25-sep-24,,
+Kara,personal information change,14/08/2025,MX0055,address,"C. Principal. Lote 18. Ejido Miguel Alemán, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0055,phone,NA,,
+Kara,personal information change,14/08/2025,MX0055,shipping_address,"Ejido Gral. Miguel Alemán. Municipio de Uxpanapa, Estado de Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0056,planting_date,19-sep-24,,
+Kara,personal information change,14/08/2025,MX0056,address,"Calle 2 de Octubre N° 51, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0056,email,NA,,
+Kara,personal information change,14/08/2025,MX0056,representative,,,
+Kara,personal information change,14/08/2025,MX0057,planting_date,09-oct-24,,
+Kara,personal information change,14/08/2025,MX0057,address,"Calle Miguel Hidalgo N° 29, Ejido Los Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0057,email,NA,,
+Kara,personal information change,14/08/2025,MX0057,phone,NA,,
+Kara,personal information change,14/08/2025,MX0057,representative,,,
+Kara,personal information change,14/08/2025,MX0058,planting_date,21-nov-24,,
+Kara,personal information change,14/08/2025,MX0058,address,"C. Principal. Lote 25. Ejido Miguel Alemán, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0058,email,NA,,
+Kara,personal information change,14/08/2025,MX0058,phone,NA,,
+Kara,personal information change,14/08/2025,MX0058,representative,,,
+Kara,personal information change,14/08/2025,MX0058,shipping_address,"Ejido Gral. Miguel Alemán. Municipio de Uxpanapa, Estado de Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0059,planting_date,07-oct-24,,
+Kara,personal information change,14/08/2025,MX0059,address,"Calle 2 de Octubre N° 57, Ejido Los Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0059,email,NA,,
+Kara,personal information change,14/08/2025,MX0059,representative,,,
+Kara,personal information change,14/08/2025,MX0060,planting_date,28-dic-24,,
+Kara,personal information change,14/08/2025,MX0060,address,"C. Popocatepetl S/N, Ejido Plan de Arrollo, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0060,phone,NA,,
+Kara,personal information change,14/08/2025,MX0060,shipping_address,"Ejido Plan de Arroyos, Municipio de Uxpanapa, Estado de Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0061,planting_date,22-oct-24,,
+Kara,personal information change,14/08/2025,MX0061,address,"Bulevar Benito Juárez lote 5 mazana 17. Congregación la Horqueta, poblado 12. Uxpanapa, Veracruz. C.P. 96998.",,
+Kara,personal information change,14/08/2025,MX0061,representative,,,
+Kara,personal information change,14/08/2025,MX0062,planting_date,30-dic-24,,
+Kara,personal information change,14/08/2025,MX0062,address,"C. Venustiano Carranza LT 7 MZ 22. Ejido Carolino Anaya. Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0062,shipping_address,"Ejido Carolino Anaya, Municipio de Uxpanapa, Estado de Veracruz de la Llave. CP 96997",,
+Kara,personal information change,14/08/2025,MX0063,planting_date,25-sep-24,,
+Kara,personal information change,14/08/2025,MX0063,address,"Calle Fores Magón S/N, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0063,email,NA,,
+Kara,personal information change,14/08/2025,MX0063,representative,,,
+Kara,personal information change,14/08/2025,MX0064,planting_date,22-nov-24,,
+Kara,personal information change,14/08/2025,MX0064,address,"C. 16 de Septimbre. LT 31. Ejido Miguel Alemán, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0064,phone,NA,,
+Kara,personal information change,14/08/2025,MX0064,shipping_address,"Ejido Gral. Miguel Alemán. Municipio de Uxpanapa, Estado de Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0065,planting_date,17-dic-24,,
+Kara,personal information change,14/08/2025,MX0065,address,"Calle Miguel Hidalgo N° 48, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0065,email,NA,,
+Kara,personal information change,14/08/2025,MX0065,phone,NA,,
+Kara,personal information change,14/08/2025,MX0065,representative,,,
+Kara,personal information change,14/08/2025,MX0065,shipping_address,"Ejido Los Liberales, Municipio de Uxpanapa, Estado de Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0066,planting_date,14-dic-24,,
+Kara,personal information change,14/08/2025,MX0066,address,"Calle Miguel Hidalgo N° 48, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0066,email,NA,,
+Kara,personal information change,14/08/2025,MX0066,phone,NA,,
+Kara,personal information change,14/08/2025,MX0066,representative,,,
+Kara,personal information change,14/08/2025,MX0066,shipping_address,"Ejido Los Liberales, Municipio de Uxpanapa, Estado de Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0067,planting_date,10-oct-24,,
+Kara,personal information change,14/08/2025,MX0067,address,"C. Argentina N° 42, Ej. Plan de Arroyo, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0067,email,NA,,
+Kara,personal information change,14/08/2025,MX0067,phone,NA,,
+Kara,personal information change,14/08/2025,MX0067,representative,,,
+Kara,personal information change,14/08/2025,MX0068,planting_date,05-oct-24,,
+Kara,personal information change,14/08/2025,MX0068,address,"Calle 2 de Octubre N° 43, Ejido Los Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0068,email,NA,,
+Kara,personal information change,14/08/2025,MX0068,phone,NA,,
+Kara,personal information change,14/08/2025,MX0068,representative,,,
+Kara,personal information change,14/08/2025,MX0069,planting_date,17-dic-24,,
+Kara,personal information change,14/08/2025,MX0069,address,"C. Argentina S/N, Ej. Plan de Arroyo, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0069,phone,NA,,
+Kara,personal information change,14/08/2025,MX0069,shipping_address,"Ejido Plan de Arroyos, Municipio de Uxpanapa, Estado de Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0070,planting_date,04-oct-24,,
+Kara,personal information change,14/08/2025,MX0070,address,"Calle 2 de Octubre N° 59, Ejido Los Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0070,email,NA,,
+Kara,personal information change,14/08/2025,MX0070,phone,NA,,
+Kara,personal information change,14/08/2025,MX0070,representative,,,
+Kara,personal information change,14/08/2025,MX0071,planting_date,02-ene-25,,
+Kara,personal information change,14/08/2025,MX0071,address,"Localidad San Felipe S/N, C.p. 96901, Municipio Uxpanapa, Veracruz, México.",,
+Kara,personal information change,14/08/2025,MX0071,email,NA,,
+Kara,personal information change,14/08/2025,MX0071,representative,,,
+Kara,personal information change,14/08/2025,MX0071,shipping_address,"Ejido Huitzitzilco Nuevo, Municipio Uxpanapa, Veracruz, México. C.P. 96998",,
+Kara,personal information change,14/08/2025,MX0072,planting_date,07-oct-24,,
+Kara,personal information change,14/08/2025,MX0072,address,"Calle Acosta Lagunes N° 1, Ejido Valerio Trujano, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0072,email,NA,,
+Kara,personal information change,14/08/2025,MX0072,phone,NA,,
+Kara,personal information change,14/08/2025,MX0072,representative,,,
+Kara,personal information change,14/08/2025,MX0073,planting_date,11-oct-24,,
+Kara,personal information change,14/08/2025,MX0073,address,"C.Iztaccihuatl S/N, Ej. Plan de Arroyo, Uxpanapa, Veracruz. CP 96997",,
+Kara,personal information change,14/08/2025,MX0074,planting_date,20-oct-24,,
+Kara,personal information change,14/08/2025,MX0074,address,"Calle Miguel Hidalgo N° 23, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0074,email,NA,,
+Kara,personal information change,14/08/2025,MX0074,phone,NA,,
+Kara,personal information change,14/08/2025,MX0074,representative,,,
+Kara,personal information change,14/08/2025,MX0075,planting_date,14-dic-24,,
+Kara,personal information change,14/08/2025,MX0075,address,"Calle 20 de Noviembre N° 21, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0075,email,NA,,
+Kara,personal information change,14/08/2025,MX0075,phone,NA,,
+Kara,personal information change,14/08/2025,MX0075,representative,,,
+Kara,personal information change,14/08/2025,MX0075,shipping_address,"Ejido Los Liberales, Municipio de Uxpanapa, Estado de Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0076,planting_date,27-sep-24,,
+Kara,personal information change,14/08/2025,MX0076,address,"Calle Miguel Hidalgo N° 49, Ejido Liberales, Uxpanapa, Veracruz. CP 96998",,
+Kara,personal information change,14/08/2025,MX0076,email,NA,,
+Kara,personal information change,14/08/2025,MX0076,phone,NA,,
+Kara,personal information change,14/08/2025,MX0076,representative,,,
+Kara,personal information change,14/08/2025,MX0077,planting_date,23-nov-24,,
+Kara,personal information change,14/08/2025,MX0077,address,"Localidad Santa María La Nopalera, S/N, C.P. 68955, San Juan La Lana, Oaxaca, México.",,
+Kara,personal information change,14/08/2025,MX0077,shipping_address,"Localidad Santa María la Nopalera, Municipio Santiago Yaveo, Oaxaca, México, C.P. 95600",,
+Kara,personal information change,14/08/2025,MX0078,planting_date,21-nov-24,,
+Kara,personal information change,14/08/2025,MX0078,address,"Avenida Francisco Gutiérrez Barrios S/N, Localidad Los Tigres, CP. 95676",,
+Kara,personal information change,14/08/2025,MX0078,representative,,,
+Kara,personal information change,14/08/2025,MX0079,planting_date,19-nov-24,,
+Kara,personal information change,14/08/2025,MX0079,address,"Calle sin numero, Localidad San Martín Soyaltepec, C.P. 95600, Playa Vicente Veracruz, México.",,
+Kara,personal information change,14/08/2025,MX0079,representative,,,
+Kara,personal information change,14/08/2025,MX0079,shipping_address,"Localidad Santa María la Nopalera, Municipio Santiago Yaveo, Oaxaca, México, C.P. 95600",,
+Kara,personal information change,14/08/2025,MX0080,planting_date,26-oct-24,,
+Kara,personal information change,14/08/2025,MX0080,address,"Año de Juárez, Tuxtepec, Oaxaca. CP 68404.",,
+Kara,personal information change,14/08/2025,MX0081,planting_date,23-nov-24,,
+Kara,personal information change,14/08/2025,MX0081,address,"Calle Bahia No. 135, Ampliación las Aguilas, C.P. 01759, Delegación Alvaro Obregón, Ciudad de México, México.",,
+Kara,personal information change,14/08/2025,MX0081,representative,,,
+Kara,personal information change,14/08/2025,MX0081,shipping_address,"Ejido El Macuile, Municipio de Isla, Veracruz, México, C.P. 95641",,
+Kara,personal information change,14/08/2025,MX0082,planting_date,28-dic-24,,
+Kara,personal information change,14/08/2025,MX0082,address,"Calle libertad S/N, Colonia Benito Juárez, C.P. 95670, Juan Rodríguez Clara, Veracruz, México.",,
+Kara,personal information change,14/08/2025,MX0082,email,NA,,
+Kara,personal information change,14/08/2025,MX0082,phone,+52 2941247419,,
+Kara,personal information change,14/08/2025,MX0082,representative,,,
+Kara,personal information change,14/08/2025,MX0082,shipping_address,"Ejido Juan Rodríguez Clara, Municipio Juan Rodríguez Clara, Veracruz, México, C.P. 95670",,
+Kara,personal information change,14/08/2025,MX0083,planting_date,17-oct-24,,
+Kara,personal information change,14/08/2025,MX0083,address,"Colonia Coahuila S/N. Playa Vicente, Veracruz. CP 95624.",,
+Kara,personal information change,14/08/2025,MX0084,planting_date,18-dic-24,,
+Kara,personal information change,14/08/2025,MX0040,address,"Ejido Cándido Aguilar S/N. Minatitlán, Veracruz.  CP 96925.",,
+Kara,personal information change,14/08/2025,MX0084,address,"Ejido Cándido Aguilar S/N. Minatitlán, Veracruz.  CP 96925.",,
+Kara,personal information change,14/08/2025,MX0084,email,cruzambrosio370@gmail.com ,,
+Kara,personal information change,14/08/2025,MX0040,phone,811 051 5877,,
+Kara,personal information change,14/08/2025,MX0084,phone,811 051 5877,,
+Kara,personal information change,14/08/2025,MX0084,representative,Angela López Cruz,,
+Kara,personal information change,14/08/2025,MX0040,shipping_address,"Ejido Cándido Aguilar, Municipio de Minatitlán, Estado de Veracruz. CP 96926.",,
+Kara,personal information change,14/08/2025,MX0084,shipping_address,"Ejido Cándido Aguilar, Municipio de Minatitlán, Estado de Veracruz. CP 96926.",,
+Kara,personal information change,14/08/2025,MX0085,planting_date,18-dic-24,,
+Kara,personal information change,14/08/2025,MX0085,address,"Calle Miguel Hidalgo S/N, Ejido Cándido Aguilar, C.P. 96700, Minatitlán, Veracruz, México.",,
+Kara,personal information change,14/08/2025,MX0086,planting_date,05-ene-25,,
+Kara,personal information change,14/08/2025,MX0086,address,"Calle Principal 43, Pueblo Viejo. Las Choapas, Veracruz. CP  96994",,
+Kara,personal information change,14/08/2025,MX0086,email,NA,,
+Kara,personal information change,14/08/2025,MX0086,phone, +52 923 101 3383,,
+Kara,personal information change,14/08/2025,MX0086,representative,,,
+Kara,personal information change,14/08/2025,MX0087,planting_date,10-nov-24,,
+Kara,personal information change,14/08/2025,MX0087,address,"Ej. Benito Juárez S/N, Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0087,email,NA,,
+Kara,personal information change,14/08/2025,MX0087,phone,NA,,
+Kara,personal information change,14/08/2025,MX0087,representative,,,
+Kara,personal information change,14/08/2025,MX0088,planting_date,24-nov-24,,
+Kara,personal information change,14/08/2025,MX0088,address,"Ej. Benito Juárez S/N, Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0088,email,NA,,
+Kara,personal information change,14/08/2025,MX0088,representative,,,
+Kara,personal information change,14/08/2025,MX0089,planting_date,30-ene-25,,
+Kara,personal information change,14/08/2025,MX0089,address,"Calle Benito Juárez N° 130, Ejido Nuevo Ixtacomitán. Las Choapas, Veracruz. CP  96994",,
+Kara,personal information change,14/08/2025,MX0089,email,NA,,
+Kara,personal information change,14/08/2025,MX0089,phone,NA,,
+Kara,personal information change,14/08/2025,MX0089,representative,,,
+Kara,personal information change,14/08/2025,MX0089,shipping_address,"Ejido Nuevo Ixtacomitán. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0090,planting_date,25-sep-24,,
+Kara,personal information change,14/08/2025,MX0090,address,"Rancho San Juan Camalotal S/N, Vicente Guerrero. Las Choapas, Veracruz. CP 94994",,
+Kara,personal information change,14/08/2025,MX0090,email,NA,,
+Kara,personal information change,14/08/2025,MX0090,phone, +52 923 120 1377,,
+Kara,personal information change,14/08/2025,MX0090,representative,,,
+Kara,personal information change,14/08/2025,MX0091,planting_date,15-dic-24,,
+Kara,personal information change,14/08/2025,MX0091,address,"Calle Principal N° 06, Ejido Nuevo Ixtacomitán. Las Choapas, Veracruz. CP  96994",,
+Kara,personal information change,14/08/2025,MX0091,email,NA,,
+Kara,personal information change,14/08/2025,MX0091,phone, +52 923 116 7011,,
+Kara,personal information change,14/08/2025,MX0091,representative,,,
+Kara,personal information change,14/08/2025,MX0091,shipping_address,"Ejido Nuevo Ixtacomitán. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0092,planting_date,06-ene-25,,
+Kara,personal information change,14/08/2025,MX0092,address,"Pueblo Viejo S/N. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0092,email,NA,,
+Kara,personal information change,14/08/2025,MX0092,phone,NA,,
+Kara,personal information change,14/08/2025,MX0092,representative,,,
+Kara,personal information change,14/08/2025,MX0093,planting_date,30-ene-25,,
+Kara,personal information change,14/08/2025,MX0093,address,"Calle Principal 44, Pueblo Viejo. Las Choapas, Veracruz. CP  96994",,
+Kara,personal information change,14/08/2025,MX0093,email,NA,,
+Kara,personal information change,14/08/2025,MX0093,phone, +52 923 231 2068,,
+Kara,personal information change,14/08/2025,MX0093,representative,,,
+Kara,personal information change,14/08/2025,MX0094,planting_date,29-ene-25,,
+Kara,personal information change,14/08/2025,MX0094,address,"Pueblo Viejo S/N. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0094,email,NA,,
+Kara,personal information change,14/08/2025,MX0094,representative,,,
+Kara,personal information change,14/08/2025,MX0094,shipping_address,"Ejido Pueblo Viejo. Las Choapas, Veracruz de la Llave. CP 96994",,
+Kara,personal information change,14/08/2025,MX0095,planting_date,09-ene-25,,
+Kara,personal information change,14/08/2025,MX0095,address,"Pueblo Viejo S/N. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0095,email,NA,,
+Kara,personal information change,14/08/2025,MX0095,phone, +52 923 105 5654,,
+Kara,personal information change,14/08/2025,MX0095,representative,,,
+Kara,personal information change,14/08/2025,MX0096,planting_date,04-dic-24,,
+Kara,personal information change,14/08/2025,MX0096,address,"Calle Miguel Hidalgo S/N, Ejido Cándido Aguilar, Minatitlán, México, C.P. 96925",,
+Kara,personal information change,14/08/2025,MX0097,planting_date,20-dic-24,,
+Kara,personal information change,14/08/2025,MX0097,address,"Calle Francisco Villa N° 70, Ejido Nuevo Ixtacomitán. Las Choapas, Veracruz. CP  96994",,
+Kara,personal information change,14/08/2025,MX0097,email,NA,,
+Kara,personal information change,14/08/2025,MX0097,phone,NA,,
+Kara,personal information change,14/08/2025,MX0097,representative,,,
+Kara,personal information change,14/08/2025,MX0097,shipping_address,"Ejido Nuevo Ixtacomitán. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0098,planting_date,26-dic-24,,
+Kara,personal information change,14/08/2025,MX0098,address,"Calle Principal 44, Pueblo Viejo. Las Choapas, Veracruz. CP  96994",,
+Kara,personal information change,14/08/2025,MX0098,email,NA,,
+Kara,personal information change,14/08/2025,MX0098,representative,,,
+Kara,personal information change,14/08/2025,MX0098,shipping_address,"Ejido Río Playas. Las Choapas, Veracruz. CP 96994",,
+Kara,personal information change,14/08/2025,MX0053,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0054,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0055,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0056,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0057,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0058,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0059,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0060,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0061,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0062,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0063,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0064,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0065,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0066,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0067,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0068,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0069,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0070,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0071,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0072,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0073,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0074,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0075,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0076,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0077,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0078,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0079,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0080,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0081,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0082,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0083,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0084,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0085,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0086,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0087,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0088,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0089,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0090,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0091,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0092,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0093,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0094,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0095,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0096,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0097,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0098,strain,CL502,,Ready
+Kara,personal information change,14/08/2025,MX0042,phone,922 227 2099,,

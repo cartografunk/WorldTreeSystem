@@ -6,6 +6,7 @@ COUNTRY_PREFIX = {
     "Mexico": "MX",
     "México": "MX",
     "Costa Rica": "CR",
+    "CR": "CR",
     "Guatemala": "GT",
     "US": "US"
 }

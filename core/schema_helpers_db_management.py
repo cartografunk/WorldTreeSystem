@@ -8,13 +8,13 @@ TABLE_KEYS: Dict[str, List[str]] = {
     # masterdatabase.contract_farmer_information
     "cfi": [
         "contractname", "representative", "farmernumber", "phone", "email",
-        "address", "shippingaddress", "region", "status", "notes"
+        "address", "shippingaddress", "region", "notes"
     ],
     # masterdatabase.contract_tree_information
     # ⛔️ Quitamos 'harvest_year_10' (se calcula), 'latitude', 'longitude'
     "cti": [
         "plantingyear", "treescontract", "planted", "strain",
-        "plantingdate", "species", "land_location_gps"
+        "plantingdate", "species", "land_location_gps", "status"
     ],
     # masterdatabase.contract_allocation (si aplica)
     "ca": [

@@ -5,38 +5,43 @@ from typing import Dict, List, Callable, Optional
 # --- SOLO reemplaza el bloque TABLE_KEYS por este ---
 
 TABLE_KEYS: Dict[str, List[str]] = {
-    # masterdatabase.contract_farmer_information
-    "cfi": [
-        "contractname", "representative", "farmernumber", "phone", "email",
-        "address", "shippingaddress", "region", "notes"
+    # FPI (farmer_personal_information) ← SOLO datos personales
+    "fpi": [
+        "representative", "farmernumber", "phone", "email",
+        "address", "shippingaddress", "contract_name"
     ],
-    # masterdatabase.contract_tree_information
-    # ⛔️ Quitamos 'harvest_year_10' (se calcula), 'latitude', 'longitude'
+
+    # ⚠️ Compat: mientras migras llamadas antiguas que usan "cfi",
+    # haz que apunten a lo mismo que FPI
+    "cfi": [
+        "representative", "farmernumber", "phone", "email",
+        "address", "shippingaddress", "contract_name"
+    ],
+
+    # CTI (contract_tree_information)
+    # ⛔️ No incluimos 'harvest_year_10' (se calcula), ni lat/long por separado.
     "cti": [
         "plantingyear", "treescontract", "planted", "strain",
         "plantingdate", "species", "land_location_gps", "status"
     ],
+
     # masterdatabase.contract_allocation (si aplica)
     "ca": [
         "usa_trees_planted", "total_can_allocation"
     ],
 }
 
-
 # Cómo se llaman las columnas en BD (snake_case). Centralizar **aquí** excepciones.
-DB_COLUMNS: Dict[str, str] = {
-    # CFI
-    "contractname": "contract_name",
+DB_COLUMNS = {
+    # FPI
+    "contractname": "contract_name",     # ← ya mapeado
     "farmernumber": "farmer_number",
     "shippingaddress": "shipping_address",
+
     # CTI
     "plantingyear": "planting_year",
     "treescontract": "trees_contract",
     "plantingdate": "planting_date",
-    # el resto ya están en snake o coinciden con key
-    # CA (si aplica)
-    # "usa_trees_planted": "usa_trees_planted",
-    # "total_can_allocation": "total_can_allocation",
 }
 
 def key_to_db_col(key: str) -> str:

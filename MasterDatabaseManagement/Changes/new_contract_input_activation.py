@@ -2,10 +2,9 @@
 from MasterDatabaseManagement.tools.minimal_parsers import _to_int, _to_date, _is_blank
 from core.libs import pd, Path, text
 from core.db import get_engine
-from core.paths import DATABASE_EXPORTS_DIR
-from core.region import get_prefix
+from core.paths import DATABASE_EXPORTS_DIR, ensure_all_paths_existfrom core.region import get_prefix
 from core.schema_helpers_db_management import extract_group_params
-from core.sheets import Sheet
+from core.sheets import Sheet, export_tables_to_excel
 from core.backup import backup_tables, backup_excel
 from typing import Optional  # si no lo tienes aún
 
@@ -51,18 +50,22 @@ def _fetch_personal_snapshot_by_farmer(conn, farmer_number: str) -> Optional[dic
                 fpi.email,
                 fpi.address,
                 fpi.shipping_address,
-                (
-                    SELECT ch.contract_name
-                    FROM masterdatabase.contract_header ch
-                    WHERE ch.farmer_number = fpi.farmer_number
-                      AND ch.contract_name IS NOT NULL
-                    ORDER BY ch.contract_code DESC
-                    LIMIT 1
+                COALESCE(
+                    fpi.contract_name,
+                    (
+                        SELECT ch.contract_name
+                        FROM masterdatabase.contract_header ch
+                        WHERE ch.farmer_number = fpi.farmer_number
+                          AND ch.contract_name IS NOT NULL
+                        ORDER BY ch.contract_code DESC
+                        LIMIT 1
+                    )
                 ) AS contract_name
             FROM masterdatabase.farmer_personal_information fpi
             WHERE fpi.farmer_number = :fn
             LIMIT 1
         """), {"fn": str(farmer_number)}).mappings().first()
+
         return dict(row) if row else None
     except Exception:
         # Fallback legacy si CH/FPI aún no existen
@@ -103,6 +106,7 @@ def _reason_for_skip(sheet: Sheet, row):
 
 def main(dry_run: bool = False):
     engine = get_engine()
+    ensure_all_paths_exist()
 
     # Sheet centralizado
     sheet = Sheet(CATALOG_FILE, SHEET_NAME)
@@ -144,23 +148,19 @@ def main(dry_run: bool = False):
     # --- Farmer Personal Information (FPI) --------------------------------------
     sql_fpi_insert = text("""
         INSERT INTO masterdatabase.farmer_personal_information
-            (farmer_number, representative, phone, email, address, shipping_address, contract_codes)
+            (farmer_number, representative, phone, email, address, shipping_address, contract_name, contract_codes)
         VALUES
-            (:farmer_number, :representative, :phone, :email, :address, :shipping_address, ARRAY[:contract_code]::text[])
+            (:farmer_number, :representative, :phone, :email, :address, :shipping_address, :contract_name, ARRAY[:contract_code]::text[])
         ON CONFLICT (farmer_number) DO NOTHING
     """)
 
     # Append del contract_code al array (evita duplicar si ya está)
-    sql_fpi_append_code = text("""
-        UPDATE masterdatabase.farmer_personal_information
-           SET contract_codes = CASE
-               WHEN contract_codes IS NULL
-                 THEN ARRAY[:contract_code]::text[]
-               WHEN array_position(contract_codes, :contract_code) IS NULL
-                 THEN contract_codes || ARRAY[:contract_code]::text[]
-               ELSE contract_codes
-           END
-         WHERE farmer_number = :farmer_number
+    sql_fpi_insert = text("""
+        INSERT INTO masterdatabase.farmer_personal_information
+            (farmer_number, representative, phone, email, address, shipping_address, contract_name, contract_codes)
+        VALUES
+            (:farmer_number, :representative, :phone, :email, :address, :shipping_address, :contract_name, ARRAY[:contract_code]::text[])
+        ON CONFLICT (farmer_number) DO NOTHING
     """)
 
     counts = {"applied": 0, "failed": 0, "not_ready": 0, "skipped": 0}
@@ -221,11 +221,11 @@ def main(dry_run: bool = False):
 
         # === Escenarios: CFI desde sheet (nuevo) VS clonado (existente) ============
         if existing_cfi is None:
-            # Escenario 1: Farmer nuevo → CFI desde sheet
-            cfi_params = extract_group_params(row, sheet.headers, sheet.hdr_df, "cfi", transforms=CFI_XFORM)
-            # Si contract_name viene vacío en el sheet pero te lo pasaron por variable, úsalo
-            if _is_blank(cfi_params.get("contract_name")) and not _is_blank(contract_name):
-                cfi_params["contract_name"] = contract_name
+            # Escenario 1: farmer nuevo → desde sheet
+            fpi_params = extract_group_params(row, sheet.headers, sheet.hdr_df, "fpi", transforms=CFI_XFORM)
+            # si el sheet trae vacío pero tienes variable local, rellena
+            if _is_blank(fpi_params.get("contract_name")) and not _is_blank(contract_name):
+                fpi_params["contract_name"] = contract_name
         else:
             # Escenario 2: Farmer existente → clonar CFI 1:1 desde BD
             cfi_params = {
@@ -276,17 +276,16 @@ def main(dry_run: bool = False):
                 try:
                     # ====== FPI: alta/append de contract_code en la lista (si hay farmer_number) ======
                     if farmer_number_in_sheet:
-                        # 1) Inserta FPI si es farmer nuevo (inicializa contract_codes = [contract_code])
                         conn.execute(sql_fpi_insert, {
                             "farmer_number": farmer_number_in_sheet,
-                            "representative": cfi_params.get("representative"),
-                            "phone": cfi_params.get("phone"),
-                            "email": cfi_params.get("email"),
-                            "address": cfi_params.get("address"),
-                            "shipping_address": cfi_params.get("shipping_address"),
+                            "representative": fpi_params.get("representative"),
+                            "phone": fpi_params.get("phone"),
+                            "email": fpi_params.get("email"),
+                            "address": fpi_params.get("address"),
+                            "shipping_address": fpi_params.get("shipping_address"),
+                            "contract_name": fpi_params.get("contract_name"),  # ← NUEVO
                             "contract_code": contract_code,
                         })
-                        # 2) Asegura que el contract_code quede en la lista (sin duplicar)
                         conn.execute(sql_fpi_append_code, {
                             "farmer_number": farmer_number_in_sheet,
                             "contract_code": contract_code,
@@ -318,6 +317,29 @@ def main(dry_run: bool = False):
 
     if not dry_run:
         sheet.save()
+
+        # === 🧾 Export final a Excel (misma lógica que changelog_activation) ===
+        if not dry_run:
+            try:
+                print("💾 Backup Excel export...")
+                backup_excel(EXCEL_FILE)
+              except Exception as e:
+                print(f"⚠️  No se pudo respaldar {EXCEL_FILE}: {e}")
+
+            try:
+                print("💾 Re-escribiendo Excel actualizado...")
+                    export_tables_to_excel(
+                        engine,
+                        ["contract_tree_information",
+                        "farmer_personal_information",
+                        "contract_allocation",
+                        "inventory_metrics",
+                        "inventory_metrics_current"
+                        ],
+                        out_path = EXCEL_FILE
+                    )
+                except Exception as e:
+                    print(f"⚠️  Falló export_tables_to_excel: {e}")
 
     if dry_run:
         if to_fpi_preview:

@@ -22,6 +22,26 @@ change_col = sheet.index_of("change")
 
 ensure_all_paths_exist()
 
+# --- soporte directo FPI por contract_code ---
+ALLOWED_FPI_FIELDS = {
+    "representative", "farmer_number", "phone", "email",
+    "address", "shipping_address", "contract_name"
+}
+SQL_FPI_UPDATE_TMPL = """
+    UPDATE masterdatabase.farmer_personal_information AS fpi
+       SET {column} = :val
+     WHERE :cc = ANY(fpi.contract_codes)
+"""
+def _apply_change_fpi_via_contract(conn, contract_code: str, target_field: str, change_val):
+    col = str(target_field).strip()
+    if col not in ALLOWED_FPI_FIELDS:
+        return False, f"target_field '{col}' no permitido para FPI"
+
+    sql = text(SQL_FPI_UPDATE_TMPL.format(column=col))
+    conn.execute(sql, {"cc": str(contract_code), "val": change_val})
+    return True, "single"
+
+
 
 def _is_ready(v) -> bool:
     return bool(v) and str(v).strip().lower() == "ready"
@@ -62,39 +82,60 @@ def process_changelog_and_update_sql(engine, fields_catalog: pd.DataFrame, reaso
                 continue
 
             try:
-                if dry_run:
-                    # Preview: no tocar DB ni Excel
-                    print(
-                        f"👀 DRY-RUN fila {r}: "
-                        f"UPDATE masterdatabase.\"{table}\" SET \"{target_field}\" = {change_val!r} "
-                        f"WHERE contract_code = {contract_code!r} (reason={reason_val!r})"
+                try:
+                    if dry_run:
+                        # Preview: no tocar DB ni Excel
+                        print(
+                            f"👀 DRY-RUN fila {r}: "
+                            f"UPDATE masterdatabase.\"{table}\" SET \"{target_field}\" = {change_val!r} "
+                            f"WHERE contract_code = {contract_code!r} (reason={reason_val!r})"
+                        )
+                        continue
+
+                    # --- 🚩 Si el destino es FPI, aplicamos por pertenencia en contract_codes ---
+                    if table == "farmer_personal_information":
+                        ok, mode = _apply_change_fpi_via_contract(
+                            conn,
+                            contract_code=str(contract_code),
+                            target_field=str(target_field),
+                            change_val=change_val
+                        )
+                        if ok:
+                            sheet.mark_status(r, status_col, STATUS_DONE)
+                            counts["applied"] += 1
+                            counts["single"] += 1 if mode == "single" else 0
+                        else:
+                            counts["skipped"] += 1
+                            print(f"⏭️  Fila {r} omitida (FPI): {mode}")
+                        continue
+
+                    # --- resto de tablas: usa tu flujo existente ---
+                    res = apply_changelog_change(
+                        conn,
+                        contract_code=str(contract_code),
+                        target_field=str(target_field),
+                        change_val=change_val,
+                        reason_val=reason_val,
+                        fields_catalog=fields_catalog,
                     )
-                    continue
 
-                # ---- LIVE: aplica con la regla de personal info ----
-                res = apply_changelog_change(
-                    conn,
-                    contract_code=str(contract_code),
-                    target_field=str(target_field),
-                    change_val=change_val,
-                    reason_val=reason_val,
-                    fields_catalog=fields_catalog,
-                )
-
-                if res.ok:
-                    sheet.mark_status(r, status_col, STATUS_DONE)
-                    counts["applied"] += 1
-                    if res.mode == "propagated":
-                        counts["propagated"] += 1
-                    elif res.mode == "single":
-                        counts["single"] += 1
+                    if res.ok:
+                        sheet.mark_status(r, status_col, STATUS_DONE)
+                        counts["applied"] += 1
+                        if res.mode == "propagated":
+                            counts["propagated"] += 1
+                        elif res.mode == "single":
+                            counts["single"] += 1
+                        else:
+                            counts["skipped"] += 1
                     else:
-                        counts["skipped"] += 1  # e.g. skipped_no_table / skipped_missing_farmer / skipped_not_personal
-                    # opcional: log
-                    # print(f"✅ fila {r}: {res.mode} — {res.info}")
-                else:
-                    counts["skipped"] += 1
-                    print(f"⏭️  Fila {r} omitida: {res.info}")
+                        counts["skipped"] += 1
+                        print(f"⏭️  Fila {r} omitida: {res.info}")
+
+                except Exception as e:
+                    counts["failed"] += 1
+                    print(f"💥 Error en fila {r} (cc={contract_code}, field={target_field}): {e}")
+
 
             except Exception as e:
                 counts["failed"] += 1
@@ -138,7 +179,7 @@ def main(dry_run: bool = False):
         print("💾 Re-escribiendo Excel actualizado...")
         export_tables_to_excel(engine, [
             "contract_tree_information",
-            "contract_farmer_information",
+            "farmer_personal_information",
             "contract_allocation",
             "inventory_metrics",
             "inventory_metrics_current",

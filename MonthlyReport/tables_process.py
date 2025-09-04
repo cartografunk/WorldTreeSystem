@@ -21,23 +21,36 @@ def get_allocation_type(etp_year):
 
 
 def build_etp_trees(engine, etp_year, allocation_type):
-    ca = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
-    cti = pd.read_sql("SELECT * FROM masterdatabase.contract_trees_info", engine)
+    ca  = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
+    cti = pd.read_sql("SELECT * FROM masterdatabase.contract_tree_information", engine)  # ← nombre correcto
+    fpi = pd.read_sql("SELECT contract_code, region FROM masterdatabase.farmer_personal_information", engine)
 
     if allocation_type == "COP":
-        df = ca[ca["etp_year"] == etp_year]
-        df_grouped = df.groupby("region")["total_can_allocation"].sum().reset_index()
+        # La región la aporta FPI
+        df = (
+            ca[ca["etp_year"] == etp_year]
+            .merge(fpi, on="contract_code", how="left")
+        )
+        df_grouped = df.groupby("region", dropna=False)["total_can_allocation"].sum().reset_index()
         df_grouped.rename(columns={"total_can_allocation": "Total Trees"}, inplace=True)
 
     elif allocation_type == "ETP":
-        df = cti[cti["etp_year"] == etp_year]
-        df_grouped = df.groupby("region")["planted"].sum().reset_index()
+        # El número de árboles (planted) viene de CTI; la región, de FPI
+        df = (
+            cti[cti["etp_year"] == etp_year]
+            .merge(fpi, on="contract_code", how="left")
+        )
+        df_grouped = df.groupby("region", dropna=False)["planted"].sum().reset_index()
         df_grouped.rename(columns={"planted": "Total Trees"}, inplace=True)
 
     elif allocation_type == "COP/ETP":
-        df = ca[ca["etp_year"] == etp_year]
+        # Sumar allocation CAN + planted USA (si aplica) y agrupar por región de FPI
+        df = (
+            ca[ca["etp_year"] == etp_year]
+            .merge(fpi, on="contract_code", how="left")
+        )
         df["combined_planted"] = df[["total_can_allocation", "usa_trees_planted"]].fillna(0).sum(axis=1)
-        df_grouped = df.groupby("region")["combined_planted"].sum().reset_index()
+        df_grouped = df.groupby("region", dropna=False)["combined_planted"].sum().reset_index()
         df_grouped.rename(columns={"combined_planted": "Total Trees"}, inplace=True)
 
     else:
@@ -45,18 +58,24 @@ def build_etp_trees(engine, etp_year, allocation_type):
 
     return df_grouped
 
+    return df_grouped
+
 def get_survival_data(engine):
     df = pd.read_sql("""
-        SELECT cti.etp_year, cti.region, imc.survival
+        SELECT
+            cti.etp_year::int      AS etp_year,
+            fpi.region             AS region,
+            imc.survival           AS survival
         FROM masterdatabase.inventory_metrics_current imc
-        JOIN masterdatabase.contract_tree_information cti
-            ON imc.contract_code = cti.contract_code
+        JOIN masterdatabase.contract_tree_information       cti ON cti.contract_code = imc.contract_code
+        JOIN masterdatabase.farmer_personal_information     fpi ON fpi.contract_code = imc.contract_code
         WHERE imc.survival IS NOT NULL
     """, engine)
 
     df["Survival"] = (df["survival"] * 100).round(1).astype(str) + "%"
     df["etp_year"] = df["etp_year"].astype("Int64")
     return df[["etp_year", "region", "Survival"]]
+
 
 def _coerce_survival_pct(df: pd.DataFrame) -> pd.Series:
     """

@@ -3,29 +3,37 @@ from core.libs import pd
 from MonthlyReport.tables_process import get_allocation_type
 
 def build_etp_summary(engine):
-    # 1) Base contratos + status
+    # 1) Base contratos + status + región (REGIÓN DESDE FPI)
     cti = pd.read_sql(
         """
         SELECT 
             cti.contract_code, 
             cti.etp_year,
-            cti.trees_contract, 
-            cfi.status, 
-            cti.region
+            cti.trees_contract,
+            cfi.status,
+            fpi.region
         FROM masterdatabase.contract_tree_information AS cti
         LEFT JOIN masterdatabase.contract_farmer_information AS cfi
           ON cti.contract_code = cfi.contract_code
+        LEFT JOIN masterdatabase.farmer_personal_information AS fpi
+          ON cti.contract_code = fpi.contract_codes
         """,
         engine
     )
+
     if cti.empty:
         return pd.DataFrame(columns=["Allocation Type", "region", "etp_year", "Total", "Survival"])
 
+    # Normalizaciones básicas
     cti["region"] = cti["region"].astype("string").str.strip()
     cti["etp_year"] = pd.to_numeric(cti["etp_year"], errors="coerce").astype("Int64")
 
-    # 2) Totales por región/año
-    total = cti.groupby(["region", "etp_year"])["contract_code"].count().rename("Total")
+    # 2) Totales por región/año (# de contratos)
+    total = (
+        cti.groupby(["region", "etp_year"], dropna=False)["contract_code"]
+           .count()
+           .rename("Total")
+    )
 
     # 3) Pivot de status
     pivot = pd.pivot_table(
@@ -40,44 +48,51 @@ def build_etp_summary(engine):
     # 4) Une totales + pivot
     summary = pd.concat([total, pivot], axis=1)
 
-    # 5) Survival (solo Active)
+    # 5) Survival (solo Active): ponderado por trees_contract
     survival_df = pd.read_sql(
-        "SELECT contract_code, current_survival_pct, current_surviving_trees FROM masterdatabase.survival_current",
+        """
+        SELECT contract_code, current_survival_pct, current_surviving_trees
+        FROM masterdatabase.survival_current
+        """,
         engine
     )
-    active_cti = cti[cti["status"] == "Active"]
+
+    active_cti = cti[cti["status"] == "Active"].copy()
     merged = active_cti.merge(survival_df, on="contract_code", how="left")
 
     def weighted_survival_pct(g):
-        total_trees = g["trees_contract"].sum()
-        surviving_trees = g["current_surviving_trees"].sum()
-        if pd.notna(total_trees) and total_trees > 0:
+        # trees_contract como denominador; si viene nulo, tómalo como 0
+        total_trees = pd.to_numeric(g["trees_contract"], errors="coerce").fillna(0).sum()
+        surviving_trees = pd.to_numeric(g["current_surviving_trees"], errors="coerce").fillna(0).sum()
+        if total_trees > 0:
             return round(100 * surviving_trees / total_trees, 1)
         return None
 
     region_survival = (
-        merged.groupby(["region", "etp_year"])
+        merged.groupby(["region", "etp_year"], dropna=False)
               .apply(weighted_survival_pct)
               .apply(lambda x: f"{x}%" if x is not None else "N/A")
     )
 
     # 6) A plano + Survival
     summary = summary.reset_index()
-    summary["Survival"] = summary.set_index(["region", "etp_year"]).index.map(region_survival).fillna("N/A")
+    summary["Survival"] = (
+        summary.set_index(["region", "etp_year"])
+               .index.map(region_survival)
+               .fillna("N/A")
+    )
 
-    # 7) Asegura columnas de status que falten
+    # 7) Asegura columnas dinámicas de status que falten
     status_cols = list(pivot.columns)
     for col in status_cols:
         if col not in summary.columns:
             summary[col] = 0
 
-    # 8) Allocation Type (primer campo) y orden
+    # 8) Allocation Type y orden
     def alloc_label(y):
         return "/".join(get_allocation_type(int(y))) if pd.notna(y) else pd.NA
 
     summary["Allocation Type"] = summary["etp_year"].apply(alloc_label).astype("string")
-
-    # orden categórico de Allocation Type para sort estable
     alloc_order = ["COP", "COP/ETP", "ETP"]
     summary["Allocation Type"] = pd.Categorical(summary["Allocation Type"], categories=alloc_order, ordered=True)
 
@@ -86,7 +101,6 @@ def build_etp_summary(engine):
     cols = ["Allocation Type", "region", "etp_year", "Total"] + dynamic_status + ["Survival"]
     summary = summary[cols]
 
-    # 10) Orden de filas (y SIN 'index' basura: no uses reset_index otra vez)
+    # 10) Orden de filas final
     summary = summary.sort_values(by=["etp_year", "Allocation Type", "region"], ignore_index=True)
-
     return summary

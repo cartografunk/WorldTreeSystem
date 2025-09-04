@@ -2,15 +2,18 @@
 from MasterDatabaseManagement.tools.minimal_parsers import _to_int, _to_date, _is_blank
 from core.libs import pd, Path, text
 from core.db import get_engine
-from core.paths import DATABASE_EXPORTS_DIR, ensure_all_paths_existfrom core.region import get_prefix
+from core.paths import DATABASE_EXPORTS_DIR, ensure_all_paths_exist
+from core.region import get_prefix
 from core.schema_helpers_db_management import extract_group_params
 from core.sheets import Sheet, export_tables_to_excel
-from core.backup import backup_tables, backup_excel
+#from core.backup import backup_tables, backup_excel
+from core.backup_control import backup_once, save_excel_single_latest
 from typing import Optional  # si no lo tienes aún
 
 # === Config ===
 CATALOG_FILE = Path(DATABASE_EXPORTS_DIR) / "changelog.xlsx"
-SHEET_NAME = "NewContractInputLog"
+SHEET_NAME   = "NewContractInputLog"
+EXCEL_FILE   = Path(DATABASE_EXPORTS_DIR) / "masterdatabase_export.xlsx"
 
 
 def _fetch_max(engine, prefix: str) -> int:
@@ -108,22 +111,19 @@ def main(dry_run: bool = False):
     engine = get_engine()
     ensure_all_paths_exist()
 
+    # 🔒 Backup ÚNICO por tabla/tag (reemplaza el anterior)
+    tables_to_backup = [
+        ("masterdatabase", "contract_farmer_information"),
+        ("masterdatabase", "contract_tree_information"),
+    ]
+    df_backup_log = backup_once(tables_to_backup, tag="new_contracts_input", engine=engine)
+
     # Sheet centralizado
     sheet = Sheet(CATALOG_FILE, SHEET_NAME)
-    cc_idx     = sheet.ensure_column("Contract Code")
-    status_idx = sheet.ensure_status_column("change_in_db")  # usamos change_in_db: Ready -> Done
+    cc_idx = sheet.ensure_column("Contract Code")
+    status_idx = sheet.ensure_status_column("change_in_db")
 
     print(f"📄 Hoja {SHEET_NAME} tiene {sheet.ws.max_row - 1} filas de datos y {len(sheet.headers)} columnas")
-
-    # Backups (solo en vivo)
-    if not dry_run:
-        backup_excel(CATALOG_FILE)
-        backup_tables(
-            engine,
-            ["farmer_personal_information", "contract_tree_information"],
-            schema="masterdatabase",
-            label="pre_newcontracts"
-        )
 
     # Transforms
     CFI_XFORM = {"phone": lambda x: str(x).strip() if x else None}
@@ -315,41 +315,46 @@ def main(dry_run: bool = False):
                     counts["failed"] += 1
                     print(f"💥 Fila {r} error: {e}")
 
-    if not dry_run:
-        sheet.save()
-
-        # === 🧾 Export final a Excel (misma lógica que changelog_activation) ===
+        # === 🧾 Export / Backups de Excel (UNA sola versión) ===
         if not dry_run:
             try:
-                print("💾 Backup Excel export...")
-                backup_excel(EXCEL_FILE)
-              except Exception as e:
-                print(f"⚠️  No se pudo respaldar {EXCEL_FILE}: {e}")
+                print("💾 Backup del catálogo de entrada (única versión)…")
+                out_cat = rotate_excel_backup_single_latest(tag="new_contracts_input",
+                                                            pattern_prefix="newcontracts_catalog_bkp")
+                shutil.copyfile(CATALOG_FILE, out_cat)
+            except Exception as e:
+                print(f"⚠️  No se pudo respaldar el catálogo {CATALOG_FILE}: {e}")
 
             try:
-                print("💾 Re-escribiendo Excel actualizado...")
-                    export_tables_to_excel(
-                        engine,
-                        ["contract_tree_information",
+                print("💾 Re-escribiendo Excel actualizado…")
+                export_tables_to_excel(
+                    engine,
+                    [
+                        "contract_tree_information",
                         "farmer_personal_information",
                         "contract_allocation",
                         "inventory_metrics",
-                        "inventory_metrics_current"
-                        ],
-                        out_path = EXCEL_FILE
-                    )
-                except Exception as e:
-                    print(f"⚠️  Falló export_tables_to_excel: {e}")
+                        "inventory_metrics_current",
+                    ],
+                    out_path=EXCEL_FILE,
+                )
+                print("💾 Backup del export final (única versión)…")
+                out_xlsx = rotate_excel_backup_single_latest(tag="new_contracts_input",
+                                                             pattern_prefix="newcontracts_export_bkp")
+                shutil.copyfile(EXCEL_FILE, out_xlsx)
+            except Exception as e:
+                print(f"⚠️  Falló export_tables_to_excel o su backup: {e}")
 
-    if dry_run:
-        if to_fpi_preview:
-            print("=== Preview FPI ===")
-            print(pd.DataFrame(to_fpi_preview))
-        if to_cti_preview:
-            print("=== Preview CTI (top 3) ===")
-            print(pd.DataFrame(to_cti_preview))
-        else:
-            print("🪵 No hay preview: todas las filas fueron descartadas (revisa razones arriba).")
+        # === Previews en dry_run ===
+        if dry_run:
+            if to_fpi_preview:
+                print("=== Preview FPI ===")
+                print(pd.DataFrame(to_fpi_preview))
+            if to_cti_preview:
+                print("=== Preview CTI (top 3) ===")
+                print(pd.DataFrame(to_cti_preview))
+            else:
+                print("🪵 No hay preview: todas las filas fueron descartadas (revisa razones arriba).")
 
     print("✅ Contract Code serializado por prefijo y orden de fila.")
     print(f"✅ Filas marcadas como 'Done': {counts['applied']} | ❌ fallidos: {counts['failed']} | no_ready: {counts['not_ready']} | skipped: {counts['skipped']} | dry_run={dry_run}")

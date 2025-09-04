@@ -2,7 +2,11 @@
 from core.libs import pd, text, Path
 from core.db import get_engine
 from core.paths import DATABASE_EXPORTS_DIR, ensure_all_paths_exist
-from core.backup import backup_excel, backup_tables
+#from core.backup import backup_excel, backup_tables
+from core.backup_control import (
+    backup_once,
+    rotate_excel_backup_single_latest,   # ← usar para Excel “única versión”
+)
 from core.sheets import Sheet, read_changelog_catalogs, get_table_for_field, export_tables_to_excel, STATUS_DONE
 from MasterDatabaseManagement.Changes.farmer_personal_information import apply_changelog_change
 import warnings
@@ -151,15 +155,31 @@ def process_changelog_and_update_sql(engine, fields_catalog: pd.DataFrame, reaso
 def main(dry_run: bool = False):
     engine = get_engine()
 
-    # Backups solo en vivo
-    if not dry_run:
-        print("💾 Backup Excel export...")
-        backup_excel(EXCEL_FILE)
-        print("💾 Backup changelog...")
-        backup_excel(CATALOG_FILE)
+    # 🔒 Backup ÚNICO por tabla/tag (reemplaza el anterior)
+    tables_to_backup = [
+        ("masterdatabase", "contract_farmer_information"),
+        ("masterdatabase", "contract_tree_information"),
+    ]
+    df_backup_log = backup_once(tables_to_backup, tag="changelog_activation", engine=engine)
 
-    print("📚 Leyendo catálogos...")
+    # 🗂️ Backups de Excel “una sola versión” por tag (opcional, solo en vivo)
+    if not dry_run:
+        try:
+            print("💾 Backup Excel (única versión)…")
+            out1 = rotate_excel_backup_single_latest(tag="changelog_activation", pattern_prefix="changelog_bkp")
+            shutil.copyfile(EXCEL_FILE, out1)
+
+            print("💾 Backup changelog (única versión)…")
+            out2 = rotate_excel_backup_single_latest(tag="changelog_activation", pattern_prefix="changelog_catalog_bkp")
+            shutil.copyfile(CATALOG_FILE, out2)
+        except Exception as e:
+            print(f"⚠️  Backup de Excel omitido: {e}")
+
+    print("📚 Leyendo catálogos…")
     fields_catalog, reasons_catalog = read_changelog_catalogs(CATALOG_FILE)
+
+    print(f"🚩 Aplicando cambios pendientes (solo 'Ready')… dry_run={dry_run}")
+    process_changelog_and_update_sql(engine, fields_catalog, reasons_catalog, dry_run=dry_run)
 
     # Backup de tablas afectadas solo en vivo
     if not dry_run:

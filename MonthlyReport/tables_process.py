@@ -1,6 +1,7 @@
 #MonthlyReport/tables_process.py
 
 from core.libs import pd
+from core.region import normalize_region_series
 
 def weighted_mean(df, value_col, weight_col):
     valid = df[weight_col] > 0
@@ -23,7 +24,8 @@ def get_allocation_type(etp_year):
 def build_etp_trees(engine, etp_year, allocation_type):
     ca  = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
     cti = pd.read_sql("SELECT * FROM masterdatabase.contract_tree_information", engine)  # ← nombre correcto
-    fpi = pd.read_sql("SELECT contract_code, region FROM masterdatabase.farmer_personal_information", engine)
+    fpi = pd.read_sql("SELECT contract_code, region FROM masterdatabase.fpi_contracts_expanded", engine)
+    fpi["region"] = normalize_region_series(fpi["region"])
 
     if allocation_type == "COP":
         # La región la aporta FPI

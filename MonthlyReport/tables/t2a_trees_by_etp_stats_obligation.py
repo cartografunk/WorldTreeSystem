@@ -3,7 +3,7 @@
 from core.libs import pd
 from MonthlyReport.tables_process import clean_t2a_for_excel, get_allocation_type
 from MonthlyReport.stats import survival_stats
-
+# OJO: no usamos normalize_region_series aquí
 
 def enrich_with_obligations_and_stats(df, engine):
     df = df.copy()
@@ -42,10 +42,8 @@ def enrich_with_obligations_and_stats(df, engine):
             cti.contract_code,
             cti.etp_year,
             cti.trees_contract,
-            cfi.status
+            cti.status                -- 👈 desde CTI
         FROM masterdatabase.contract_tree_information cti
-        LEFT JOIN masterdatabase.contract_farmer_information cfi
-          ON cti.contract_code = cfi.contract_code
         """,
         engine,
     )
@@ -153,12 +151,23 @@ def enrich_with_obligations_and_stats(df, engine):
     # Limpieza final y orden para Excel
     df_final = clean_t2a_for_excel(df_final)
 
+    # Orden de filas
     order = ["Contracted", "Planted", "Surviving"]
     if "year" in df_final.columns:
         df_final["year"] = pd.to_numeric(df_final["year"], errors="coerce")
+        sort_keys = ["year", "etp", "contract_trees_status"]
+    else:
+        # si no hay 'year', usa 'etp_year' para ordenar
+        sort_keys = ["etp_year", "etp", "contract_trees_status"]
+
     if "contract_trees_status" in df_final.columns:
         df_final["contract_trees_status"] = pd.Categorical(
             df_final["contract_trees_status"], categories=order, ordered=True
         )
 
-    df_final_
+    df_final = df_final.sort_values(by=sort_keys, ascending=[True, True, True], ignore_index=True)
+
+    # Evita duplicado visual de etp_year si no lo necesitas
+    df_final = df_final.drop(columns=["etp_year"], errors="ignore")
+
+    return df_final

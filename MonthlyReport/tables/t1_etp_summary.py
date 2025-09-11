@@ -1,93 +1,72 @@
-# MonthlyReport/tables/t1_etp_summary.py
-from core.libs import pd
-from MonthlyReport.tables_process import get_allocation_type
-from core.region import region_from_code  # 👈 derivamos región del code
+from core.libs import pd, np
+from MonthlyReport.utils_monthly_base import build_monthly_base_table
+from MonthlyReport.tables_process import get_allocation_type, fmt_pct_1d  # ← úsalo aquí
 
-def build_etp_summary(engine):
-    # Solo CTI (status y trees_contract están aquí)
-    cti = pd.read_sql(
-        """
-        SELECT 
-            contract_code, 
-            etp_year,
-            trees_contract,
-            status
-        FROM masterdatabase.contract_tree_information
-        """,
-        engine
-    )
-    if cti.empty:
-        return pd.DataFrame(columns=["Allocation Type", "region", "etp_year", "Total", "Survival"])
+ACTIVE_STATUSES = ("Active",)  # ajusta a tus valores EXACTOS
 
-    # Normaliza dtypes
-    cti["etp_year"] = pd.to_numeric(cti["etp_year"], errors="coerce").astype("Int64")
-    cti["trees_contract"] = pd.to_numeric(cti["trees_contract"], errors="coerce").fillna(0)
+def build_etp_summary(engine=None) -> pd.DataFrame:
+    mbt = build_monthly_base_table()
 
-    # Región 100% desde contract_code (evita NA)
-    cti["region"] = cti["contract_code"].map(region_from_code).astype("string")
-
-    # Status normalizado y filtro Active
-    status_norm = (
-        cti["status"].astype("string")
-                     .str.normalize("NFKD").str.encode("ascii","ignore").str.decode("ascii")
-                     .str.strip().str.lower()
-    )
-    cti["status_norm"] = status_norm
-
-    # 1) Totales por región/año (contratos únicos)
-    total = (
-        cti.groupby(["region", "etp_year"], dropna=False)["contract_code"]
-           .nunique().rename("Total")
+    status_counts = (
+        mbt.groupby(["allocation_type_str","region","etp_year","status"], dropna=False)["contract_code"]
+           .nunique()
+           .unstack("status", fill_value=0)
+           .reset_index()
     )
 
-    # 2) Pivot de status
-    pivot = pd.pivot_table(
-        cti.assign(status=status_norm),             # usa status normalizado
-        index=["region", "etp_year"],
-        columns="status",
-        values="contract_code",
-        aggfunc=pd.Series.nunique,
-        fill_value=0,
+    g_glb = mbt.groupby(["allocation_type_str","region","etp_year"], dropna=False).agg(
+        alive_total_glb   = ("current_surviving_trees","sum"),
+        sampled_total_glb = ("trees_contract","sum"),
+        total_contracts   = ("contract_code","nunique"),
+    ).reset_index()
+
+    df_act = mbt[mbt["status"].isin(ACTIVE_STATUSES)].copy()
+    g_act = df_act.groupby(["allocation_type_str","region","etp_year"], dropna=False).agg(
+        alive_total_act   = ("current_surviving_trees","sum"),
+        sampled_total_act = ("trees_contract","sum"),
+        total_active      = ("contract_code","nunique"),
+    ).reset_index()
+
+    out = status_counts.merge(g_glb, on=["allocation_type_str","region","etp_year"], how="left") \
+                       .merge(g_act, on=["allocation_type_str","region","etp_year"], how="left")
+
+    out["Survival (Active)"] = out.apply(
+        lambda r: fmt_pct_1d(r.get("alive_total_act"), r.get("sampled_total_act")), axis=1
     )
-    pivot.columns.name = None
-
-    # 3) Alinear índices y unir
-    idx = total.index.union(pivot.index)
-    summary = pd.concat([total.reindex(idx).to_frame(), pivot.reindex(idx).fillna(0)], axis=1).reset_index()
-
-    # 4) Survival ponderado (solo Active)
-    surv = pd.read_sql(
-        "SELECT contract_code, current_surviving_trees FROM masterdatabase.survival_current",
-        engine
+    out["Survival (Global)"] = out.apply(
+        lambda r: fmt_pct_1d(r.get("alive_total_glb"), r.get("sampled_total_glb")), axis=1
     )
-    active = (
-        cti[cti["status_norm"] == "active"]
-          .merge(surv, on="contract_code", how="left")
-          .copy()
+
+    out = out.rename(columns={
+        "allocation_type_str": "Allocation Type",
+        "region": "Region",
+        "etp_year": "ETP Year",
+        "total_contracts": "Total Contracts",
+        #"total_active": "Total Active Contracts"
+    })
+
+    # 👈 AQUÍ: dropeamos los campos de cálculo
+    out = out.drop(
+        columns=[
+            "alive_total_glb",
+            "sampled_total_glb",
+            "alive_total_act",
+            "sampled_total_act",
+            "total_active",
+        ],
+        errors="ignore"
     )
-    active["current_surviving_trees"] = pd.to_numeric(active["current_surviving_trees"], errors="coerce").fillna(0)
 
-    def _weighted_survival(g):
-        den = g["trees_contract"].sum()
-        num = g["current_surviving_trees"].sum()
-        return f"{round(100 * num / den, 1)}%" if den > 0 else "N/A"
+    out["ETP Year"] = out["ETP Year"].astype("Int64").astype("string")
+    out.loc[out["ETP Year"].isin(["<NA>","nan"]), "ETP Year"] = "Not asigned yet"
 
-    region_survival = (
-        active.groupby(["region", "etp_year"], dropna=False)
-              .apply(_weighted_survival)
-    )
-    summary["Survival"] = [region_survival.get((r, y), "N/A") for r, y in zip(summary["region"], summary["etp_year"])]
+    cat_order = pd.CategoricalDtype(categories=["COP","COP|ETP","ETP"], ordered=True)
+    out["Allocation Type"] = out["Allocation Type"].astype(cat_order)
 
-    # 5) Allocation Type y orden
-    def alloc_label(y):
-        return "/".join(get_allocation_type(int(y))) if pd.notna(y) else pd.NA
-    summary["Allocation Type"] = summary["etp_year"].apply(alloc_label).astype("string")
+    fixed_left  = ["Allocation Type","Region","ETP Year", "Total Contracts"]
+    fixed_right = ["Survival (Active)","Survival (Global)"]
+    status_cols = [c for c in out.columns if c not in fixed_left + fixed_right]
 
-    alloc_order = ["COP", "COP/ETP", "ETP"]
-    summary["Allocation Type"] = pd.Categorical(summary["Allocation Type"], categories=alloc_order, ordered=True)
-
-    # 6) Columnas dinámicas de status
-    status_cols = [c for c in pivot.columns if c in summary.columns]
-    cols = ["Allocation Type", "region", "etp_year", "Total"] + status_cols + ["Survival"]
-    summary = summary[cols].sort_values(by=["etp_year", "Allocation Type", "region"], ignore_index=True)
-    return summary
+    out = out.sort_values(by=["ETP Year","Allocation Type","Region"], na_position="last")
+    out = out[fixed_left + status_cols + fixed_right].reset_index(drop=True)
+    return out

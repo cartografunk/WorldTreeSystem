@@ -1,7 +1,6 @@
-#MonthlyReport/tables_process.py
+# MonthlyReport/tables_process.py
 
 from core.libs import pd
-from core.region import normalize_region_series
 
 def weighted_mean(df, value_col, weight_col):
     valid = df[weight_col] > 0
@@ -12,7 +11,6 @@ def weighted_mean(df, value_col, weight_col):
 def get_allocation_type(etp_year):
     if pd.isna(etp_year):
         return []
-
     if etp_year in [2015, 2017]:
         return ['COP']
     elif etp_year in [2016, 2018]:
@@ -157,3 +155,10 @@ def clean_t2a_for_excel(df: pd.DataFrame) -> pd.DataFrame:
         df_clean = df_clean[cols]
 
     return df_clean
+
+def fmt_pct_1d(num, den):
+    """Formato porcentaje con 1 decimal, o blank si den<=0 o NaN."""
+    if pd.isna(num) or pd.isna(den) or den <= 0:
+        return ""
+    val = num / den
+    return f"{round(val*100, 1)}%"

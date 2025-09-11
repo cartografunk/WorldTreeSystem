@@ -1,224 +1,170 @@
-# MonthlyReport/audit_monthly_report.py
-# QA/Audit reproducible para el Monthly Report
-from core.libs import pd, np, tqdm, Path
+# MonthlyReport/master_table_v3.py
+# Tabla maestra (v3) a partir de FUENTES OFICIALES:
+#   - masterdatabase.contract_tree_information (CTI)
+#   - masterdatabase.survival_current         (SC)
+#   - masterdatabase.inventory_metrics_current (IMC)
+# Incluye: region (prefijo contrato o core.region), status (CTI),
+#          allocation_type (COP/ETP), métricas de supervivencia y medias.
+
+from core.libs import pd, np, Path
 from core.db import get_engine
 from core.paths import DATABASE_EXPORTS_DIR
-from core.schema_helpers import rename_columns_using_schema
-from sqlalchemy import text
 import warnings
 warnings.filterwarnings("ignore", message="Data Validation extension is not supported and will be removed")
 
-# ======== CONFIG ========
-YEAR = 2025                 # año a auditar (ajustable)
-TOL_PCT = 0.005             # 0.5% de tolerancia para survival/mortality
-TOL_COUNT = 1               # tolerancia en conteos (alive/dead/sampled)
-EXPORT_XLSX = Path(DATABASE_EXPORTS_DIR) / "monthly_report_audit.xlsx"
-
+# ========= CONFIG =========
+EXPORT_XLSX = Path(DATABASE_EXPORTS_DIR) / "master_table_v3.xlsx"
 engine = get_engine()
 
-# ======== HELPERS ========
-def list_inventory_tables(engine, year:int):
-    q = text("""
-        SELECT table_schema, table_name
-        FROM information_schema.tables
-        WHERE table_type='BASE TABLE'
-          AND table_name ILIKE :pat
-        ORDER BY 1,2
-    """)
-    # ejemplos esperados: inventory_gt_2025, inventory_cr_2025, etc.
-    df = pd.read_sql(q, engine, params={"pat": f"inventory_%_{year}"})
-    return [(r["table_schema"], r["table_name"]) for _, r in df.iterrows()]
+# ========= Región helper =========
+try:
+    from core.region import get_prefix as _get_prefix
+except Exception:
+    _get_prefix = None
 
-def read_inventory_table(schema, name):
-    df = pd.read_sql(f'SELECT * FROM "{schema}"."{name}"', engine)
-    df = rename_columns_using_schema(df)  # ← usa COLUMNS/aliases del repo
-    return df
+def _compute_region_from_code(code: str) -> str:
+    if pd.isna(code):
+        return None
+    code = str(code).strip()
+    if _get_prefix:
+        try:
+            return _get_prefix(code)
+        except Exception:
+            pass
+    return code[:2].upper() if len(code) >= 2 else None
 
-def safe_int(x):
+# ========= allocation_type =========
+# Si la tienes en MonthlyReport/tables_process.py puedes importarla;
+# aquí la dejamos embebida por simplicidad.
+def get_allocation_type(etp_year):
+    if pd.isna(etp_year):
+        return []
+    if etp_year in [2015, 2017]:
+        return ['COP']
+    elif etp_year in [2016, 2018]:
+        return ['COP', 'ETP']
+    else:
+        return ['ETP']
+
+# ========= survival normalizer para IMC =========
+def _coerce_survival_column(x):
+    """
+    Convierte supervivencia de IMC a proporción:
+    - '85.4%' -> 0.854
+    - '0.854' -> 0.854
+    - 85.4    -> 0.854 (si >1 asumimos %)
+    - otro/sucio -> NaN
+    """
+    if pd.isna(x):
+        return np.nan
     try:
-        return int(x)
+        if isinstance(x, str):
+            s = x.strip()
+            if s.endswith('%'):
+                return float(s[:-1]) / 100.0
+            s = s.replace(',', '.')
+            v = float(s)
+            return v/100.0 if v > 1 else v
+        v = float(x)
+        return v/100.0 if v > 1 else v
     except Exception:
         return np.nan
 
-def rollup_from_inventory(inv_df: pd.DataFrame) -> pd.DataFrame:
-    # Esperados tras rename: contractcode, alive_tree, dead_tree, id_status, dbh_in, tht_ft, doyle_bf, cruisedate (si existe)
-    base_cols = [c for c in ["contractcode","alive_tree","dead_tree","id_status","dbh_in","tht_ft","doyle_bf","cruisedate"] if c in inv_df.columns]
-    inv = inv_df[base_cols].copy()
-
-    # Preferencia 1: columnas binarias alive/dead
-    if "alive_tree" in inv.columns or "dead_tree" in inv.columns:
-        inv["alive_tree"] = inv.get("alive_tree", 0).fillna(0).astype(int)
-        inv["dead_tree"]  = inv.get("dead_tree", 0).fillna(0).astype(int)
-        grp = inv.groupby("contractcode", dropna=False).agg(
-            alive=("alive_tree","sum"),
-            dead=("dead_tree","sum"),
-            sampled=("alive_tree","count"),
-            mean_dbh=("dbh_in","mean"),
-            mean_height=("tht_ft","mean"),
-            doyle_bf=("doyle_bf","sum")
-        ).reset_index()
-    else:
-        # Fallback: pivote por id_status (sin asumir mapeo específico)
-        # Dejamos conteos por status y derivamos 'alive'/'dead' si luego detectamos mapeo
-        inv["id_status"] = inv["id_status"].apply(safe_int)
-        counts = inv.groupby(["contractcode","id_status"], dropna=False).size().reset_index(name="n")
-        pivot = counts.pivot_table(index="contractcode", columns="id_status", values="n", fill_value=0)
-        pivot.columns = [f"status_{c}" for c in pivot.columns]
-        # Agregados básicos
-        agg = inv.groupby("contractcode", dropna=False).agg(
-            sampled=("id_status","count"),
-            mean_dbh=("dbh_in","mean"),
-            mean_height=("tht_ft","mean"),
-            doyle_bf=("doyle_bf","sum")
-        )
-        grp = agg.join(pivot, how="left").reset_index()
-        # NOTA: aquí aún no sabemos cuáles status son alive/dead; se resolverá en reconcile()
-
-    return grp
-
-def attach_contracts_info(df):
-    # CFI + CTI mínimos para contexto
+# ========= lectores base =========
+def read_cti():
     q = """
-    SELECT cfi.contract_code, cfi.farmer_number, cfi.contract_name, cfi.representative, cfi.status,
-           cti.planting_year, cti.trees_contract, cti.planted, cti.species, cti.strain, cti.region
-    FROM masterdatabase.contract_farmer_information cfi
-    LEFT JOIN masterdatabase.contract_tree_information cti
-      ON cti.contract_code = cfi.contract_code
+    SELECT
+        contract_code,
+        trees_contract,
+        planting_year,
+        etp_year,
+        status
+    FROM masterdatabase.contract_tree_information
     """
-    meta = pd.read_sql(q, engine)
-    return df.merge(meta, left_on="contractcode", right_on="contract_code", how="left")
-
-def read_survival_current():
-    q = """
-    SELECT contract_code, current_surviving_trees, total_deads, total_sampled, current_survival
-    FROM masterdatabase.survival_current
-    """
-    return pd.read_sql(q, engine)
-
-def read_inventory_metrics():
-    # opcional: si ya generas mean_dbh/height por contrato/año en inventory_metrics
-    try:
-        q = "SELECT contract_code, mean_dbh, mean_height FROM inventory_metrics"
-        return pd.read_sql(q, engine)
-    except Exception:
-        return pd.DataFrame(columns=["contract_code","mean_dbh","mean_height"])
-
-def reconcile(rollup_df, surv_df, invm_df):
-    df = rollup_df.copy()
-
-    # Si no teníamos alive/dead (pivot por status_), intenta deducir:
-    if ("alive" not in df.columns) or ("dead" not in df.columns):
-        # Heurística común: considera 'status_1' como vivos y 'status_2' como muertos si existen.
-        # Ajusta aquí si tu catálogo difiere; lo importante es centralizar esta regla.
-        alive_cols = [c for c in df.columns if c.lower() in ("status_1","status_alive","status_vivo")]
-        dead_cols  = [c for c in df.columns if c.lower() in ("status_2","status_dead","status_muerto")]
-        df["alive"] = df[alive_cols].sum(axis=1) if alive_cols else np.nan
-        df["dead"]  = df[dead_cols].sum(axis=1)  if dead_cols  else np.nan
-
-    # Métricas derivadas canónicas
-    df["sampled_calc"] = df[["alive","dead"]].sum(axis=1, min_count=1)
-    df["survival_calc"] = (df["alive"] / df["sampled_calc"]).round(4)
-
-    # Join con contracts info
-    df = attach_contracts_info(df)
-
-    # Reconciliar contra survival_current
-    surv = surv_df.rename(columns={
-        "contract_code":"contractcode",
-        "surviving_trees":"alive_sc",
-        "total_deads":"dead_sc",
-        "total_sampled":"sampled_sc",
-        "current_survival":"survival_sc"
-    })
-    df = df.merge(surv, on="contractcode", how="left")
-
-    # Reconciliar contra inventory_metrics (medias)
-    invm = invm_df.rename(columns={"contract_code":"contractcode"})
-    df = df.merge(invm, on="contractcode", how="left", suffixes=("","_im"))
-
-    # Deltas
-    df["diff_alive"]    = df["alive"]   - df["alive_sc"]
-    df["diff_dead"]     = df["dead"]    - df["dead_sc"]
-    df["diff_sampled"]  = df["sampled_calc"] - df["sampled_sc"]
-    df["diff_survival"] = (df["survival_calc"] - df["survival_sc"]).round(4)
-
-    # Bandera PASS/FAIL
-    df["qa_pass"] = (
-        (df["diff_alive"].abs().fillna(0)   <= TOL_COUNT) &
-        (df["diff_dead"].abs().fillna(0)    <= TOL_COUNT) &
-        (df["diff_sampled"].abs().fillna(0) <= TOL_COUNT) &
-        (df["diff_survival"].abs().fillna(0) <= TOL_PCT)
-    )
-
+    df = pd.read_sql(q, engine)
+    for c in ["trees_contract","planting_year","etp_year"]:
+        df[c] = pd.to_numeric(df[c], errors="coerce")
+    df["region"] = df["contract_code"].apply(_compute_region_from_code)
     return df
 
-def snapshot_sources():
-    # Conteos rápidos por tabla clave
-    rows = []
-    # survival_current
-    rows.append(("masterdatabase.survival_current", pd.read_sql("SELECT COUNT(*) AS n FROM masterdatabase.survival_current", engine).iloc[0]["n"]))
-    # inventory_metrics (si existe)
-    try:
-        rows.append(("inventory_metrics", pd.read_sql("SELECT COUNT(*) AS n FROM inventory_metrics", engine).iloc[0]["n"]))
-    except Exception:
-        rows.append(("inventory_metrics", 0))
-    return pd.DataFrame(rows, columns=["table","n_rows"])
+def read_sc():
+    q = """
+    SELECT
+        contract_code,
+        current_surviving_trees
+    FROM masterdatabase.survival_current
+    """
+    df = pd.read_sql(q, engine)
+    df["current_surviving_trees"] = pd.to_numeric(df["current_surviving_trees"], errors="coerce")
+    return df
 
-# ======== RUN ========
+def read_imc():
+    q = """
+    SELECT
+        contract_code,
+        planting_year,
+        dbh_mean,
+        tht_mean,
+        survival
+    FROM masterdatabase.inventory_metrics_current
+    """
+    df = pd.read_sql(q, engine)
+    df["planting_year"] = pd.to_numeric(df["planting_year"], errors="coerce")
+    df["dbh_mean"] = pd.to_numeric(df["dbh_mean"], errors="coerce")
+    df["tht_mean"] = pd.to_numeric(df["tht_mean"], errors="coerce")
+    df["survival_im"] = df["survival"].apply(_coerce_survival_column)
+    return df
+
+# ========= builder =========
+def build_master_table() -> pd.DataFrame:
+    cti = read_cti()
+    sc  = read_sc()
+    imc = read_imc()
+
+    # Merge maestro: CTI ⟵ SC ⟵ IMC (enlazamos IMC también por planting_year)
+    master = cti.merge(sc, on="contract_code", how="left") \
+                .merge(imc, on=["contract_code","planting_year"], how="left", suffixes=("","_imc"))
+
+    # Derivados desde absolutos (SC + CTI)
+    master["alive_sc"]    = master["current_surviving_trees"]
+    master["sampled_sc"]  = master["trees_contract"]
+    master["dead_sc"]     = (master["sampled_sc"] - master["alive_sc"]).clip(lower=0)
+    master["survival_sc"] = np.where(
+        master["sampled_sc"].fillna(0) > 0,
+        (master["alive_sc"] / master["sampled_sc"]).round(4),
+        np.nan
+    )
+
+    # Allocation
+    master["allocation_type"]     = master["etp_year"].apply(get_allocation_type)
+    master["allocation_type_str"] = master["allocation_type"].apply(lambda xs: "|".join(xs) if isinstance(xs, list) else "")
+
+    # Region consistente (por si IMC no trae)
+    if "region" not in master.columns:
+        master["region"] = master["contract_code"].apply(_compute_region_from_code)
+
+    # Orden final (sólo los que existan)
+    cols = [
+        "contract_code","region","status",
+        "planting_year","etp_year","allocation_type_str",
+        "trees_contract","current_surviving_trees",
+        "alive_sc","dead_sc","sampled_sc","survival_sc",
+        "dbh_mean","tht_mean","survival_im","survival"
+    ]
+    return master[[c for c in cols if c in master.columns]]
+
+# ========= export =========
 def main():
-    print("🔎 Audit Monthly Report – QA")
-    tabs = list_inventory_tables(engine, YEAR)
-    if not tabs:
-        print(f"⚠️ No se encontraron tablas inventory_%_{YEAR}. Usaré solo survival_current para snapshot.")
-    frames = []
-    for (sch, name) in tqdm(tabs, desc=f"Cargando inventarios {YEAR}"):
-        df = read_inventory_table(sch, name)
-        if df.empty:
-            continue
-        frames.append(df)
+    print("💻 Conectado a la base de datos helloworldtree")
+    print("🧱 Generando master_table_v3 (CTI + SC + IMC)…")
 
-    if frames:
-        inv_all = pd.concat(frames, ignore_index=True)
-    else:
-        inv_all = pd.DataFrame()
+    master = build_master_table()
+    print(f"ℹ️ Contratos en master: {master['contract_code'].nunique() if 'contract_code' in master.columns else len(master)}")
 
-    # 00 snapshot
-    snap = snapshot_sources()
-
-    # 01 rollup desde inventario
-    if not inv_all.empty:
-        roll = rollup_from_inventory(inv_all)
-    else:
-        roll = pd.DataFrame(columns=["contractcode","alive","dead","sampled","mean_dbh","mean_height","doyle_bf"])
-
-    # 02/03 métricas + 04 reconciliación
-    surv = read_survival_current()
-    invm = read_inventory_metrics()
-    recon = reconcile(roll, surv, invm)
-
-    # 05 discrepancies
-    disc = recon[~recon["qa_pass"].fillna(False)].copy()
-
-    # 06 lineage (parametría)
-    lineage = pd.DataFrame({
-        "param":["YEAR","TOL_PCT","TOL_COUNT"],
-        "value":[YEAR,TOL_PCT,TOL_COUNT]
-    })
-
-    # Export
     with pd.ExcelWriter(EXPORT_XLSX, engine="xlsxwriter") as xw:
-        snap.to_excel(xw, index=False, sheet_name="00_sources_snapshot")
-        roll.to_excel(xw, index=False, sheet_name="01_inventory_rollup")
-        recon.to_excel(xw, index=False, sheet_name="04_reconciliation")
-        disc.to_excel(xw, index=False, sheet_name="05_discrepancies")
-        lineage.to_excel(xw, index=False, sheet_name="06_lineage")
+        master.to_excel(xw, index=False, sheet_name="01_master")
 
-    # Resumen consola
-    total = len(recon)
-    fails = len(disc)
-    print(f"✅ QA completado. Contratos auditados: {total} | Fails: {fails}")
-    if fails:
-        print("⚠️ Hay discrepancias. Revisa 05_discrepancies en el XLSX.")
+    print(f"✅ Listo: {EXPORT_XLSX}")
 
 if __name__ == "__main__":
     main()

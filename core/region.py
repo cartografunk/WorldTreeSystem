@@ -1,52 +1,39 @@
 # core/region.py
 
-COUNTRY_PREFIX = {
-    "USA": "US",
-    "United States": "US",
-    "Mexico": "MX",
-    "México": "MX",
-    "Costa Rica": "CR",
-    "CR": "CR",
-    "Guatemala": "GT",
-    "US": "US"
-}
+import re
+from typing import Optional
 
-def get_prefix(region: str) -> str | None:
+# Prefijos válidos
+VALID_PREFIXES = {"US", "MX", "CR", "GT"}
+
+def get_prefix(region: str | None) -> Optional[str]:
+    """
+    Recibe variantes de nombre de país o prefijo y devuelve siempre
+    'US' | 'MX' | 'CR' | 'GT' | None.
+    """
     if not region:
         return None
-    return COUNTRY_PREFIX.get(str(region).strip(), None)
+    s = str(region).strip().upper()
 
-# 👇 NUEVO: mapea prefijo → nombre canónico de país
-PREFIX_TO_COUNTRY = {
-    "US": "USA",
-    "MX": "Mexico",
-    "CR": "Costa Rica",
-    "GT": "Guatemala",
-}
+    # Normaliza algunos alias comunes
+    aliases = {
+        "USA": "US",
+        "UNITED STATES": "US",
+        "MEXICO": "MX",
+        "MÉXICO": "MX",
+        "COSTA RICA": "CR",
+        "GUATEMALA": "GT",
+    }
+    p = aliases.get(s, s[:2])
+    return p if p in VALID_PREFIXES else None
 
-def normalize_region_name(region: str) -> str | None:
+
+def prefix_from_code(code: str | None) -> Optional[str]:
     """
-    Recibe 'USA', 'US', 'United States', 'México', etc. → devuelve
-    'USA' | 'Mexico' | 'Costa Rica' | 'Guatemala' | None
+    Extrae prefijo (US/MX/CR/GT) a partir del contract_code.
+    Ej: 'MX0031' → 'MX', 'USA001' → 'US'.
     """
-    p = get_prefix(region)
-    return PREFIX_TO_COUNTRY.get(p)
-
-# 👇 conveniente para usar directo sobre Series de pandas
-def normalize_region_series(s):
-    import pandas as _pd
-    return _pd.Series(
-        [normalize_region_name(x) for x in s],
-        index=s.index,
-        dtype="string"
-    )
-
-# --- NUEVO: derivar región desde contract_code ---
-import re
-
-def prefix_from_code(code) -> str | None:
-    """Extrae prefijo 'US'/'MX'/'CR'/'GT' del contract_code."""
-    if code is None:
+    if not code:
         return None
     s = str(code).strip().upper()
     m = re.match(r'^([A-Z]{2,3})', s)
@@ -55,9 +42,11 @@ def prefix_from_code(code) -> str | None:
     p = m.group(1)
     if p == "USA":  # normaliza 3 letras a 2
         p = "US"
-    return p if p in PREFIX_TO_COUNTRY else None
+    return p if p in VALID_PREFIXES else None
 
-def region_from_code(code) -> str | None:
-    """Devuelve nombre canónico a partir del contract_code."""
-    p = prefix_from_code(code)
-    return PREFIX_TO_COUNTRY.get(p)
+
+def region_from_code(code: str | None) -> Optional[str]:
+    """
+    Alias de prefix_from_code, para usar directo en joins/Series.
+    """
+    return prefix_from_code(code)

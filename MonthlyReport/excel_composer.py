@@ -3,11 +3,14 @@
 from MonthlyReport.tables.t1_etp_summary import build_etp_summary
 from MonthlyReport.tables.t2_trees_by_etp_raise import build_etp_trees_table2
 from MonthlyReport.tables.t2a_trees_by_etp_stats_obligation import enrich_with_obligations_and_stats
+from MonthlyReport.tables.t3_trees_by_planting_year import build_t3_trees_by_planting_year
 from MonthlyReport.tables_process import get_allocation_type
+from MonthlyReport.utils_monthly_base import build_monthly_base_table  # NUEVO (monthly_base en memoria)
+from MonthlyReport.stats import survival_stats  # por si usas stats en tus tablas, ya lo tienes modular (:contentReference[oaicite:4]{index=4})
+
 from core.libs import pd, datetime
 from core.paths import MONTHLY_REPORT_DIR, ensure_all_paths_exist
 from core.db import get_engine
-from MonthlyReport.tables.t3_trees_by_planting_year import build_t3_trees_by_planting_year
 from core.db_objects import ensure_fpi_expanded_view   # 👈 NUEVO
 
 def generate_monthly_excel_report():
@@ -16,6 +19,9 @@ def generate_monthly_excel_report():
 
     # 👇 Garantiza la vista: masterdatabase.fpi_contracts_expanded
     ensure_fpi_expanded_view(engine)
+
+    # Monthly Base Table
+    mbt = build_monthly_base_table()
 
     today_str = datetime.today().strftime("%Y-%m-%d")
     output_filename = f"monthly_report_{today_str}.xlsx"
@@ -40,10 +46,13 @@ def generate_monthly_excel_report():
     t3 = build_t3_trees_by_planting_year(engine)
 
     with pd.ExcelWriter(output_path) as writer:
+        # NUEVO: monthly_base
+        #mbt.to_excel(writer, sheet_name="01_monthly_base_table", index=False)
+
         df1.to_excel(writer, sheet_name="ETP Summary", index=False)
-        df2a_us.to_excel(writer, sheet_name="Trees by ETP US Raise", index=False)
-        df2a_can.to_excel(writer, sheet_name="Trees by Canadian ETP Raise", index=False)
-        t3.to_excel(writer, sheet_name="Trees by Planting Year", index=False)
+        #df2a_us.to_excel(writer, sheet_name="Trees by ETP US Raise", index=False)
+        #df2a_can.to_excel(writer, sheet_name="Trees by Canadian ETP Raise", index=False)
+        #t3.to_excel(writer, sheet_name="Trees by Planting Year", index=False)
 
     print("✅ Reporte generado en:\n")
     print(f'"{output_path}"')

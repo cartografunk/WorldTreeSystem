@@ -1,12 +1,11 @@
 from core.libs import pd, np
 from MonthlyReport.utils_monthly_base import build_monthly_base_table
-from MonthlyReport.tables_process import get_allocation_type, fmt_pct_1d  # ← úsalo aquí
-
-ACTIVE_STATUSES = ("Active",)  # ajusta a tus valores EXACTOS
+from MonthlyReport.tables_process import get_allocation_type, fmt_pct_1d
 
 def build_etp_summary(engine=None) -> pd.DataFrame:
     mbt = build_monthly_base_table()
 
+    # 1) Conteo por estado (para columnas wide)
     status_counts = (
         mbt.groupby(["allocation_type_str","region","etp_year","status"], dropna=False)["contract_code"]
            .nunique()
@@ -14,48 +13,47 @@ def build_etp_summary(engine=None) -> pd.DataFrame:
            .reset_index()
     )
 
+    # 2) Agregado global (todos)
     g_glb = mbt.groupby(["allocation_type_str","region","etp_year"], dropna=False).agg(
         alive_total_glb   = ("current_surviving_trees","sum"),
         sampled_total_glb = ("trees_contract","sum"),
         total_contracts   = ("contract_code","nunique"),
     ).reset_index()
 
-    df_act = mbt[mbt["status"].isin(ACTIVE_STATUSES)].copy()
-    g_act = df_act.groupby(["allocation_type_str","region","etp_year"], dropna=False).agg(
-        alive_total_act   = ("current_surviving_trees","sum"),
-        sampled_total_act = ("trees_contract","sum"),
-        total_active      = ("contract_code","nunique"),
+    # 3) Agregado **no-OOP** (todos menos Out of Program)
+    df_non_oop = mbt[mbt["status"].fillna("").str.strip() != "Out of Program"].copy()
+    g_non_oop = df_non_oop.groupby(["allocation_type_str","region","etp_year"], dropna=False).agg(
+        alive_total_non_oop   = ("current_surviving_trees","sum"),
+        sampled_total_non_oop = ("trees_contract","sum"),
+        total_non_oop         = ("contract_code","nunique"),
     ).reset_index()
 
-    out = status_counts.merge(g_glb, on=["allocation_type_str","region","etp_year"], how="left") \
-                       .merge(g_act, on=["allocation_type_str","region","etp_year"], how="left")
-
-    out["Survival (Active)"] = out.apply(
-        lambda r: fmt_pct_1d(r.get("alive_total_act"), r.get("sampled_total_act")), axis=1
-    )
-    out["Survival (Global)"] = out.apply(
-        lambda r: fmt_pct_1d(r.get("alive_total_glb"), r.get("sampled_total_glb")), axis=1
+    # 4) Merge
+    out = (
+        status_counts
+        .merge(g_glb,    on=["allocation_type_str","region","etp_year"], how="left")
+        .merge(g_non_oop,on=["allocation_type_str","region","etp_year"], how="left")
     )
 
+    # 5) Survival = porcentaje sobre **no-OOP** (si hay alguno)
+    out["Survival"] = np.where(
+        out["total_non_oop"].fillna(0) > 0,
+        out.apply(lambda r: fmt_pct_1d(r.get("alive_total_non_oop"), r.get("sampled_total_non_oop")), axis=1),
+        None
+    )
+
+    # 6) Limpieza/renombres
     out = out.rename(columns={
         "allocation_type_str": "Allocation Type",
         "region": "Region",
         "etp_year": "ETP Year",
         "total_contracts": "Total Contracts",
-        #"total_active": "Total Active Contracts"
     })
 
-    # 👈 AQUÍ: dropeamos los campos de cálculo
-    out = out.drop(
-        columns=[
-            "alive_total_glb",
-            "sampled_total_glb",
-            "alive_total_act",
-            "sampled_total_act",
-            "total_active",
-        ],
-        errors="ignore"
-    )
+    out = out.drop(columns=[
+        "alive_total_glb","sampled_total_glb",
+        "alive_total_non_oop","sampled_total_non_oop","total_non_oop"
+    ], errors="ignore")
 
     out["ETP Year"] = out["ETP Year"].astype("Int64").astype("string")
     out.loc[out["ETP Year"].isin(["<NA>","nan"]), "ETP Year"] = "Not asigned yet"
@@ -63,8 +61,8 @@ def build_etp_summary(engine=None) -> pd.DataFrame:
     cat_order = pd.CategoricalDtype(categories=["COP","COP|ETP","ETP"], ordered=True)
     out["Allocation Type"] = out["Allocation Type"].astype(cat_order)
 
-    fixed_left  = ["Allocation Type","Region","ETP Year", "Total Contracts"]
-    fixed_right = ["Survival (Active)","Survival (Global)"]
+    fixed_left  = ["Allocation Type","Region","ETP Year","Total Contracts"]
+    fixed_right = ["Survival"]
     status_cols = [c for c in out.columns if c not in fixed_left + fixed_right]
 
     out = out.sort_values(by=["ETP Year","Allocation Type","Region"], na_position="last")

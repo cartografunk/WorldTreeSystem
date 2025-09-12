@@ -162,3 +162,59 @@ def fmt_pct_1d(num, den):
         return ""
     val = num / den
     return f"{round(val*100, 1)}%"
+
+def _merge_back_geo_columns(df_enriched: pd.DataFrame, df_base: pd.DataFrame) -> pd.DataFrame:
+    """
+    Preserva/recupera columnas geo de t2 (Costa Rica, Guatemala, Mexico, USA) y Total
+    después de enrich_with_obligations_and_stats, que a veces las pisa o las pierde.
+    """
+    GEO = ["Costa Rica", "Guatemala", "Mexico", "USA"]
+    KEY = ["year", "etp", "contract_trees_status"]
+
+    base_geo = df_base[KEY + [c for c in GEO + ["Total"] if c in df_base.columns]].copy()
+    out = df_enriched.merge(base_geo, on=KEY, how="left", suffixes=("", "_base"))
+
+    # Si la versión enriquecida no trae columnas geo o las trae en cero, usa las de *_base
+    for c in GEO + ["Total"]:
+        has_col = c in out.columns
+        if not has_col and f"{c}_base" in out.columns:
+            out[c] = out[f"{c}_base"]
+        elif has_col and f"{c}_base" in out.columns:
+            # Si quedó en 0 o NaN, rellena con base
+            mask = out[c].isna() | (pd.to_numeric(out[c], errors="coerce").fillna(0) == 0)
+            out.loc[mask, c] = out.loc[mask, f"{c}_base"]
+
+        # Tipifica a int y limpia
+        if c in out.columns:
+            out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0).astype(int)
+        if f"{c}_base" in out.columns:
+            out.drop(columns=[f"{c}_base"], inplace=True)
+
+    # Recalcula Total si sigue en 0 pero hay suma positiva en GEO
+    if all(col in out.columns for col in GEO):
+        s = out[GEO].sum(axis=1)
+        mask_fix = (pd.to_numeric(out.get("Total", 0), errors="coerce").fillna(0) == 0) & (s > 0)
+        out.loc[mask_fix, "Total"] = s.loc[mask_fix].astype(int)
+
+    # Orden amigable si existen
+    front = ["year", "etp", "contract_trees_status"]
+    tail  = [c for c in ["Total", "Survival %", "Survival_Summary", "Series Obligation", "Obligation_Remaining"] if c in out.columns]
+    mid   = [c for c in ["Costa Rica", "Guatemala", "Mexico", "USA"] if c in out.columns]
+    cols  = [c for c in front + mid + tail if c in out.columns]
+    return out[cols]
+
+
+# MonthlyReport/tables_process.py
+
+ALIAS_MAP = {
+    "year": "ETP Year",
+    "etp": "Type of ETP",
+    "contract_trees_status": "Status of Trees",
+    "Survival %": "Survival (%)",
+    "Survival_Summary": "Survival by Contracts Summary",
+    "Obligation_Remaining": "Obligation Remaining",
+}
+
+def apply_aliases(df):
+    """Renombra columnas al formato final para Excel."""
+    return df.rename(columns=ALIAS_MAP)

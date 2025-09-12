@@ -80,14 +80,21 @@ def _coerce_survival_column(x):
 # =========================
 def _read_cti():
     q = """
-    SELECT contract_code, trees_contract, planting_year, etp_year, status
+    SELECT contract_code, trees_contract, planted, planting_year, etp_year, status
     FROM masterdatabase.contract_tree_information
     """
     df = pd.read_sql(q, engine)
-    for c in ["trees_contract", "planting_year", "etp_year"]:
-        df[c] = pd.to_numeric(df[c], errors="coerce")
-    df["region"] = df["contract_code"].apply(_compute_region_from_code)  # ✅ iniciales
+
+    # Solo convierte a numéricas las que sí lo son
+    num_cols = ["trees_contract","planted","planting_year","etp_year"]
+    df[num_cols] = df[num_cols].apply(pd.to_numeric, errors="coerce")
+
+    # status se queda como texto:
+    df["status"] = df["status"].astype(str).str.strip()
+
+    df["region"] = df["contract_code"].apply(_compute_region_from_code)
     return df
+
 
 
 def _read_sc():
@@ -114,6 +121,35 @@ def _read_imc():
     df["survival_im"] = df["survival"].apply(_coerce_survival_column)
     return df
 
+def _read_ca():
+    q = """
+    SELECT
+        contract_code,
+        usa_trees_contracted,
+        usa_trees_planted,
+        canada_trees_contracted,
+        total_can_allocation,
+        loaded_at
+    FROM masterdatabase.contract_allocation
+    """
+    df = pd.read_sql(q, engine)
+
+    # Tipos numéricos seguros
+    for c in ["usa_trees_contracted","usa_trees_planted","canada_trees_contracted","total_can_allocation"]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce")
+
+    # Si hay múltiples filas por contrato, quédate con la última por loaded_at
+    if "loaded_at" in df.columns:
+        df = (
+            df.sort_values("loaded_at")
+              .drop_duplicates(subset=["contract_code"], keep="last")
+              .reset_index(drop=True)
+        )
+
+    return df
+
+
 
 # =========================
 # Builder principal (EN MEMORIA)
@@ -122,40 +158,82 @@ def build_monthly_base_table() -> pd.DataFrame:
     """
     Devuelve la Monthly Base Table (MBT) en memoria.
     Claves por contrato: region, status (CTI), planting_year, etp_year, allocation_type,
-    absolutos SC (alive, dead, sampled, survival_sc) y métricas IMC (dbh_mean, tht_mean, survival_im).
+    absolutos SC (alive, dead, sampled, survival_sc), métricas IMC, y métricas COP (CA).
     """
-    cti = _read_cti()
-    sc = _read_sc()
-    imc = _read_imc()
+    # --- Lecturas base ---
+    cti = _read_cti()   # debe traer: contract_code, trees_contract, planted?, planting_year, etp_year, status, region
+    sc  = _read_sc()    # contract_code, current_surviving_trees
+    imc = _read_imc()   # contract_code, planting_year, dbh_mean, tht_mean, survival → survival_im
+    ca  = _read_ca()    # contract_code, etp_year, usa_trees_contracted, usa_trees_planted, canada_trees_contracted, total_can_allocation
 
+    # --- Merge canónico ---
     mbt = (
         cti.merge(sc, on="contract_code", how="left")
-           .merge(imc, on=["contract_code", "planting_year"], how="left")
+        .merge(imc, on=["contract_code", "planting_year"], how="left")
+        .merge(ca, on="contract_code", how="left")  # 👈 antes usábamos ["contract_code","etp_year"]
     )
 
-    # Derivados SC
-    mbt["alive_sc"] = mbt["current_surviving_trees"]
+    # --- Tipos/nulos seguros ---
+    for c in ["trees_contract", "planting_year", "etp_year", "current_surviving_trees",
+              "dbh_mean", "tht_mean"]:
+        if c in mbt.columns:
+            mbt[c] = pd.to_numeric(mbt[c], errors="coerce")
+
+    # planted puede no existir en CTI → garantiza columna numérica
+    if "planted" in mbt.columns:
+        mbt["planted"] = pd.to_numeric(mbt["planted"], errors="coerce").fillna(0)
+    else:
+        mbt["planted"] = 0
+
+    # --- Derivados SC ---
+    mbt["alive_sc"]   = mbt["current_surviving_trees"]
     mbt["sampled_sc"] = mbt["trees_contract"]
-    mbt["dead_sc"] = (mbt["sampled_sc"] - mbt["alive_sc"]).clip(lower=0)
+    mbt["dead_sc"]    = (mbt["sampled_sc"] - mbt["alive_sc"]).clip(lower=0)
     mbt["survival_sc"] = np.where(
         mbt["sampled_sc"].fillna(0) > 0,
         (mbt["alive_sc"] / mbt["sampled_sc"]).round(4),
         np.nan,
     )
 
-    # Allocation
+    # --- Allocation ---
+    # Asegúrate de tener importado: from MonthlyReport.tables_process import get_allocation_type
     mbt["allocation_type"] = mbt["etp_year"].apply(get_allocation_type)
     mbt["allocation_type_str"] = mbt["allocation_type"].apply(
         lambda xs: "|".join(xs) if isinstance(xs, list) else ""
     )
 
-    # Orden sugerido (solo columnas existentes)
+    # --- Métricas COP (desde CA) ---
+    # Si las columnas no existen (años sin CA), el .get devolverá None → fillna(0) después
+    mbt["contracted_cop"] = (
+        mbt[["canada_trees_contracted", "usa_trees_contracted"]].fillna(0).sum(axis=1)
+    )
+    mbt["planted_cop"] = (
+        mbt[["total_can_allocation", "usa_trees_planted"]].fillna(0).sum(axis=1)
+    )
+    mbt["has_cop"] = (
+        mbt[["canada_trees_contracted", "usa_trees_contracted", "total_can_allocation", "usa_trees_planted"]]
+        .notna().any(axis=1)
+    )
+
+    # mbt_check = mbt[["contract_code", "etp_year", "region",
+    #                  "trees_contract", "planted", "alive_sc",
+    #                  "contracted_cop", "planted_cop", "has_cop"]].head(50)
+    # print(mbt_check.to_string())
+
+    # --- Orden sugerido (solo columnas presentes) ---
     cols = [
         "contract_code", "region", "status",
         "planting_year", "etp_year", "allocation_type_str",
-        "trees_contract", "current_surviving_trees",
-        "alive_sc", "dead_sc", "sampled_sc", "survival_sc",
+        # CTI (ETP)
+        "trees_contract", "planted",
+        # SC
+        "current_surviving_trees", "alive_sc", "dead_sc", "sampled_sc", "survival_sc",
+        # IMC
         "dbh_mean", "tht_mean", "survival_im", "survival",
+        # CA (COP)
+        "usa_trees_contracted", "usa_trees_planted",
+        "canada_trees_contracted", "total_can_allocation",
+        "contracted_cop", "planted_cop", "has_cop",
     ]
-
     return mbt[[c for c in cols if c in mbt.columns]]
+

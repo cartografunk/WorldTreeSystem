@@ -1,7 +1,7 @@
 # MonthlyReport/tables/t2a_trees_by_etp_stats_obligation.py
 
 from core.libs import pd
-from MonthlyReport.tables_process import clean_t2a_for_excel, get_allocation_type
+from MonthlyReport.tables_process import clean_t2a_for_excel, get_allocation_type, apply_aliases
 from MonthlyReport.stats import survival_stats
 # OJO: no usamos normalize_region_series aquí
 

@@ -19,6 +19,44 @@ def get_allocation_type(etp_year):
         return ['ETP']
 
 
+def compute_allocation_type_contract(df: pd.DataFrame) -> pd.Series:
+    def _num(col):
+        return pd.to_numeric(df.get(col), errors="coerce").fillna(0)
+
+    year         = pd.to_numeric(df.get("etp_year"), errors="coerce").astype("Int64")
+    usa_contract = _num("usa_trees_contracted")
+    usa_planted  = _num("usa_trees_planted")
+    can_contract = _num("canada_trees_contracted")
+    can_total    = _num("total_can_allocation")
+    can_2017     = _num("canada_2017_trees")
+    cti_contract = _num("trees_contract")
+    cti_planted  = _num("planted")
+    usa_pct      = pd.to_numeric(df.get("usa_allocation_pct"), errors="coerce")
+
+    # máscaras por cohorte
+    is_cop_year = year.isin([2015, 2017])
+    is_mix_year = year.isin([2016, 2018])
+    is_etp_year = ~(is_cop_year | is_mix_year)
+
+    out = pd.Series("", index=df.index, dtype="object")
+
+    # COP puro
+    out.loc[is_cop_year & ((can_contract + can_total + ((year == 2017).astype(int) * can_2017)) > 0)] = "COP"
+
+    # COP/ETP — aquí sí divide
+    out.loc[is_mix_year & (usa_pct == 1)] = "ETP"
+    out.loc[is_mix_year & (usa_pct == 0)] = "COP"
+    out.loc[is_mix_year & (usa_pct > 0) & (usa_pct < 1)] = "COP/ETP"
+
+    # ETP puro
+    out.loc[is_etp_year] = "ETP"
+
+    return out
+
+
+
+
+
 def build_etp_trees(engine, etp_year, allocation_type):
     ca  = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
     cti = pd.read_sql("SELECT * FROM masterdatabase.contract_tree_information", engine)  # ← nombre correcto

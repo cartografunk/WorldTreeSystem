@@ -1,3 +1,4 @@
+#MonthlyReport/tables/t1_etp_summary.py
 from core.libs import pd, np
 from MonthlyReport.utils_monthly_base import build_monthly_base_table
 from MonthlyReport.tables_process import get_allocation_type, fmt_pct_1d
@@ -22,10 +23,17 @@ def build_etp_summary(engine=None) -> pd.DataFrame:
 
     # 3) Agregado **no-OOP** (todos menos Out of Program)
     df_non_oop = mbt[mbt["status"].fillna("").str.strip() != "Out of Program"].copy()
-    g_non_oop = df_non_oop.groupby(["allocation_type_str","region","etp_year"], dropna=False).agg(
-        alive_total_non_oop   = ("current_surviving_trees","sum"),
-        sampled_total_non_oop = ("trees_contract","sum"),
-        total_non_oop         = ("contract_code","nunique"),
+
+    # 👇 nuevo: excluir también los marcados con filter
+    if "Filter" in df_non_oop.columns:
+        df_non_oop = df_non_oop[df_non_oop["Filter"].isna()].copy()
+
+    g_non_oop = df_non_oop.groupby(
+        ["allocation_type_str", "region", "etp_year"], dropna=False
+    ).agg(
+        alive_total_non_oop=("current_surviving_trees", "sum"),
+        sampled_total_non_oop=("trees_contract", "sum"),
+        total_non_oop=("contract_code", "nunique"),
     ).reset_index()
 
     # 4) Merge

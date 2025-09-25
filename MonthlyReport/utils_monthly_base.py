@@ -80,7 +80,7 @@ def _coerce_survival_column(x):
 # =========================
 def _read_cti():
     q = """
-    SELECT contract_code, trees_contract, planted, planting_year, etp_year, status
+    SELECT contract_code, trees_contract, planted, planting_year, etp_year, status, "Filter"
     FROM masterdatabase.contract_tree_information
     """
     df = pd.read_sql(q, engine)
@@ -125,6 +125,7 @@ def _read_ca():
     q = """
     SELECT
         contract_code,
+        usa_allocation_pct,
         usa_trees_contracted,
         usa_trees_planted,
         canada_trees_contracted,
@@ -135,7 +136,7 @@ def _read_ca():
     df = pd.read_sql(q, engine)
 
     # Tipos numéricos seguros
-    for c in ["usa_trees_contracted","usa_trees_planted","canada_trees_contracted","total_can_allocation"]:
+    for c in ["usa_allocation_pct", "usa_trees_contracted","usa_trees_planted","canada_trees_contracted","total_can_allocation"]:
         if c in df.columns:
             df[c] = pd.to_numeric(df[c], errors="coerce")
 
@@ -203,7 +204,6 @@ def build_monthly_base_table() -> pd.DataFrame:
     )
 
     # --- Métricas COP (desde CA) ---
-    # Si las columnas no existen (años sin CA), el .get devolverá None → fillna(0) después
     mbt["contracted_cop"] = (
         mbt[["canada_trees_contracted", "usa_trees_contracted"]].fillna(0).sum(axis=1)
     )
@@ -214,6 +214,10 @@ def build_monthly_base_table() -> pd.DataFrame:
         mbt[["canada_trees_contracted", "usa_trees_contracted", "total_can_allocation", "usa_trees_planted"]]
         .notna().any(axis=1)
     )
+
+    # 👇 pasar el pct tal cual (sin fillna)
+    if "usa_allocation_pct" in mbt.columns:
+        mbt["usa_allocation_pct"] = pd.to_numeric(mbt["usa_allocation_pct"], errors="coerce")
 
     # mbt_check = mbt[["contract_code", "etp_year", "region",
     #                  "trees_contract", "planted", "alive_sc",
@@ -231,9 +235,9 @@ def build_monthly_base_table() -> pd.DataFrame:
         # IMC
         "dbh_mean", "tht_mean", "survival_im", "survival",
         # CA (COP)
-        "usa_trees_contracted", "usa_trees_planted",
+        "usa_trees_contracted", "usa_trees_planted", "usa_allocation_pct",
         "canada_trees_contracted", "total_can_allocation",
-        "contracted_cop", "planted_cop", "has_cop",
+        "contracted_cop", "planted_cop", "has_cop", "Filter"
     ]
     return mbt[[c for c in cols if c in mbt.columns]]
 

@@ -14,11 +14,13 @@ def build_etp_trees_table2(engine):
 
     # Tipos (no tocamos 'region')
     mbt["etp_year"]       = pd.to_numeric(mbt.get("etp_year"), errors="coerce").astype("Int64")
-    mbt["trees_contract"] = pd.to_numeric(mbt.get("trees_contract"), errors="coerce").fillna(0)
-    mbt["planted"]        = pd.to_numeric(mbt.get("planted"), errors="coerce").fillna(0)
-    mbt["alive_sc"]       = pd.to_numeric(mbt.get("alive_sc"), errors="coerce").fillna(0)
-    mbt["contracted_cop"] = pd.to_numeric(mbt.get("contracted_cop"), errors="coerce").fillna(0)
-    mbt["planted_cop"]    = pd.to_numeric(mbt.get("planted_cop"), errors="coerce").fillna(0)
+    # Tipos (asegura enteros)
+    mbt["alive_sc"] = pd.to_numeric(mbt.get("alive_sc"), errors="coerce").fillna(0).round(0).astype(int)
+    mbt["trees_contract"] = pd.to_numeric(mbt.get("trees_contract"), errors="coerce").fillna(0).round(0).astype(int)
+    mbt["planted"] = pd.to_numeric(mbt.get("planted"), errors="coerce").fillna(0).round(0).astype(int)
+    mbt["contracted_cop"] = pd.to_numeric(mbt.get("contracted_cop"), errors="coerce").fillna(0).round(0).astype(int)
+    mbt["planted_cop"] = pd.to_numeric(mbt.get("planted_cop"), errors="coerce").fillna(0).round(0).astype(int)
+
     if "has_cop" not in mbt.columns:
         mbt["has_cop"] = False
 
@@ -62,8 +64,8 @@ def build_etp_trees_table2(engine):
 
     # Integridad post-agrupación
     g["Surviving"] = g["Surviving"].clip(lower=0)
-    g["Surviving"] = g[["Surviving","Contracted"]].min(axis=1)
-    g["Surviving"] = g[["Surviving","Planted"]].min(axis=1)
+    g["Surviving"] = g[["Surviving", "Contracted"]].min(axis=1)
+    g["Surviving"] = g[["Surviving", "Planted"]].min(axis=1)
 
     # Long → pivot por región
     df_long = g.melt(

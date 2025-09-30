@@ -21,7 +21,9 @@ def get_allocation_type(etp_year):
 
 def compute_allocation_type_contract(df: pd.DataFrame) -> pd.Series:
     def _num(col):
-        return pd.to_numeric(df.get(col), errors="coerce").fillna(0)
+        if col not in df.columns:
+            return pd.Series(0, index=df.index, dtype="float64")
+        return pd.to_numeric(df[col], errors="coerce").fillna(0)
 
     year         = pd.to_numeric(df.get("etp_year"), errors="coerce").astype("Int64")
     usa_contract = _num("usa_trees_contracted")
@@ -43,7 +45,7 @@ def compute_allocation_type_contract(df: pd.DataFrame) -> pd.Series:
     # COP puro
     out.loc[is_cop_year & ((can_contract + can_total + ((year == 2017).astype(int) * can_2017)) > 0)] = "COP"
 
-    # COP/ETP — aquí sí divide
+    # COP/ETP — divide según usa_allocation_pct
     out.loc[is_mix_year & (usa_pct == 1)] = "ETP"
     out.loc[is_mix_year & (usa_pct == 0)] = "COP"
     out.loc[is_mix_year & (usa_pct > 0) & (usa_pct < 1)] = "COP/ETP"
@@ -52,7 +54,6 @@ def compute_allocation_type_contract(df: pd.DataFrame) -> pd.Series:
     out.loc[is_etp_year] = "ETP"
 
     return out
-
 
 
 
@@ -209,7 +210,13 @@ def _merge_back_geo_columns(df_enriched: pd.DataFrame, df_base: pd.DataFrame) ->
     GEO = ["Costa Rica", "Guatemala", "Mexico", "USA"]
     KEY = ["year", "etp", "contract_trees_status"]
 
+    # 👇 Normaliza: si viene con etp_year pero no con year, crea year
+    if "year" not in df_enriched.columns and "etp_year" in df_enriched.columns:
+        df_enriched = df_enriched.copy()
+        df_enriched["year"] = df_enriched["etp_year"]
+
     base_geo = df_base[KEY + [c for c in GEO + ["Total"] if c in df_base.columns]].copy()
+
     out = df_enriched.merge(base_geo, on=KEY, how="left", suffixes=("", "_base"))
 
     # Si la versión enriquecida no trae columnas geo o las trae en cero, usa las de *_base

@@ -76,6 +76,24 @@ def build_t3_trees_by_planting_year(engine):
     long_surv    = _pivot_sum("Surviving")
 
     # === 5) Survival % poblacional por planting_year ===
+    # 👇 survival base: excluir Out of Program + Filter
+    mask_surv = (mbt["status"].fillna("").str.strip() != "Out of Program") & (mbt["Filter"].isna())
+    g_planted = mbt.groupby(["planting_year", "region_disp"], dropna=False)["Planted_use"].sum().reset_index()
+    g_surv = mbt.loc[mask_surv].groupby(["planting_year", "region_disp"], dropna=False)[
+        "Surviving_use"].sum().reset_index()
+
+    def _pivot_sum(df, col):
+        t = df.pivot_table(index="planting_year", columns="region_disp", values=col, aggfunc="sum",
+                           fill_value=0).reset_index()
+        for c in COUNTRIES:
+            if c not in t.columns:
+                t[c] = 0
+        t["Total"] = t[COUNTRIES].sum(axis=1)
+        return t
+
+    long_planted = _pivot_sum(g_planted, "Planted_use")
+    long_surv = _pivot_sum(g_surv, "Surviving_use")
+
     rate = (
         long_planted[["planting_year", "Total"]].rename(columns={"Total": "P"})
         .merge(long_surv[["planting_year", "Total"]].rename(columns={"Total": "S"}), on="planting_year", how="outer")
@@ -86,9 +104,10 @@ def build_t3_trees_by_planting_year(engine):
     # === 6) Survival Summary por planting_year (no ponderado) usando mbt ===
     base_stats = mbt.copy()
     if "status" in base_stats.columns:
-        base_stats = base_stats[base_stats["status"] == "Active"]
+        base_stats = base_stats[(base_stats["status"] == "Active") & (base_stats["Filter"].isna())]
     base_stats["survival_pct"] = base_stats.apply(
-        lambda r: (r["alive_sc"] / r["trees_contract"]) if pd.notna(r["trees_contract"]) and r["trees_contract"] > 0 else pd.NA,
+        lambda r: (r["alive_sc"] / r["trees_contract"]) if pd.notna(r["trees_contract"]) and r[
+            "trees_contract"] > 0 else pd.NA,
         axis=1
     )
 

@@ -73,18 +73,18 @@ def generate_monthly_excel_report():
     #   T4 = T2(calc) - T4_hist(<corte)
     #   T5 = T3(calc) - T5_hist(<corte)
     # =========================
-    t4_long = build_t4_change_by_etp(engine=engine, run_month=run_month_str, materialize=True)
-    t5_long = build_t5_change_by_planting_year(engine=engine, run_month=run_month_str, materialize=True)
+    #t4_long = build_t4_change_by_etp(engine=engine, run_month=run_month_str, materialize=True)
+    #t5_long = build_t5_change_by_planting_year(engine=engine, run_month=run_month_str, materialize=True)
 
     # Matrices estilo Excel
-    t4_matrix = format_t4_matrix(t4_long)
-    t5_matrix = format_t5_matrix(t5_long)
+    #t4_matrix = format_t4_matrix(t4_long)
+    #t5_matrix = format_t5_matrix(t5_long)
 
     # =========================
     # Exportar a Excel
     # =========================
     with pd.ExcelWriter(output_path) as writer:
-        # mbt.to_excel(writer, sheet_name="01_monthly_base_table", index=False)  # útil para troubleshooting
+        mbt.to_excel(writer, sheet_name="01_monthly_base_table", index=False)  # útil para troubleshooting
         df1.to_excel(writer, sheet_name="ETP Summary", index=False)
         t1a.to_excel(writer, sheet_name="ETP Summary by Allocation", index=False)
 
@@ -94,8 +94,8 @@ def generate_monthly_excel_report():
         t3.to_excel(writer, sheet_name="Trees by Planting Year", index=False)
 
         # T4/T5 (diferenciales definitivos)
-        t4_matrix.to_excel(writer, sheet_name="Change of Trees by ETP US Raise", index=False)
-        t5_matrix.to_excel(writer, sheet_name="Change of Trees by PlantingYear", index=False)
+        #t4_matrix.to_excel(writer, sheet_name="Change of Trees by ETP US Raise", index=False)
+        #t5_matrix.to_excel(writer, sheet_name="Change of Trees by PlantingYear", index=False)
 
     print("✅ Reporte generado en:\n")
     print(f'"{output_path}"')

@@ -183,6 +183,8 @@ def build_monthly_base_table() -> pd.DataFrame:
     sc  = _read_sc()
     ca  = _read_ca()
 
+
+
     # --- Merge canónico ---
     mbt = (
         cti.merge(sc, on="contract_code", how="left")
@@ -208,6 +210,9 @@ def build_monthly_base_table() -> pd.DataFrame:
         (mbt["alive_sc"] / mbt["sampled_sc"]).round(4),
         np.nan,
     )
+    # --- Lógica auxiliar: 2017 = COP puro identificado por canada_2017_trees ---
+    mbt["is_canada_2017"] = mbt["canada_2017_trees"].fillna(0) > 0
+    mbt["etp_year_logic"] = np.where(mbt["is_canada_2017"], 2017, mbt["etp_year"])
 
     # --- Fill de etp_type (regla histórica) ---
     mbt["etp_type"] = mbt["etp_type"].astype(str).str.strip()

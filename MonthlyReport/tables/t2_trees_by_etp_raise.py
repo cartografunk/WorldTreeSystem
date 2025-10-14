@@ -1,86 +1,112 @@
 # MonthlyReport/tables/t2_trees_by_etp_raise.py
+from core.libs import pd, np
 
-from core.libs import pd
-from MonthlyReport.utils_monthly_base import build_monthly_base_table
+COUNTRY_COLS = ["Costa Rica", "Guatemala", "Mexico", "USA"]
+REGION_TO_COUNTRY = {"CR": "Costa Rica", "GT": "Guatemala", "MX": "Mexico", "US": "USA"}
+FULFILLED_CUTOFF = 2023  # <= 2023 => "Fulfilled"
 
-DISPLAY_MAP  = {"CR": "Costa Rica", "GT": "Guatemala", "MX": "Mexico", "US": "USA"}
-DISPLAY_COLS = ["Costa Rica", "Guatemala", "Mexico", "USA"]
+def build_etp_trees_table2(mbt: pd.DataFrame, so_by_year: dict | None = None) -> pd.DataFrame:
+    """
+    T2 (Trees by ETP) desde MBT y un mapa series_obligation por año (so_by_year).
+    - Filtros: status != 'Out of Program', Filter != 'Omit', Type of ETP in {'ETP','ETP/COP'}
+    - Métricas por país: Contracted (contracted_etp), Planted (planted_etp), Surviving (current_surviving_trees)
+    - Survival by Contracts Summary (solo Filter IS NULL)
+    - Obligation Remaining (solo fila 'Surviving'):
+        * y <= 2023 -> "Fulfilled"
+        * y >= 2024 -> series_obligation(y) - Σ(contracted_etp del grupo)
+    """
+    so_by_year = so_by_year or {}
 
-def build_etp_trees_table2(engine):
-    mbt = build_monthly_base_table()
-    if mbt.empty:
-        return pd.DataFrame(columns=["year","etp","contract_trees_status"] + DISPLAY_COLS + ["Total"])
+    df = mbt.copy()
 
-    # Solo contratos con componente ETP (ETP puros o mixtos)
-    mbt = mbt[mbt["etp_type"].isin(["ETP","ETP/COP"])].copy()
-    mbt["etp"] = "ETP"
+    # Country legible
+    if "region" in df.columns:
+        df["Country"] = df["region"].map(REGION_TO_COUNTRY).fillna(df.get("region"))
 
-    # Tipos numéricos seguros
-    for c in ["contracted_etp","planted_etp","current_surviving_trees"]:
-        if c in mbt.columns:
-            mbt[c] = pd.to_numeric(mbt[c], errors="coerce").fillna(0)
+    # Filtros T2
+    if "etp_type" in df.columns:
+        df = df[df["etp_type"].isin(["ETP", "ETP/COP"])]
+        df = df.rename(columns={"etp_type": "Type of ETP"})
+    else:
+        df["Type of ETP"] = None
 
-    # Agregados por año/región
-    g = (
-        mbt.groupby(["etp_year","region"], dropna=False)
-           .agg(
-               Contracted=("contracted_etp","sum"),
-               Planted   =("planted_etp","sum"),
-               Surviving =("current_surviving_trees","sum")
-           )
-           .reset_index()
-    )
+    df = df[df["status"].fillna("").str.strip() != "Out of Program"]
+    if "Filter" in df.columns:
+        df = df[df["Filter"].fillna("") != "Omit"]
 
-    # Long → pivot
-    df_long = g.melt(
-        id_vars=["etp_year","region"],
-        value_vars=["Contracted","Planted","Surviving"],
-        var_name="contract_trees_status",
-        value_name="value"
-    )
+    # Métricas por Status of Trees (coherentes con la obligación)
+    df["value__Contracted"] = pd.to_numeric(df.get("contracted_etp", 0), errors="coerce").fillna(0)
+    df["value__Planted"]    = pd.to_numeric(df.get("planted_etp",   0), errors="coerce").fillna(0)
+    df["value__Surviving"]  = pd.to_numeric(df.get("current_surviving_trees", 0), errors="coerce").fillna(0)
 
-    totals_fallback = (
-        df_long.groupby(["etp_year","contract_trees_status"], dropna=False)["value"]
-               .sum(min_count=1)
-               .reset_index()
-               .rename(columns={"value":"Total_fallback"})
-    )
+    rows = []
+    for (y, t), g in df.groupby(["etp_year", "Type of ETP"], dropna=True):
+        for status, col in [
+            ("Contracted", "value__Contracted"),
+            ("Planted",    "value__Planted"),
+            ("Surviving",  "value__Surviving"),
+        ]:
+            metric = g.groupby("Country", dropna=False)[col].sum(min_count=1)
+            vals = {c: float(metric.get(c, 0.0) if c in metric.index else 0.0) for c in COUNTRY_COLS}
+            total = float(sum(vals.values()))
 
-    piv = df_long.pivot_table(
-        index=["etp_year","contract_trees_status"],
-        columns="region",
-        values="value",
-        aggfunc="sum",
-        fill_value=0
-    ).reset_index()
+            survival_summary = None
+            obligation_remaining = None
 
-    # Países visibles
-    for pref, disp in DISPLAY_MAP.items():
-        piv[disp] = pd.to_numeric(piv.get(pref, 0), errors="coerce").fillna(0)
+            if status == "Surviving":
+                # ---- Survival by Contracts Summary (solo Filter IS NULL) ----
+                sub = g[g["Filter"].isna()] if "Filter" in g.columns else g
+                contr = pd.to_numeric(sub.get("trees_contract", 0), errors="coerce").fillna(0)
+                surv  = pd.to_numeric(sub.get("current_surviving_trees", 0), errors="coerce").fillna(0)
+                with np.errstate(divide="ignore", invalid="ignore"):
+                    ratio = (surv / contr).replace([np.inf, -np.inf], np.nan)
+                s = ratio.dropna()
+                if not s.empty:
+                    def pct(v): return f"{v*100:.1f}%"
+                    mean_v, med_v = s.mean(), s.median()
+                    mode_v = ((s*100).round(1).value_counts().idxmax() / 100.0) if not s.empty else np.nan
+                    max_v, min_v = s.max(), s.min()
+                    rng_v = max_v - min_v
+                    survival_summary = (
+                        f"mean: {pct(mean_v)}, median: {pct(med_v)}, "
+                        f"mode: {pct(mode_v) if pd.notna(mode_v) else 'NA'}, "
+                        f"max: {pct(max_v)}, min: {pct(min_v)}, range: {pct(rng_v)}"
+                    )
 
-    piv["Total"] = piv[DISPLAY_COLS].sum(axis=1)
-    piv["year"]  = pd.to_numeric(piv["etp_year"], errors="coerce").astype(int)
-    piv["etp"]   = "ETP"
+                # ---- Obligation Remaining = series(y) - Σ(contracted_etp) ----
+                contracted_total_etp = float(
+                    pd.to_numeric(g.get("contracted_etp", 0), errors="coerce").fillna(0).sum()
+                )
+                so_val = so_by_year.get(int(y)) if pd.notna(y) else None
 
-    out = piv[["year","etp","contract_trees_status"] + DISPLAY_COLS + ["Total"]].copy()
+                if pd.notna(y) and int(y) <= FULFILLED_CUTOFF:
+                    obligation_remaining = "Fulfilled"
+                else:
+                    if so_val is not None and not pd.isna(so_val):
+                        obligation_remaining = float(so_val) - contracted_total_etp
+                        # opcional: clamp >= 0
+                        # obligation_remaining = max(obligation_remaining, 0)
+                        if float(obligation_remaining).is_integer():
+                            obligation_remaining = int(obligation_remaining)
+                    else:
+                        obligation_remaining = None  # sin serie para ese año
 
-    # Fallback de Total
-    out = out.merge(
-        totals_fallback.rename(columns={"etp_year":"year"}),
-        on=["year","contract_trees_status"],
-        how="left"
-    )
-    out["Total"] = pd.to_numeric(out["Total_fallback"], errors="coerce").fillna(out["Total"]).astype(int)
+            rows.append({
+                "ETP Year": int(y) if pd.notna(y) else None,
+                "Type of ETP": t,
+                "Status of Trees": status,
+                **vals,
+                "Total": total,
+                "Survival by Contracts Summary": survival_summary,
+                "Obligation Remaining": obligation_remaining,
+            })
 
-    # Tipos y orden final
-    out["contract_trees_status"] = pd.Categorical(
-        out["contract_trees_status"],
-        categories=["Contracted","Planted","Surviving"],
-        ordered=True
-    )
-    for c in DISPLAY_COLS + ["Total"]:
-        out[c] = pd.to_numeric(out[c], errors="coerce").fillna(0).astype(int)
-
-    out = out.sort_values(by=["year","contract_trees_status"], ignore_index=True)
-    out = out.drop(columns=["Total_fallback"], errors="ignore")
+    out = pd.DataFrame(rows)
+    if not out.empty:
+        out = out[[
+            "ETP Year", "Type of ETP", "Status of Trees",
+            *COUNTRY_COLS, "Total",
+            "Survival by Contracts Summary", "Obligation Remaining"
+        ]]
+        out = out.sort_values(["ETP Year", "Type of ETP", "Status of Trees"]).reset_index(drop=True)
     return out

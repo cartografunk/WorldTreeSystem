@@ -1,104 +1,137 @@
 # MonthlyReport/tables/t2a_trees_by_etp_stats_obligation.py
 
-from core.libs import pd
-from MonthlyReport.tables_process import clean_t2a_for_excel, get_allocation_type, apply_aliases
-from MonthlyReport.stats import survival_stats
-from MonthlyReport.tables_process import compute_allocation_type_contract, _coerce_survival_pct
-# OJO: no usamos normalize_region_series aquí
+from core.libs import pd, np
+from MonthlyReport.tables_process import clean_t2a_for_excel, get_allocation_type
 
-def enrich_with_obligations_and_stats(df, engine):
-    df = df.copy()
+def _infer_years(df_in: pd.DataFrame) -> set[int]:
+    if not isinstance(df_in, pd.DataFrame):
+        return set()
+    for col in ("etp_year", "ETP Year", "year"):
+        if col in df_in.columns:
+            vals = pd.to_numeric(df_in[col], errors="coerce").dropna().astype(int).unique().tolist()
+            if vals:
+                return set(int(v) for v in vals)
+    return set()
 
-    # ===== 1) Base de contratos (CTI + CA) =====
-    cti = pd.read_sql("""
-        SELECT contract_code, etp_year, trees_contract, planted, status, "Filter"
-        FROM masterdatabase.contract_tree_information
-    """, engine)
+def _infer_etp_label(df_in: pd.DataFrame, years: set[int]) -> str:
+    # si viene 'etp' y es consistente, úsalo
+    if isinstance(df_in, pd.DataFrame) and "etp" in df_in.columns:
+        vals = [str(v) for v in df_in["etp"].dropna().unique().tolist()]
+        if len(vals) == 1:
+            return vals[0]
+    # si no, inferimos por años (regla global)
+    has_etp = any("ETP" in get_allocation_type(y) for y in years) if years else True
+    has_cop = any("COP" in get_allocation_type(y) for y in years) if years else False
+    if has_cop and not has_etp:
+        return "COP"
+    if has_etp and not has_cop:
+        return "ETP"
+    return "ETP/COP"
 
-    ca = pd.read_sql("SELECT * FROM masterdatabase.contract_allocation", engine)
+def _pct(x):
+    return f"{x*100:.1f}%" if pd.notna(x) else "NA"
 
-    contracts = cti.merge(ca, on="contract_code", how="left")
+def enrich_with_obligations_and_stats(df_in: pd.DataFrame, mbt: pd.DataFrame) -> pd.DataFrame:
+    """
+    T2A desde MBT (sin DB).
+    - OUT: status='Out of Program' y Filter='Omit'
+    - Stats de survival sólo con Filter IS NULL
+    - Planted: 'planted_cop' si etp ∈ {COP, ETP/COP}; si no, 'planted_etp'
+    - Obligation_Remaining = Contracted - Planted  (si quieres usar series_obligation más adelante, agrégala a MBT)
+    """
+    years = _infer_years(df_in)
+    etp_label = _infer_etp_label(df_in, years)
 
-    # ===== 2) Allocation type coherente con T2 =====
-    contracts["allocation_type"] = compute_allocation_type_contract(contracts)
+    df = mbt.copy()
 
-    # ===== 3) Survival (con funciones de tables_process) =====
-    surv = pd.read_sql("""
-        SELECT contract_code, current_surviving_trees, current_survival_pct
-        FROM masterdatabase.survival_current
-    """, engine)
+    # Filtros estándar y por años
+    df = df[df["status"].fillna("").str.strip() != "Out of Program"]
+    if "Filter" in df.columns:
+        df = df[df["Filter"].fillna("") != "Omit"]
+    if years:
+        df = df[df["etp_year"].isin(years)]
 
-    contracts = contracts.merge(surv, on="contract_code", how="left")
-    contracts["survival_pct"] = _coerce_survival_pct(contracts)
+    # Numéricos seguros según tus headers de MBT
+    for col in ("trees_contract", "current_surviving_trees", "planted_etp", "planted_cop"):
+        if col in df.columns:
+            df[col] = pd.to_numeric(df[col], errors="coerce").fillna(0)
+        else:
+            df[col] = 0.0
 
-    records = []
+    planted_col = "planted_cop" if etp_label in {"COP", "ETP/COP"} else "planted_etp"
 
-    for y, grp in contracts.groupby("etp_year"):
-        alloc = grp["allocation_type"].iloc[0]  # COP / ETP / COP/ETP
-
-        contracted = grp["trees_contract"].sum(min_count=1)
-        planted = grp["planted"].sum(min_count=1)
-        surviving = grp["current_surviving_trees"].sum(min_count=1)
-
-        records.append({"etp_year": y, "etp": alloc,
-                        "contract_trees_status": "Contracted", "Total": contracted})
-        records.append({"etp_year": y, "etp": alloc,
-                        "contract_trees_status": "Planted", "Total": planted})
-        records.append({"etp_year": y, "etp": alloc,
-                        "contract_trees_status": "Surviving", "Total": surviving})
-
-    df = pd.DataFrame(records)
-
-    # ===== 4) Stats numéricos y resumen textual =====
-    stats_num, stats_txt = survival_stats(
-        df=contracts,
-        group_col="etp_year",
-        survival_pct_col="survival_pct",
+    # Agregados por año
+    agg = (
+        df.groupby("etp_year", dropna=True)
+          .agg(
+              Contracted=("trees_contract", "sum"),
+              Planted=(planted_col, "sum"),
+              Surviving=("current_surviving_trees", "sum"),
+          )
+          .reset_index()
     )
 
-    # ===== 5) Series obligation =====
-    series_ob = pd.read_sql(
-        "SELECT etp_year, series_obligation FROM masterdatabase.series_obligation",
-        engine,
+    # Survival stats por contrato (solo Filter IS NULL)
+    stats_base = df[df["Filter"].isna()] if "Filter" in df.columns else df
+    contr = pd.to_numeric(stats_base.get("trees_contract", 0), errors="coerce").fillna(0)
+    surv  = pd.to_numeric(stats_base.get("current_surviving_trees", 0), errors="coerce").fillna(0)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        ratio = (surv / contr).replace([np.inf, -np.inf], np.nan)
+
+    def _mode_pct(s):
+        s = pd.to_numeric(s, errors="coerce").dropna()
+        if s.empty: return np.nan
+        s_pct = (s * 100).round(1)
+        vc = s_pct.value_counts()
+        return vc.index[0] / 100.0 if not vc.empty else np.nan
+
+    stats_num = (
+        stats_base.assign(_r=ratio)
+        .groupby("etp_year")["_r"]
+        .agg(mean="mean", median="median", mode=_mode_pct, max="max", min="min")
+        .reset_index()
     )
-    series_ob["etp_year"] = pd.to_numeric(series_ob["etp_year"], errors="coerce").astype("Int64")
-
-    # ===== 6) Enriquecer filas 'Surviving' de df base =====
-    df_surv = df[df["contract_trees_status"] == "Surviving"].copy()
-    df_surv = (
-        df_surv.merge(stats_num, on="etp_year", how="left")
-               .merge(series_ob, on="etp_year", how="left")
-               .merge(stats_txt.drop_duplicates("etp_year"), on="etp_year", how="left")
+    stats_num["range"] = stats_num["max"] - stats_num["min"]
+    stats_num["Survival by Contracts Summary"] = (
+        "mean: " + stats_num["mean"].map(_pct)
+        + ", median: " + stats_num["median"].map(_pct)
+        + ", mode: " + stats_num["mode"].map(_pct)
+        + ", max: " + stats_num["max"].map(_pct)
+        + ", min: " + stats_num["min"].map(_pct)
+        + ", range: " + stats_num["range"].map(_pct)
     )
 
-    # calcular Obligation_Remaining
-    contracted_totals = (
-        df[df["contract_trees_status"] == "Contracted"]
-          .groupby("etp_year")["Total"].sum(min_count=1)
+    # Unimos stats a la fila Surviving y calculamos Obligation_Remaining
+    t2a_surv = agg.merge(stats_num[["etp_year", "Survival by Contracts Summary"]], on="etp_year", how="left")
+    t2a_surv["Obligation_Remaining"] = (
+        pd.to_numeric(t2a_surv["Contracted"], errors="coerce").fillna(0)
+        - pd.to_numeric(t2a_surv["Planted"], errors="coerce").fillna(0)
+    ).clip(lower=0)
+
+    # Expandir a 3 filas por año
+    recs = []
+    for _, r in agg.iterrows():
+        y = int(r["etp_year"])
+        recs += [
+            {"etp_year": y, "contract_trees_status": "Contracted", "Total": float(r["Contracted"])},
+            {"etp_year": y, "contract_trees_status": "Planted",    "Total": float(r["Planted"])},
+            {"etp_year": y, "contract_trees_status": "Surviving",  "Total": float(r["Surviving"])},
+        ]
+    base_long = pd.DataFrame.from_records(recs)
+
+    surv_rows = base_long[base_long["contract_trees_status"] == "Surviving"].merge(
+        t2a_surv, on="etp_year", how="left"
     )
-    df_surv["Obligation_Remaining"] = (
-        df_surv["series_obligation"].fillna(0)
-        - df_surv["etp_year"].map(contracted_totals).fillna(0)
-    ).clip(lower=0).astype("Int64")
 
-    df_surv.drop(columns=["series_obligation"], inplace=True)
+    out = pd.concat(
+        [base_long[base_long["contract_trees_status"] != "Surviving"], surv_rows],
+        ignore_index=True
+    )
+    out["etp"] = etp_label
 
-    # ===== 7) Reunir =====
-    df_final = pd.concat([df[df["contract_trees_status"] != "Surviving"], df_surv],
-                         ignore_index=True)
-
-    # limpieza con función oficial
-    df_final = clean_t2a_for_excel(df_final)
-
-    # ===== 8) Orden =====
+    # Limpieza y orden final
+    out = clean_t2a_for_excel(out)
     order = ["Contracted", "Planted", "Surviving"]
-    if "contract_trees_status" in df_final.columns:
-        df_final["contract_trees_status"] = pd.Categorical(
-            df_final["contract_trees_status"], categories=order, ordered=True
-        )
-    df_final = df_final.sort_values(
-        by=["etp_year", "etp", "contract_trees_status"],
-        ascending=[True, True, True], ignore_index=True
-    )
-
-    return df_final
+    out["contract_trees_status"] = pd.Categorical(out["contract_trees_status"], order, True)
+    out = out.sort_values(["etp_year", "etp", "contract_trees_status"]).reset_index(drop=True)
+    return out

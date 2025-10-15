@@ -11,7 +11,7 @@ from core.sheets import Sheet, read_changelog_catalogs, get_table_for_field, exp
 from MasterDatabaseManagement.Changes.farmer_personal_information import apply_changelog_change
 import warnings
 warnings.filterwarnings("ignore", message="Data Validation extension is not supported and will be removed")
-
+from MasterDatabaseManagement.sanidad.ca_backfill import upsert_ca_etp_from_cti
 
 
 EXCEL_FILE = Path(DATABASE_EXPORTS_DIR) / "masterdatabase_export.xlsx"
@@ -181,15 +181,22 @@ def main(dry_run: bool = False):
     print(f"🚩 Aplicando cambios pendientes (solo 'Ready')… dry_run={dry_run}")
     process_changelog_and_update_sql(engine, fields_catalog, reasons_catalog, dry_run=dry_run)
 
-    # Backup de tablas afectadas solo en vivo
+    # 🔧 Backfill/UPSERT de CA desde CTI (generalizado >2018)
+    if not dry_run:
+        res = upsert_ca_etp_from_cti(target_year=None)  # None => etp_year > 2018
+        print(f"[ca_backfill] remaining (ca.*_etp aún en 0/NULL): {res['remaining']}")
+
+    # (Opcional) Backup de tablas afectadas, ya con CA alineado
     if not dry_run:
         try:
-            candidate_tables = sorted(t for t in fields_catalog["target_table"].dropna().astype(str).unique())
+            candidate_tables = sorted(
+                t for t in fields_catalog["target_table"].dropna().astype(str).unique()
+            )
             if candidate_tables:
-                print(f"🛡️  Backup tablas antes de aplicar cambios: {candidate_tables}")
-                backup_tables(engine, candidate_tables, schema="masterdatabase", label="pre_changelog")
+                print(f"🛡️  Backup tablas post cambios: {candidate_tables}")
+                backup_tables(engine, candidate_tables, schema="masterdatabase", label="post_changelog")
         except Exception as e:
-            print(f"⚠️  No se pudieron determinar tablas a respaldar: {e}")
+            print(f"⚠️  Backup tablas omitido: {e}")
 
     print(f"🚩 Aplicando cambios pendientes (solo 'Ready')... dry_run={dry_run}")
     process_changelog_and_update_sql(engine, fields_catalog, reasons_catalog, dry_run=dry_run)

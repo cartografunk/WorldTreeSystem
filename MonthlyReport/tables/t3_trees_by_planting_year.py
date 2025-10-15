@@ -1,160 +1,198 @@
 # MonthlyReport/tables/t3_trees_by_planting_year.py
-
-from core.libs import pd
-from MonthlyReport.utils_monthly_base import build_monthly_base_table
-from MonthlyReport.tables_process import get_allocation_type
-from MonthlyReport.stats import survival_stats
+from core.libs import pd, np
 
 DISPLAY_MAP  = {"CR": "Costa Rica", "GT": "Guatemala", "MX": "Mexico", "US": "USA"}
 COUNTRIES    = ["Costa Rica", "Guatemala", "Mexico", "USA"]
 
-def build_t3_trees_by_planting_year(engine):
-    # === 1) Base única y tipado ===
-    mbt = build_monthly_base_table()
-    if mbt.empty:
-        return pd.DataFrame(columns=["Year","Row"] + COUNTRIES + ["Total","Survival %","Survival_Summary"])
+def build_t3_trees_by_planting_year(mbt: pd.DataFrame) -> pd.DataFrame:
+    """
+    T3: Trees by Planting Year (Country x Year) con Status of Trees = {Contracted, Planted, Surviving}.
+    - Entrada: MBT ya materializada.
+    - Año de referencia: planting_year (si falta, intenta de planting_date; si no, cae a etp_year).
+    - Contracted/Planted: seleccionados por allocation_type (ETP / COP / COP/ETP).
+    - Surviving: cap(alive_sc, Planted_use).
+    - Filtros base: status != 'Out of Program' y Filter != 'Omit' (como T2).
+    - Survival % poblacional por planting_year = ΣSurviving / ΣPlanted (excluye OOP y Filter).
+    """
+    if mbt is None or mbt.empty:
+        return pd.DataFrame(columns=["Year","Row", *COUNTRIES, "Total","Survival %","Survival_Summary"])
 
-    mbt["etp_year"]       = pd.to_numeric(mbt.get("etp_year"), errors="coerce").astype("Int64")
-    mbt["trees_contract"] = pd.to_numeric(mbt.get("trees_contract"), errors="coerce").fillna(0)
-    mbt["alive_sc"] = pd.to_numeric(mbt.get("alive_sc"), errors="coerce").fillna(0).round(0).astype(int)
-    mbt["planted"] = pd.to_numeric(mbt.get("planted"), errors="coerce").fillna(0).round(0).astype(int)
-    mbt["planted_cop"] = pd.to_numeric(mbt.get("planted_cop"), errors="coerce").fillna(0).round(0).astype(int)
-    mbt["trees_contract"] = pd.to_numeric(mbt.get("trees_contract"), errors="coerce").fillna(0).round(0).astype(int)
+    df = mbt.copy()
 
-    if "has_cop" not in mbt.columns:
-        mbt["has_cop"] = False
+    # ---------- Country legible ----------
+    df["Country"] = df.get("region").replace(DISPLAY_MAP).fillna(df.get("region"))
 
-    # Región visible (acepta códigos CR/GT/MX/US o ya nombres)
-    mbt["region_disp"] = mbt.get("region").replace(DISPLAY_MAP).astype("string")
-
-    # planting_year: planting_year -> planting_date.year -> etp_year
-    py = pd.to_numeric(mbt.get("planting_year"), errors="coerce").astype("Int64")
-    if "planting_date" in mbt.columns:
-        dt = pd.to_datetime(mbt["planting_date"], errors="coerce")
+    # ---------- Planting Year preferente ----------
+    py = pd.to_numeric(df.get("planting_year"), errors="coerce").astype("Int64")
+    if "planting_date" in df.columns:
+        dt = pd.to_datetime(df["planting_date"], errors="coerce")
         py = py.fillna(dt.dt.year.astype("Int64"))
-    py = py.fillna(mbt["etp_year"])
-    mbt["planting_year"] = py.astype("Int64")
+    py = py.fillna(pd.to_numeric(df.get("etp_year"), errors="coerce").astype("Int64"))
+    df["planting_year"] = py
 
-    # === 2) Etiqueta de cohorte (COP / ETP / COP/ETP) por etp_year ===
-    years = sorted(mbt["etp_year"].dropna().astype(int).unique().tolist())
-    alloc_map = {y: "/".join(get_allocation_type(int(y))) for y in years}
-    mbt["allocation_type"] = mbt["etp_year"].apply(lambda y: alloc_map.get(int(y)) if pd.notna(y) else pd.NA)
+    # ---------- Filtros base (como T2) ----------
+    df = df[df["status"].fillna("").str.strip() != "Out of Program"]
+    if "Filter" in df.columns:
+        df = df[df["Filter"].fillna("") != "Omit"]
 
-    # === 3) Planted/Surviving con reglas alineadas a T2 ===
-    mbt["Planted_use"] = 0.0
-    cop = mbt["allocation_type"].eq("COP")
-    etp = mbt["allocation_type"].eq("ETP")
-    mix = mbt["allocation_type"].eq("COP/ETP")
+    # ---------- Tipado de métricas ----------
+    for c in [
+        "contracted_etp","planted_etp","current_surviving_trees",
+        "contracted_cop","planted_cop","surviving_cop",
+        "trees_contract","alive_sc","planted"
+    ]:
+        if c in df.columns:
+            df[c] = pd.to_numeric(df[c], errors="coerce").fillna(0)
 
-    # ETP
-    mbt.loc[etp, "Planted_use"] = mbt.loc[etp, "planted"]
-    # COP (solo contratos con COP)
-    mbt.loc[cop & mbt["has_cop"], "Planted_use"] = mbt.loc[cop & mbt["has_cop"], "planted_cop"]
-    # MIX: COP si tiene, si no ETP
-    mbt.loc[mix, "Planted_use"] = mbt.loc[mix, "planted_cop"].where(mbt.loc[mix, "has_cop"], mbt.loc[mix, "planted"])
+    # ---------- allocation_type (si ya lo traes en MBT, úsalo; si no, derivamos simple) ----------
+    # Esperado: 'ETP', 'COP', 'COP/ETP'
+    at = df.get("allocation_type")
+    if at is None:
+        # fallback MUY simple por cohortes (ajústalo si tienes util oficial)
+        y = pd.to_numeric(df.get("etp_year"), errors="coerce")
+        alloc = np.where(y.isin([2015, 2017]), "COP",
+                 np.where(y.isin([2019, 2020, 2021, 2022, 2023, 2024, 2025]), "ETP", "COP/ETP"))
+        df["allocation_type"] = alloc
+    else:
+        df["allocation_type"] = at
 
-    mbt["Surviving_use"] = mbt["alive_sc"].clip(lower=0)
-    mbt["Surviving_use"] = mbt[["Surviving_use", "Planted_use"]].min(axis=1)
+    has_cop = df.get("has_cop")
+    if has_cop is None:
+        # si no viene, definimos "tiene COP" si hay alguna métrica COP > 0
+        df["has_cop"] = ((df.get("contracted_cop",0) > 0) | (df.get("planted_cop",0) > 0))
+    else:
+        df["has_cop"] = has_cop.astype(bool)
 
-    # === 4) Agregado por planting_year x país ===
-    g = (
-        mbt.groupby(["planting_year", "region_disp"], dropna=False)
-           .agg(Planted=("Planted_use", "sum"),
-                Surviving=("Surviving_use", "sum"))
-           .reset_index()
-    )
+    # ---------- Selección de métricas por allocation_type ----------
+    # Contracted_use / Planted_use / Surviving_use
+    df["Contracted_use"] = 0.0
+    df["Planted_use"]    = 0.0
+    df["Surviving_use"]  = 0.0
 
-    def _pivot_sum(col):
-        t = g.pivot_table(index="planting_year", columns="region_disp", values=col, aggfunc="sum", fill_value=0).reset_index()
+    is_cop  = df["allocation_type"].eq("COP")
+    is_etp  = df["allocation_type"].eq("ETP")
+    is_mix  = df["allocation_type"].eq("COP/ETP")
+
+    # Contracted
+    df.loc[is_etp, "Contracted_use"] = df.loc[is_etp, "contracted_etp"]
+    df.loc[is_cop & df["has_cop"], "Contracted_use"] = df.loc[is_cop & df["has_cop"], "contracted_cop"]
+    df.loc[is_mix, "Contracted_use"] = df.loc[is_mix, "contracted_cop"].where(df.loc[is_mix, "has_cop"],
+                                                                               df.loc[is_mix, "contracted_etp"])
+    # Planted
+    df.loc[is_etp, "Planted_use"] = df.loc[is_etp, "planted_etp"]
+    df.loc[is_cop & df["has_cop"], "Planted_use"] = df.loc[is_cop & df["has_cop"], "planted_cop"]
+    df.loc[is_mix, "Planted_use"] = df.loc[is_mix, "planted_cop"].where(df.loc[is_mix, "has_cop"],
+                                                                         df.loc[is_mix, "planted_etp"])
+
+    # Surviving (cap con planted)
+    base_surv = df.get("current_surviving_trees")
+    if base_surv is None:
+        # fallback si tu MBT separa por COP/ETP
+        df["Surviving_use"] = np.where(
+            is_cop | (is_mix & df["has_cop"]),
+            df.get("surviving_cop", 0),
+            df.get("alive_sc", 0)
+        )
+    else:
+        df["Surviving_use"] = base_surv
+    df["Surviving_use"] = df[["Surviving_use", "Planted_use"]].min(axis=1).clip(lower=0)
+
+    # ---------- Aggregación por planting_year x Country ----------
+    def _make_pivot(colname: str) -> pd.DataFrame:
+        tmp = (
+            df.groupby(["planting_year", "Country"], dropna=False)[colname]
+              .sum(min_count=1)
+              .reset_index()
+              .pivot_table(index="planting_year", columns="Country", values=colname, aggfunc="sum", fill_value=0)
+              .reset_index()
+              .rename(columns={"planting_year": "Year"})
+        )
+        # asegúrate de todas las columnas de país
         for c in COUNTRIES:
-            if c not in t.columns:
-                t[c] = 0
-        t["Total"] = t[COUNTRIES].sum(axis=1)
-        return t
+            if c not in tmp.columns:
+                tmp[c] = 0
+        tmp["Total"] = tmp[COUNTRIES].sum(axis=1)
+        return tmp[["Year", *COUNTRIES, "Total"]]
 
-    long_planted = _pivot_sum("Planted")
-    long_surv    = _pivot_sum("Surviving")
+    piv_contracted = _make_pivot("Contracted_use")
+    piv_planted    = _make_pivot("Planted_use")
+    # survival y survival% usan el mismo filtrado base ya aplicado arriba
+    piv_surv       = _make_pivot("Surviving_use")
 
-    # === 5) Survival % poblacional por planting_year ===
-    # 👇 survival base: excluir Out of Program + Filter
-    mask_surv = (mbt["status"].fillna("").str.strip() != "Out of Program") & (mbt["Filter"].isna())
-    g_planted = mbt.groupby(["planting_year", "region_disp"], dropna=False)["Planted_use"].sum().reset_index()
-    g_surv = mbt.loc[mask_surv].groupby(["planting_year", "region_disp"], dropna=False)[
-        "Surviving_use"].sum().reset_index()
-
-    def _pivot_sum(df, col):
-        t = df.pivot_table(index="planting_year", columns="region_disp", values=col, aggfunc="sum",
-                           fill_value=0).reset_index()
-        for c in COUNTRIES:
-            if c not in t.columns:
-                t[c] = 0
-        t["Total"] = t[COUNTRIES].sum(axis=1)
-        return t
-
-    long_planted = _pivot_sum(g_planted, "Planted_use")
-    long_surv = _pivot_sum(g_surv, "Surviving_use")
-
+    # ---------- Survival % poblacional por Year ----------
+    # ΣSurviving / ΣPlanted
     rate = (
-        long_planted[["planting_year", "Total"]].rename(columns={"Total": "P"})
-        .merge(long_surv[["planting_year", "Total"]].rename(columns={"Total": "S"}), on="planting_year", how="outer")
+        piv_planted[["Year","Total"]].rename(columns={"Total":"P"})
+        .merge(piv_surv[["Year","Total"]].rename(columns={"Total":"S"}), on="Year", how="outer")
         .fillna(0)
     )
     rate["Survival %"] = (rate["S"] / rate["P"]).where(rate["P"] > 0)
 
-    # === 6) Survival Summary por planting_year (no ponderado) usando mbt ===
-    base_stats = mbt.copy()
-    if "status" in base_stats.columns:
-        base_stats = base_stats[(base_stats["status"] == "Active") & (base_stats["Filter"].isna())]
-    base_stats["survival_pct"] = base_stats.apply(
-        lambda r: (r["alive_sc"] / r["trees_contract"]) if pd.notna(r["trees_contract"]) and r[
-            "trees_contract"] > 0 else pd.NA,
-        axis=1
+    # ---------- Survival Summary (no ponderado) ----------
+    base_stats = df.copy()
+    # en T3 usamos planting_year agrupado; ratio por contrato = Surviving_use / Contracted_use cuando Contracted_use>0
+    with np.errstate(divide="ignore", invalid="ignore"):
+        base_stats["survival_pct"] = (base_stats["Surviving_use"] /
+                                      base_stats["Contracted_use"].replace(0, np.nan))
+    summ = (
+        base_stats.dropna(subset=["planting_year","survival_pct"])
+        .groupby("planting_year")["survival_pct"]
+        .apply(lambda s: None if s.empty else
+               f"mean: {s.mean()*100:.1f}%, median: {s.median()*100:.1f}%, "
+               f"max: {s.max()*100:.1f}%, min: {s.min()*100:.1f}%")
+        .to_dict()
     )
 
-    stats_num, stats_txt = survival_stats(
-        df=base_stats,
-        group_col="planting_year",
-        survival_pct_col="survival_pct",
-    )
-    summary_map = {}
-    if stats_txt is not None and not stats_txt.empty:
-        summary_map = dict(
-            stats_txt.dropna(subset=["planting_year"]).set_index("planting_year")["Survival_Summary"]
-        )
-
-    # === 7) Construcción de filas Planted/Surviving por año ===
-    lp = long_planted.set_index("planting_year")
-    ls = long_surv.set_index("planting_year")
-    rt = rate.set_index("planting_year")
+    # ---------- Construcción de filas (loops) ----------
+    def _rows_from_pivot(piv: pd.DataFrame, row_name: str) -> list[list]:
+        r = []
+        for _, rec in piv.sort_values("Year").iterrows():
+            vals = [int(rec.get(c, 0)) for c in COUNTRIES]
+            total = int(rec.get("Total", 0))
+            surv_pct = ""
+            surv_txt = ""
+            if row_name == "Surviving":
+                y = int(rec["Year"])
+                s = rate.loc[rate["Year"] == y, "Survival %"]
+                if not s.empty and pd.notna(s.iloc[0]):
+                    surv_pct = f"{round(float(s.iloc[0])*100,1)}%"
+                surv_txt = summ.get(y, "") or ""
+            r.append([int(rec["Year"]), row_name, *vals, total, surv_pct, surv_txt])
+        return r
 
     rows = []
-    all_years = sorted(set(lp.index).union(ls.index))
-    for y in all_years:
-        # Planted row
-        p = lp.loc[y] if y in lp.index else None
-        planted_vals = [int(p.get(c, 0)) if p is not None else 0 for c in COUNTRIES]
-        planted_total = int(p["Total"]) if p is not None else 0
-        rows.append([int(y), "Planted", *planted_vals, planted_total, "", ""])
+    rows += _rows_from_pivot(piv_contracted, "Contracted")
+    rows += _rows_from_pivot(piv_planted,    "Planted")
+    rows += _rows_from_pivot(piv_surv,       "Surviving")
 
-        # Surviving row
-        s = ls.loc[y] if y in ls.index else None
-        surv_vals = [int(s.get(c, 0)) if s is not None else 0 for c in COUNTRIES]
-        surv_total = int(s["Total"]) if s is not None else 0
-        surv_pct = rt.loc[y, "Survival %"] if y in rt.index else pd.NA
-        surv_pct_str = f"{round(float(surv_pct)*100,1)}%" if pd.notna(surv_pct) else ""
-        rows.append([int(y), "Surviving", *surv_vals, surv_total, surv_pct_str, summary_map.get(y, pd.NA)])
+    out = pd.DataFrame(rows, columns=["Year", "Row", *COUNTRIES, "Total", "Survival %", "Survival_Summary"])
 
-    out = pd.DataFrame(rows, columns=["Year", "Row"] + COUNTRIES + ["Total", "Survival %", "Survival_Summary"])
+    # 🔁 Renombra columna y ordena Year → Status of Trees (orden lógico CPS)
+    out = out.rename(columns={"Row": "Status of Trees"})
+    order = pd.Categorical(
+        out["Status of Trees"],
+        categories=["Contracted", "Planted", "Surviving"],
+        ordered=True,
+    )
+    out = (
+        out.assign(_ord=order)
+        .sort_values(["Year", "_ord"])
+        .drop(columns="_ord")
+        .reset_index(drop=True)
+    )
 
-    # === 8) Footer de totales ===
-    total_plan = out.loc[out["Row"] == "Planted", "Total"].sum()
-    total_surv = out.loc[out["Row"] == "Surviving", "Total"].sum()
+    # === 8) Footer de totales (después del ordenado para que queden al final) ===
+    total_c = out.loc[out["Status of Trees"] == "Contracted", "Total"].sum()
+    total_p = out.loc[out["Status of Trees"] == "Planted", "Total"].sum()
+    total_s = out.loc[out["Status of Trees"] == "Surviving", "Total"].sum()
+
     footer = pd.DataFrame(
         [
-            ["", "Total Planted",   *[""]*len(COUNTRIES), int(total_plan), "", ""],
-            ["", "Total Surviving", *[""]*len(COUNTRIES), int(total_surv), "", ""],
+            ["", "Total Contracted", *[""] * len(COUNTRIES), int(total_c), "", ""],
+            ["", "Total Planted", *[""] * len(COUNTRIES), int(total_p), "", ""],
+            ["", "Total Surviving", *[""] * len(COUNTRIES), int(total_s), "", ""],
         ],
-        columns=["Year", "Row"] + COUNTRIES + ["Total", "Survival %", "Survival_Summary"]
+        columns=["Year", "Status of Trees", *COUNTRIES, "Total", "Survival %", "Survival_Summary"],
     )
 
     out = pd.concat([out, footer], ignore_index=True)

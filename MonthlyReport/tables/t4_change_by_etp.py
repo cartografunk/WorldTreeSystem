@@ -4,7 +4,7 @@ from datetime import date
 from core.libs import pd, np
 from core.db import get_engine
 from MonthlyReport.tables.t2_trees_by_etp_raise import build_etp_trees_table2
-from MonthlyReport.tables.t2a_trees_by_etp_stats_obligation import enrich_with_obligations_and_stats
+from MonthlyReport.tables.t2a_trees_by_cop_raise import enrich_with_obligations_and_stats
 from sqlalchemy import text as sqltext
 
 
@@ -34,30 +34,35 @@ def _resolve_months(engine, hist_table: str, run_month: date | None):
 
 def _melt_t2_base(df_t2: pd.DataFrame) -> pd.DataFrame:
     """
-    T2 base (calculado) → long por año × status × país.
-    Usamos solo etp='ETP' (US ETP Raise).
+    T2 (nuevo schema) → long por (year_base=row_label=Status of Trees, country, value_base).
+    Filtra Type of ETP == 'ETP'.
     """
     if df_t2.empty:
-        return df_t2
+        return pd.DataFrame(columns=["year_base","row_label","country","value_base"])
 
     base = df_t2.copy()
-    # Nos quedamos con filas ETP (coincide con T4 "Trees by US ETP Raise")
-    if "etp" in base.columns:
-        base = base[base["etp"] == "ETP"].copy()
 
-    # year / contract_trees_status / países + Total
-    need = ["year", "contract_trees_status"] + [c for c in ALL_COUNTRIES_FOR_MELT if c in base.columns]
-    base = base[need].copy()
+    # Filtra ETP puro
+    if "Type of ETP" in base.columns:
+        base = base[base["Type of ETP"] == "ETP"].copy()
 
+    # Normaliza nombres esperados
+    col_year = "ETP Year" if "ETP Year" in base.columns else "year"
+    col_row  = "Status of Trees" if "Status of Trees" in base.columns else "contract_trees_status"
+
+    # Columnas país + Total (T2 trae 'Total', t4_wide trae 'TOTAL')
+    country_cols = [c for c in ["Costa Rica","Guatemala","Mexico","USA","Total"] if c in base.columns]
+
+    base = base[[col_year, col_row, *country_cols]].copy()
     long = base.melt(
-        id_vars=["year", "contract_trees_status"],
+        id_vars=[col_year, col_row],
         var_name="country", value_name="value_base"
     )
-    # Normaliza Total → TOTAL para empatar con histórico
     long["country"] = long["country"].replace({"Total": "TOTAL"})
-    long = long.rename(columns={"year": "year_base", "contract_trees_status": "row_label"})
+    long = long.rename(columns={col_year: "year_base", col_row: "row_label"})
     long["value_base"] = pd.to_numeric(long["value_base"], errors="coerce")
     return long
+
 
 def _melt_t4_hist(df_hist: pd.DataFrame) -> pd.DataFrame:
     """
@@ -130,20 +135,21 @@ def _upsert_diff(engine, df_upsert: pd.DataFrame, out_table: str):
             payload = [ _row_to_params(r) for _, r in rows.iloc[i:i+batch].iterrows() ]
             con.execute(stmt, payload)
 
-def build_t4_change_by_etp(engine=None, run_month: str | date | None = None, materialize: bool = False) -> pd.DataFrame:
-    """
-    Diferencial T4 = T2 (calculado) - T4 histórico(último < corte).
-    - run_month: 'YYYY-MM'/'YYYY-MM-DD' o date; si None usa mes actual.
-    - Devuelve long (por país): country, etp_year, contracted, planted, surviving (valores = diferencial).
-    - Si materialize=True: upsert a masterdatabase.t4_diff_from_t2 con change_month = corte.
-    """
+def build_t4_change_by_etp(engine=None, run_month: str | date | None = None,
+                           mbt: pd.DataFrame | None = None,
+                           so_by_year: dict | None = None,
+                           materialize: bool = False) -> pd.DataFrame:
     engine = engine or get_engine()
     if isinstance(run_month, str):
         y, m = run_month.split("-")[0:2]; run_month = date(int(y), int(m), 1)
     rm_curr, rm_hist = _resolve_months(engine, T4_HIST, run_month)
 
-    # 1) Base T2 (calculado)
-    t2 = build_etp_trees_table2(engine)  # columnas: year, etp, contract_trees_status, países, Total
+    # 1) Base T2
+    if mbt is None:
+        from MonthlyReport.utils_monthly_base import build_monthly_base_table
+        mbt = build_monthly_base_table()
+    t2 = build_etp_trees_table2(mbt, so_by_year=so_by_year)
+
     base_long = _melt_t2_base(t2)
 
     # 2) Histórico T4 (último < corte) → long
@@ -202,23 +208,25 @@ def build_t4_change_by_etp(engine=None, run_month: str | date | None = None, mat
     df_enriched = enrich_with_obligations_and_stats(df_total, engine)
 
     # 2) Traer series_obligation directo de la tabla origen
+    # --- Series obligation por año
     series_tbl = pd.read_sql(
         "SELECT etp_year, series_obligation FROM masterdatabase.series_obligation",
         engine,
     )
     series_tbl["etp_year"] = pd.to_numeric(series_tbl["etp_year"], errors="coerce").astype("Int64")
 
-    # 3) De df_enriched solo pedimos Obligation_Remaining (porque series_obligation ya no está)
-    obligations = df_enriched[["year", "contract_trees_status", "Obligation_Remaining"]].copy()
-    obligations = obligations.rename(columns={"year": "etp_year"})
+    # --- Contracted Δ TOTAL por año (desde j)
+    tot_contracted = (
+        j[(j["country"] == "TOTAL") & (j["row_label"] == "Contracted")]
+        .rename(columns={"year_base": "etp_year", "diff": "contracted_delta_total"})
+        [["etp_year", "contracted_delta_total"]]
+    )
 
-    # 4) Unimos series_obligation y Obligation_Remaining al out
-    out = out.merge(series_tbl, on="etp_year", how="left")
-
-    # --- Calcular Obligation Remaining Δ = Series Δ - Contracted Δ
+    # Une a 'out' y calcula Obligation_Remaining Δ = Series − Contracted (TOTAL)
+    out = out.merge(series_tbl, on="etp_year", how="left").merge(tot_contracted, on="etp_year", how="left")
     out["series_obligation"] = pd.to_numeric(out["series_obligation"], errors="coerce")
-    out["Contracted"] = pd.to_numeric(out["Contracted"], errors="coerce")
-    out["Obligation_Remaining"] = out["series_obligation"] - out["Contracted"]
+    out["contracted_delta_total"] = pd.to_numeric(out["contracted_delta_total"], errors="coerce").fillna(0)
+    out["Obligation_Remaining"] = out["series_obligation"] - out["contracted_delta_total"]
 
     # 5) Materializar (opcional)
     if materialize:
@@ -234,129 +242,116 @@ def build_t4_change_by_etp(engine=None, run_month: str | date | None = None, mat
     return out
 
 
-def format_t4_matrix(df_long: pd.DataFrame) -> pd.DataFrame:
+def format_t4_matrix(df_long: pd.DataFrame, run_month: date | None = None) -> pd.DataFrame:
     """
-    Matriz tipo Excel (diferencial):
-      - Columnas = países
-      - Filas = etp_year × (Contracted/Planted/Surviving)
-      - TOTAL = suma por fila.
-      - Survival-based off of planted = (Surviving / Planted) * 100 (solo se rellena en la fila "Surviving")
-      - Series Obligation / Obligation Remaining: columnas placeholder (NaN) para compatibilidad con schema.
+    Construye 't4_wide' (diff) con el schema histórico:
+    run_month, year_base, row_label, Costa Rica, Guatemala, Mexico, USA, TOTAL,
+    Survival-based off of planted, Series Obligation,
+    Obligation Remaining (text), Obligation Remaining (num), loaded_at
     """
     if df_long.empty:
-        return df_long
+        cols = ["run_month","year_base","row_label","Costa Rica","Guatemala","Mexico","USA","TOTAL",
+                "Survival-based off of planted","Series Obligation",
+                "Obligation Remaining (text)","Obligation Remaining (num)","loaded_at"]
+        return pd.DataFrame(columns=cols)
 
-    dfl = df_long[df_long["country"].notna() & (df_long["country"] != "TOTAL")].copy()
-    col_order = [c for c in COUNTRIES if c in dfl["country"].unique().tolist()]
-    other = [c for c in dfl["country"].unique().tolist() if c not in col_order and c != "TOTAL"]
-    col_order = col_order + other
+    # Países presentes
+    present = df_long["country"].dropna().unique().tolist()
+    col_order = [c for c in COUNTRIES if c in present]
+    # ignora 'TOTAL' en este set; lo calcularemos nosotros
 
-    rows = []
-    for y, g in dfl.groupby("etp_year", sort=True):
-        row_c = {"year": y, "contract_trees_status": "Contracted"}
-        row_p = {"year": y, "contract_trees_status": "Planted"}
-        row_s = {"year": y, "contract_trees_status": "Surviving"}
-        for ctry in col_order:
-            sub = g[g["country"] == ctry]
-            row_c[ctry] = float(pd.to_numeric(sub["Contracted"], errors="coerce").sum())
-            row_p[ctry] = float(pd.to_numeric(sub["Planted"],    errors="coerce").sum())
-            row_s[ctry] = float(pd.to_numeric(sub["Surviving"],  errors="coerce").sum())
-        row_c["TOTAL"] = sum(row_c.get(ctry, 0) for ctry in col_order)
-        row_p["TOTAL"] = sum(row_p.get(ctry, 0) for ctry in col_order)
-        row_s["TOTAL"] = sum(row_s.get(ctry, 0) for ctry in col_order)
+    # Pivotea del long de diffs a filas por (año, status)
+    mat = []
+    for y, g in df_long[df_long["country"].notna()].groupby("etp_year", sort=True):
+        # agrupa por row_label -> diccionario de valores por país
+        vals = {
+            "Contracted": {c: 0.0 for c in col_order},
+            "Planted":    {c: 0.0 for c in col_order},
+            "Surviving":  {c: 0.0 for c in col_order},
+        }
+        for _, row in g.iterrows():
+            lbl = row.get("row_label") or None
+            if lbl not in vals:
+                continue
+            ctry = row["country"]
+            if ctry in col_order:
+                vals[lbl][ctry] += float(pd.to_numeric(row.get(lbl, 0), errors="coerce") or 0)
 
-        # Survival-based off of planted (solo en fila Surviving)
-        surv_row = {}
-        for ctry in col_order + ["TOTAL"]:
-            p = row_p.get(ctry, 0)
-            s = row_s.get(ctry, 0)
-            surv_row[ctry] = (s / p * 100.0) if (p not in (0, np.nan) and not pd.isna(p)) else np.nan
-        # Placeholders de obligaciones
-        row_c["Survival-based off of planted"] = np.nan
-        row_p["Survival-based off of planted"] = np.nan
-        row_s["Survival-based off of planted"] = np.nan
-        row_c["Series Obligation"] = np.nan
-        row_p["Series Obligation"] = np.nan
-        row_s["Series Obligation"] = np.nan
-        row_c["Obligation Remaining"] = np.nan
-        row_p["Obligation Remaining"] = np.nan
-        row_s["Obligation Remaining"] = np.nan
+        # Totales por fila
+        totals = {lbl: sum(vals[lbl].values()) for lbl in vals}
 
-        # Survival (%) desde df_long (TOTAL del año), como ya lo haces
-        surv_pct_total = np.nan
-        if "survival_pct_diff" in df_long.columns:
-            sub = df_long[(df_long["country"] == "TOTAL") & (df_long["etp_year"] == y)]
-            if not sub.empty and not pd.isna(sub["survival_pct_diff"].iloc[0]):
-                surv_pct_total = float(sub["survival_pct_diff"].iloc[0])
-
-        # 👉 Mapas para obligaciones (si vienen del builder)
-        # Obligations: valores solo desde TOTAL del mismo año
-        series_val, oblig_rem = np.nan, np.nan
+        # Survival-based off of planted (usar survival_pct_diff TOTAL si viene, si no calcular S/P)
+        surv_pct = np.nan
         sub_tot = df_long[(df_long["country"] == "TOTAL") & (df_long["etp_year"] == y)]
+        if not sub_tot.empty and "survival_pct_diff" in sub_tot.columns:
+            v = pd.to_numeric(sub_tot["survival_pct_diff"].iloc[0], errors="coerce")
+            surv_pct = float(v) if pd.notna(v) else np.nan
+        else:
+            p = totals.get("Planted", 0)
+            s = totals.get("Surviving", 0)
+            surv_pct = (s / p * 100.0) if p else np.nan
+
+        # Obligations (usar columnas ya calculadas en df_long a nivel TOTAL)
+        ser = np.nan
+        obr_num = np.nan
         if not sub_tot.empty:
             if "series_obligation" in sub_tot.columns:
-                v = sub_tot["series_obligation"].iloc[0]
-                series_val = float(v) if pd.notna(v) else np.nan
+                ser = float(pd.to_numeric(sub_tot["series_obligation"].iloc[0], errors="coerce") or np.nan)
             if "Obligation_Remaining" in sub_tot.columns:
-                v = sub_tot["Obligation_Remaining"].iloc[0]
-                oblig_rem = float(v) if pd.notna(v) else np.nan
+                obr_num = float(pd.to_numeric(sub_tot["Obligation_Remaining"].iloc[0], errors="coerce") or np.nan)
 
+        # Fila Contracted
+        row_c = {"year_base": int(y), "row_label": "Contracted"}
+        row_c.update({c: int(vals["Contracted"][c]) for c in col_order})
+        row_c["TOTAL"] = int(totals["Contracted"])
+        row_c["Survival-based off of planted"] = np.nan
         row_c["Series Obligation"] = np.nan
+        row_c["Obligation Remaining (text)"] = np.nan
+        row_c["Obligation Remaining (num)"] = np.nan
+
+        # Fila Planted
+        row_p = {"year_base": int(y), "row_label": "Planted"}
+        row_p.update({c: int(vals["Planted"][c]) for c in col_order})
+        row_p["TOTAL"] = int(totals["Planted"])
+        row_p["Survival-based off of planted"] = np.nan
         row_p["Series Obligation"] = np.nan
-        row_s["Series Obligation"] = series_val
+        row_p["Obligation Remaining (text)"] = np.nan
+        row_p["Obligation Remaining (num)"] = np.nan
 
-        row_c["Obligation Remaining"] = np.nan
-        row_p["Obligation Remaining"] = np.nan
-        row_s["Obligation Remaining"] = oblig_rem
+        # Fila Surviving
+        row_s = {"year_base": int(y), "row_label": "Surviving"}
+        row_s.update({c: int(vals["Surviving"][c]) for c in col_order})
+        row_s["TOTAL"] = int(totals["Surviving"])
+        row_s["Survival-based off of planted"] = round(surv_pct/100.0, 2) if pd.notna(surv_pct) else np.nan  # ❗ fracción como tu histórico
+        row_s["Series Obligation"] = ser
+        # Texto de obligación: "Fulfilled" hasta 2023
+        row_s["Obligation Remaining (text)"] = "Fulfilled" if y <= 2023 else ""
+        # Numérico: si Fulfilled => 0, si no => (series - Contracted_TOTAL) clamp ≥ 0
+        if y <= 2023:
+            row_s["Obligation Remaining (num)"] = 0
+        else:
+            if pd.notna(ser):
+                obr_calc = ser - totals["Contracted"]
+                row_s["Obligation Remaining (num)"] = max(0, int(round(obr_calc))) if pd.notna(obr_calc) else np.nan
+            else:
+                row_s["Obligation Remaining (num)"] = np.nan
 
-        rows += [row_c, row_p, row_s]
+        mat += [row_c, row_p, row_s]
 
-        # Rellenar Survival-based off of planted en la fila Surviving
-        for ctry in col_order + ["TOTAL"]:
-            row_s["Survival-based off of planted"] = np.nan  # keep single value per row (schema column)
-        # Para mantener una sola celda por fila, dejamos el valor a nivel fila (no por país); usamos TOTAL por consistencia
-        row_s["Survival-based off of planted"] = surv_row.get("TOTAL", np.nan)
+    # DataFrame final y columnas en orden
+    out = pd.DataFrame(mat)
+    for c in COUNTRIES:
+        if c not in out.columns: out[c] = 0
+    if "TOTAL" not in out.columns: out["TOTAL"] = out[COUNTRIES].sum(axis=1)
 
-        rows += [row_c, row_p, row_s]
+    # run_month / loaded_at
+    run_month = run_month or _first_day_this_month()
+    out.insert(0, "run_month", pd.to_datetime(run_month))
+    out["loaded_at"] = pd.Timestamp.now()
 
-    out = pd.DataFrame(rows)
-
-    # 🔧 Asegura columnas obligatorias aunque vengan vacías
-    for must in ["Survival-based off of planted", "Series Obligation", "Obligation Remaining"]:
-        if must not in out.columns:
-            out[must] = np.nan
-
-    # 🔧 Si calculas el ∆ Survival (%) en este formatter, ponlo aquí:
-    #   - Si ya traes survival_pct_diff en df_long (TOTAL por año), úsalo
-    #   - Si no, deja NaN (o calcula fallback con deltas)
-    if "Survival-based off of planted" in out.columns:
-        # rellena SOLO filas Surviving con el valor del año correspondiente
-        if "survival_pct_diff" in df_long.columns:
-            # mapea: year -> survival_pct_diff (TOTAL)
-            m = (df_long["country"] == "TOTAL")
-            surv_map = df_long.loc[m, ["etp_year", "survival_pct_diff"]].dropna()
-            surv_map = dict(zip(surv_map["etp_year"], surv_map["survival_pct_diff"]))
-            out.loc[out["contract_trees_status"] == "Surviving", "Survival-based off of planted"] = \
-                out.loc[out["contract_trees_status"] == "Surviving", "year"].map(surv_map)
-
-    # 👉 Orden final (usa el nombre viejo para evitar KeyError en el slice)
-    cols = ["year", "contract_trees_status"] + col_order + [
-        "TOTAL", "Survival-based off of planted", "Series Obligation", "Obligation Remaining"
-    ]
-
-    for c in col_order + ["TOTAL"]:
-        out[c] = pd.to_numeric(out[c], errors="coerce").round(0).astype("Int64")
-
-    out = out[cols]
-
-    # Calcular Obligation_Remaining Δ = Series Δ - Contracted Δ
-    if "series_obligation" in out.columns and "Contracted" in out.columns:
-        out["Obligation_Remaining"] = out["series_obligation"] - out["Contracted"]
-
-    out = out.rename(columns={
-        "year": "ETP Year",
-        "contract_trees_status": "Status of Trees",
-        "Survival-based off of planted": "Survival (%)"
-    })
-
+    cols = ["run_month","year_base","row_label",*COUNTRIES,"TOTAL",
+            "Survival-based off of planted","Series Obligation",
+            "Obligation Remaining (text)","Obligation Remaining (num)","loaded_at"]
+    out = out[cols].sort_values(["year_base","row_label"]).reset_index(drop=True)
     return out
+

@@ -12,9 +12,8 @@ from MonthlyReport.tables_process import apply_aliases, _merge_back_geo_columns,
 from MonthlyReport.tables.t1_etp_summary import build_etp_summary
 from MonthlyReport.tables.t1a_etp_summary_by_allocation_type import build_etp_summary_by_allocation
 from MonthlyReport.tables.t2_trees_by_etp_raise import build_etp_trees_table2
-from MonthlyReport.tables.t2a_trees_by_etp_stats_obligation import enrich_with_obligations_and_stats
+from MonthlyReport.tables.t2a_trees_by_cop_raise import build_cop_trees_table2
 from MonthlyReport.tables.t3_trees_by_planting_year import build_t3_trees_by_planting_year
-# T4/T5 se migran después
 
 def generate_monthly_excel_report():
     engine = get_engine()
@@ -41,27 +40,30 @@ def generate_monthly_excel_report():
     output_path = MONTHLY_REPORT_DIR / f"monthly_report_{today_str}.xlsx"
 
     # ========= Tablas (todas desde MBT) =========
-    df1  = build_etp_summary(mbt)
-    #t1a  = build_etp_summary_by_allocation(mbt)
+    df1 = build_etp_summary(mbt)
+    # t1a = build_etp_summary_by_allocation(mbt)
+
+    # T2 (ETP, con splits 2016 y 2018 ETP>0)
     df2 = build_etp_trees_table2(mbt, so_by_year=so_by_year)
-    df2a_can = enrich_with_obligations_and_stats(
-        df2.rename(columns={"ETP Year": "etp_year"}),
-        mbt
-    )
-    t3   = build_t3_trees_by_planting_year(mbt)
+
+    # T2a (COP, con splits 2015 / 2017-canada_2017_trees / 2016-2018 con COP>0)
+    t2a = build_cop_trees_table2(mbt, so_by_year=so_by_year)  # ⬅️ NUEVO
+
+
+    t3 = build_t3_trees_by_planting_year(mbt)
 
     # Aliases para export
-    df2_xls     = apply_aliases(df2)
-    df2a_can_xls= apply_aliases(df2a_can)
+    df2_xls = apply_aliases(df2)
+    t2a_xls = apply_aliases(t2a)  # ⬅️ NUEVO
 
     # ========= Export =========
     with pd.ExcelWriter(output_path) as writer:
         mbt.to_excel(writer, sheet_name="01_monthly_base_table", index=False)
-        df1.to_excel(writer,  sheet_name="ETP Summary", index=False)
-        #t1a.to_excel(writer,  sheet_name="ETP Summary by Allocation", index=False)
+        df1.to_excel(writer, sheet_name="ETP Summary", index=False)
+        # t1a.to_excel(writer, sheet_name="ETP Summary by Allocation", index=False)
         df2_xls.to_excel(writer, sheet_name="Trees by ETP (Summary)", index=False)
-        df2a_can_xls.to_excel(writer, sheet_name="Trees by Canadian COP Raise", index=False)
-        t3.to_excel(writer,   sheet_name="Trees by Planting Year", index=False)
+        t2a_xls.to_excel(writer, sheet_name="Trees by Canadian COP Raise", index=False)  # ⬅️ NUEVO
+        t3.to_excel(writer, sheet_name="Trees by Planting Year", index=False)
 
     print("✅ Reporte generado en:\n")
     print(f'"{output_path}"')

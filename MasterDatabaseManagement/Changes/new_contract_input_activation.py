@@ -9,6 +9,8 @@ from core.sheets import Sheet, export_tables_to_excel
 #from core.backup import backup_tables, backup_excel
 from core.backup_control import backup_once, save_excel_single_latest
 from typing import Optional  # si no lo tienes aún
+from MasterDatabaseManagement.sanidad.ca_backfill import upsert_ca_etp_from_cti
+
 
 # === Config ===
 CATALOG_FILE = Path(DATABASE_EXPORTS_DIR) / "changelog.xlsx"
@@ -110,6 +112,9 @@ def _reason_for_skip(sheet: Sheet, row):
 def main(dry_run: bool = False):
     engine = get_engine()
     ensure_all_paths_exist()
+
+    to_fpi_preview, to_cti_preview, to_ca_preview = [], [], []  # ⬅️ NUEVO
+    years_touched = set()
 
     # 🔒 Backup ÚNICO por tabla/tag (reemplaza el anterior)
     tables_to_backup = [
@@ -245,6 +250,9 @@ def main(dry_run: bool = False):
         cti_params["etp_year"] = py_num
         cti_params["harvest_year_10"] = (py_num + 10) if py_num is not None else None
 
+        if py_num is not None:
+            years_touched.add(py_num)
+
         # status ahora vive en CTI; si no viene, defaultea
         if _is_blank(cti_params.get("status")):
             cti_params["status"] = "Pending"
@@ -272,6 +280,26 @@ def main(dry_run: bool = False):
                     "shipping_address": cfi_params.get("shipping_address"),
                 })
                 to_cti_preview.append({"contract_code": contract_code, **cti_params})
+
+                etp_y = cti_params.get("etp_year")
+                status_cti = (cti_params.get("status") or "").strip()
+
+                if etp_y is not None and etp_y > 2018:
+                    to_ca_preview.append({
+                        "contract_code": contract_code,
+                        "etp_year": etp_y,
+                        "status_cti": status_cti,
+                        "etp_type": "ETP",
+                        "contracted_cop": 0,
+                        "planted_cop": 0,
+                        "contracted_etp": int(pd.to_numeric(cti_params.get("trees_contract"), errors="coerce") or 0),
+                        "planted_etp": int(pd.to_numeric(cti_params.get("planted"), errors="coerce") or 0),
+                        "surviving_etp": 0,
+                        "surviving_cop": 0,
+                        "note": ("se insertará/actualizará cuando pase a 'Active'"
+                                 if status_cti != "Active"
+                                 else "insert/upsERT inmediato")
+                    })
             else:
                 try:
                     # ====== FPI: alta/append de contract_code en la lista (si hay farmer_number) ======
@@ -352,9 +380,12 @@ def main(dry_run: bool = False):
                 print(pd.DataFrame(to_fpi_preview))
             if to_cti_preview:
                 print("=== Preview CTI (top 3) ===")
-                print(pd.DataFrame(to_cti_preview))
+                print(pd.DataFrame(to_cti_preview).head(3))
+            if to_ca_preview:
+                print("=== Preview CA (lo que haría upsert_ca_etp_from_cti) ===")
+                print(pd.DataFrame(to_ca_preview))
             else:
-                print("🪵 No hay preview: todas las filas fueron descartadas (revisa razones arriba).")
+                print("🪵 No hay preview CA: ninguna fila califica para backfill (p.ej., etp_year <= 2018).")
 
     print("✅ Contract Code serializado por prefijo y orden de fila.")
     print(f"✅ Filas marcadas como 'Done': {counts['applied']} | ❌ fallidos: {counts['failed']} | no_ready: {counts['not_ready']} | skipped: {counts['skipped']} | dry_run={dry_run}")

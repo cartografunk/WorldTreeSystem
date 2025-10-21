@@ -263,3 +263,28 @@ ALIAS_MAP = {
 def apply_aliases(df):
     """Renombra columnas al formato final para Excel."""
     return df.rename(columns=ALIAS_MAP)
+
+
+def align_to_template_headers(df, template_cols, rename_map=None):
+    """
+    Renombra y reordena df para que coincida EXACTAMENTE con template_cols.
+    - rename_map: {col_actual -> col_template}
+    - agrega columnas faltantes con NaN y descarta extras.
+    """
+    if df is None or df.empty:
+        # Devuelve un df vacío con las columnas del template
+        import pandas as pd
+        return pd.DataFrame(columns=template_cols)
+
+    out = df.copy()
+    if rename_map:
+        out = out.rename(columns={k: v for k, v in rename_map.items() if k in out.columns})
+
+    # Agrega faltantes
+    for c in template_cols:
+        if c not in out.columns:
+            out[c] = None
+
+    # Reordena y descarta extras
+    out = out[template_cols]
+    return out

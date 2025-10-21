@@ -4,6 +4,7 @@ from datetime import date
 from core.libs import pd, np
 from core.db import get_engine
 from MonthlyReport.tables.t3_trees_by_planting_year import build_t3_trees_by_planting_year
+from MonthlyReport.tables_process import align_to_template_headers
 from sqlalchemy import text as sqltext
 
 # Tablas histórico y destino
@@ -259,4 +260,62 @@ def format_t5_matrix(df_long: pd.DataFrame, run_month: date | None = None) -> pd
             out[c] = pd.NA
 
     out = out[cols_schema].sort_values(["year_base","row_label"]).reset_index(drop=True)
+
+    # === Headers finales para T5 ===
+    # 1) Renombrar claves
+    out = out.rename(columns={
+        "year_base": "Planting Year",
+        "row_label": "Status of Trees",
+    })
+
+    # 2) Quitar columnas que no deben salir (tanto con espacios como en snake_case)
+    drop_cols = [
+        "run_month", "loaded_at",
+        "Series Obligation", "series_obligation",
+        "Obligation Remaining", "Obligation_Remaining",
+    ]
+    out = out.drop(columns=[c for c in drop_cols if c in out.columns], errors="ignore")
+
+    # 3) Tipos limpios: países y TOTAL a int; deja métricas derivadas como float
+    int_like = [c for c in ["TOTAL", "Costa Rica", "Guatemala", "Mexico", "USA"] if c in out.columns]
+    if int_like:
+        out[int_like] = (
+            out[int_like]
+            .apply(pd.to_numeric, errors="coerce")
+            .fillna(0)
+            .round(0)
+            .astype(int)
+        )
+
+    # 4) Poner primero las claves
+    first = [c for c in ["Planting Year", "Status of Trees"] if c in out.columns]
+    rest = [c for c in out.columns if c not in first]
+    out = out[first + rest]
+
+    # (Opcional) orden final de filas por las nuevas claves
+    out = out.sort_values(first).reset_index(drop=True)
+
+    # === Alineación final para Excel (según template) ===
+    # Renombres (por si acaso)
+    rename_map_tpl = {
+        "year_base": "Planting Year",
+        "row_label": "Status of Trees",
+        # Mantén TOTAL tal cual; si tu hoja dice "Total" cambia aquí:
+        # "TOTAL": "Total",
+    }
+
+    # Orden exacto del template (según tu guía)
+    template_cols_t5 = [
+        "Planting Year", "Status of Trees",
+        "Costa Rica", "Guatemala", "Mexico", "USA", "TOTAL",
+        "Survival",
+    ]
+
+    # Aplicar alineación
+    out = align_to_template_headers(out, template_cols_t5, rename_map=rename_map_tpl)
+
+    # Ordenar filas por las claves principales
+    out = out.sort_values(["Planting Year", "Status of Trees"]).reset_index(drop=True)
+
     return out
+

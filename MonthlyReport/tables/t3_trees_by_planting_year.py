@@ -4,14 +4,21 @@ from core.libs import pd, np
 DISPLAY_MAP  = {"CR": "Costa Rica", "GT": "Guatemala", "MX": "Mexico", "US": "USA"}
 COUNTRIES    = ["Costa Rica", "Guatemala", "Mexico", "USA"]
 
-def build_t3_trees_by_planting_year(mbt: pd.DataFrame) -> pd.DataFrame:
+def build_t3_trees_by_planting_year(
+    mbt: pd.DataFrame,
+    apply_filter: bool = False,                 # <- OFF por defecto (no filtra)
+    filter_mode: str = "exclude_values",        # "isnull" | "exclude_values"
+    filter_values: list[str] = None             # usado si filter_mode="exclude_values"
+) -> pd.DataFrame:
     """
-    T3 (ajustada):
-    - Year = planting_year (si falta: year(planting_date); si falta: etp_year)
+    T3:
+    - Year = planting_year (fallback: year(planting_date) -> etp_year)
     - Contracted = trees_contract
     - Planted    = planted
-    - Surviving  = current_surviving_trees (o alive_sc) cap con Planted
-    - Filtro: usar SOLO filas con Filter IS NOT NULL (conserva 'Omit' y demás valores)
+    - Surviving  = current_surviving_trees (o alive_sc), capped con Planted
+    - Filtro: por defecto NO se aplica. Activar con apply_filter=True.
+        * filter_mode="isnull"        => usa solo filas con Filter IS NULL
+        * filter_mode="exclude_values"=> excluye valores en filter_values (default ["Omit"])
     - Orden: Year asc y, dentro, Contracted→Planted→Surviving
     """
     if mbt is None or mbt.empty:
@@ -30,9 +37,14 @@ def build_t3_trees_by_planting_year(mbt: pd.DataFrame) -> pd.DataFrame:
     py = py.fillna(pd.to_numeric(df.get("etp_year"), errors="coerce").astype("Int64"))
     df["planting_year"] = py
 
-    # ==== Filtro base ====
-    if "Filter" in df.columns:
-        df = df[df["Filter"].isna()]   # <-- si quieres IS NULL, cambia a .isna()
+    # ==== Filtro opcional (activador) ====
+    if apply_filter and "Filter" in df.columns:
+        if filter_mode == "isnull":
+            df = df[df["Filter"].isna()]
+        else:  # "exclude_values"
+            if filter_values is None:
+                filter_values = ["Omit"]
+            df = df[~df["Filter"].isin(filter_values)]
 
     # Tipado base
     for c in ["trees_contract", "planted", "current_surviving_trees", "alive_sc"]:
@@ -43,7 +55,7 @@ def build_t3_trees_by_planting_year(mbt: pd.DataFrame) -> pd.DataFrame:
     df["Contracted_use"] = pd.to_numeric(df.get("trees_contract"), errors="coerce").fillna(0)
     df["Planted_use"]    = pd.to_numeric(df.get("planted"),        errors="coerce").fillna(0)
 
-    # Surviving (fallback y cap)
+    # Surviving (fallback y cap con Planted)
     surv_raw = pd.to_numeric(df.get("current_surviving_trees"), errors="coerce")
     if surv_raw.isna().all():
         surv_raw = pd.to_numeric(df.get("alive_sc"), errors="coerce")
@@ -111,28 +123,17 @@ def build_t3_trees_by_planting_year(mbt: pd.DataFrame) -> pd.DataFrame:
     rows += _rows_from_pivot(piv_planted,    "Planted")
     rows += _rows_from_pivot(piv_surv,       "Surviving")
 
-    # --- BODY ordenado: Year ↑ y dentro CPS ---
-    body = (
-        pd.DataFrame(rows, columns=["Year", "Row", *COUNTRIES, "Total", "Survival %", "Survival_Summary"])
-          .rename(columns={"Row": "Status of Trees"})
-          .copy()
-    )
-
+    # Orden final
+    body = pd.DataFrame(rows, columns=["Year", "Status of Trees", *COUNTRIES, "Total", "Survival %", "Survival_Summary"])
     body["Year"] = pd.to_numeric(body["Year"], errors="coerce")
     _status_rank = {"Contracted": 0, "Planted": 1, "Surviving": 2}
     body["_rank"] = body["Status of Trees"].map(_status_rank)
+    body = body.sort_values(["Year", "_rank"], kind="mergesort").drop(columns="_rank").reset_index(drop=True)
 
-    body = (
-        body.sort_values(["Year", "_rank"], kind="mergesort")
-            .drop(columns="_rank")
-            .reset_index(drop=True)
-    )
-
-    # --- FOOTER al final ---
+    # Footer
     total_c = body.loc[body["Status of Trees"] == "Contracted", "Total"].sum()
     total_p = body.loc[body["Status of Trees"] == "Planted",    "Total"].sum()
     total_s = body.loc[body["Status of Trees"] == "Surviving",  "Total"].sum()
-
     footer = pd.DataFrame(
         [
             ["", "Total Contracted", *[""] * len(COUNTRIES), int(total_c), "", ""],
@@ -142,5 +143,4 @@ def build_t3_trees_by_planting_year(mbt: pd.DataFrame) -> pd.DataFrame:
         columns=["Year", "Status of Trees", *COUNTRIES, "Total", "Survival %", "Survival_Summary"],
     )
 
-    out = pd.concat([body, footer], ignore_index=True)
-    return out
+    return pd.concat([body, footer], ignore_index=True)

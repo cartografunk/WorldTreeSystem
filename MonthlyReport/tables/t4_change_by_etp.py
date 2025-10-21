@@ -4,6 +4,7 @@ from datetime import date
 from core.libs import pd, np
 from core.db import get_engine
 from MonthlyReport.tables.t2_trees_by_etp_raise import build_etp_trees_table2
+from MonthlyReport.tables_process import align_to_template_headers
 
 from sqlalchemy import text as sqltext
 
@@ -139,6 +140,27 @@ def _upsert_diff(engine, df_upsert: pd.DataFrame, out_table: str):
         for i in range(0, len(rows), batch):
             payload = [ _row_to_params(r) for _, r in rows.iloc[i:i+batch].iterrows() ]
             con.execute(stmt, payload)
+
+def _apply_t4_headers(df):
+    # 1) Renombrar
+    rename_map = {
+        "year_base": "Planting Year",
+        "row_label": "Status of Trees",
+    }
+    df = df.rename(columns={k: v for k, v in rename_map.items() if k in df.columns})
+
+    # 2) Dropear
+    drop_cols = ["run_month", "loaded_at"]
+    df = df.drop(columns=[c for c in drop_cols if c in df.columns], errors="ignore")
+
+    # 3) Orden sugerido (si existen)
+    preferred_first = ["Planting Year", "Status of Trees"]
+    first = [c for c in preferred_first if c in df.columns]
+    # deja el resto como están, respetando su orden actual
+    rest = [c for c in df.columns if c not in first]
+    df = df[first + rest]
+
+    return df
 
 def build_t4_change_by_etp(engine=None, run_month: str | date | None = None,
                            mbt: pd.DataFrame | None = None,
@@ -338,22 +360,54 @@ def format_t4_matrix(df_long: pd.DataFrame, run_month: date | None = None) -> pd
     out = pd.DataFrame(rows)
 
     # Añade columnas faltantes para el schema
+    # ====== Completar y tipar ======
     for c in COUNTRIES:
         if c not in out.columns:
             out[c] = 0
     if "TOTAL" not in out.columns:
         out["TOTAL"] = out[COUNTRIES].sum(axis=1)
 
-    # run_month / loaded_at
     run_month = run_month or _first_day_this_month()
     out.insert(0, "run_month", pd.to_datetime(run_month))
     out["loaded_at"] = pd.Timestamp.now()
 
-    # Orden final de columnas
-    cols = ["run_month","year_base","row_label",*COUNTRIES,"TOTAL",
-            "Survival-based off of planted","Series Obligation",
-            "Obligation Remaining (text)","Obligation Remaining (num)","loaded_at"]
-    out = out[cols].sort_values(["year_base","row_label"]).reset_index(drop=True)
-    return out
+    # Orden base (DB-wide)
+    cols_db = ["run_month", "year_base", "row_label", *COUNTRIES, "TOTAL",
+               "Survival-based off of planted", "Series Obligation",
+               "Obligation Remaining (text)", "Obligation Remaining (num)", "loaded_at"]
+    out = out[cols_db].sort_values(["year_base", "row_label"]).reset_index(drop=True)
 
+    # Tipos
+    int_cols = [c for c in ["TOTAL", *COUNTRIES] if c in out.columns]
+    out[int_cols] = out[int_cols].apply(pd.to_numeric, errors="coerce").fillna(0).round(0).astype(int)
+    if "Survival-based off of planted" in out.columns:
+        out["Survival-based off of planted"] = (
+            pd.to_numeric(out["Survival-based off of planted"], errors="coerce").round(2)
+        )
 
+    # ====== Snapshot DB (no tocar headers DB) ======
+    out_db = out.copy()  # si algún día quieres materializar t4_wide, usa este dataframe
+
+    # ====== Versión Excel (headers del template) ======
+    # Renombres para Excel (solo salida a Excel, NO DB)
+    out_excel = out.rename(columns={
+        "year_base": "Planting Year",
+        "row_label": "Status of Trees",
+        "Obligation Remaining (num)": "Obligation Remaining",
+        # Mantén "TOTAL" tal cual para DB; el Excel pide "TOTAL" (según tu guía), así que no lo renombramos aquí.
+        # Si tu template realmente usa "Total" (T mayúscula, resto minúsculas), cambia aquí:
+        # "TOTAL": "Total",
+    })
+
+    # Orden exacto del template (sin run_month / loaded_at)
+    from MonthlyReport.tables_process import align_to_template_headers
+    template_cols_t4 = [
+        "Planting Year", "Status of Trees",
+        "Costa Rica", "Guatemala", "Mexico", "USA", "TOTAL",
+        "Survival-based off of planted", "Series Obligation",
+        "Obligation Remaining",
+    ]
+    out_excel = align_to_template_headers(out_excel, template_cols_t4)
+    out_excel = out_excel.sort_values(["Planting Year", "Status of Trees"]).reset_index(drop=True)
+
+    return out_excel

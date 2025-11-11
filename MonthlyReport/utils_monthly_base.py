@@ -49,7 +49,7 @@ def _read_cti():
 
 def _read_sc():
     q = """
-    SELECT contract_code, current_surviving_trees
+    SELECT contract_code, current_surviving_trees, survival_metric_source
     FROM masterdatabase.survival_current
     """
     df = pd.read_sql(q, engine)
@@ -159,7 +159,7 @@ def build_monthly_base_table() -> pd.DataFrame:
         "contracted_cop","planted_cop","contracted_etp","planted_etp",
         "usa_trees_contracted","usa_trees_planted","usa_allocation_pct",
         "canada_trees_contracted","total_can_allocation","canada_2017_trees",
-        "surviving_cop","surviving_etp"
+        "surviving_cop","surviving_etp", "survival_metric_source"
     ]
     return mbt[[c for c in cols if c in mbt.columns]]
 

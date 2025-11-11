@@ -47,18 +47,53 @@ def _clear_old_block(ws, header_row, col_start, n_cols, old_n_rows):
             ws.cell(row=rr, column=col_start+j).value = None
 
 def write_df_preserving_style(ws, df: pd.DataFrame):
-    if df is None or df.empty: return
-    header_row, col_start = _find_header_anchor(ws, df.columns)
+    """
+    Escribe un DataFrame en una hoja de Excel preservando los estilos existentes.
+    Ahora maneja columnas que pueden estar en el template pero no en el DF y viceversa.
+    """
+    header_row = None
+    header_row_idx = None
+
+    # Buscar la fila de encabezados
+    for row_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=20, values_only=True), start=1):
+        row_values = [str(cell).strip() if cell is not None else '' for cell in row]
+        if any(col in row_values for col in df.columns):
+            header_row = row_values
+            header_row_idx = row_idx
+            break
+
     if header_row is None:
-        raise ValueError(f"No encontré encabezado igual al DF en hoja '{ws.title}'")
-    n_rows, n_cols = len(df), len(df.columns)
-    old_n_rows = _measure_current_block(ws, header_row, col_start, n_cols)
-    if old_n_rows > n_rows:
-        _clear_old_block(ws, header_row, col_start, n_cols, old_n_rows)
-    for i in range(n_rows):
-        for j, col in enumerate(df.columns):
-            ws.cell(row=header_row+1+i, column=col_start+j).value = df.iloc[i, j]
-    _resize_table_if_needed(ws, header_row, col_start, n_rows, n_cols)
+        raise ValueError(f"No encontré ningún encabezado del DF en hoja '{ws.title}'")
+
+    # Mapear columnas del DF a posiciones en Excel
+    col_mapping = {}
+    for df_col in df.columns:
+        if df_col in header_row:
+            excel_col_idx = header_row.index(df_col)
+            col_mapping[df_col] = excel_col_idx
+
+    # Verificar que al menos algunas columnas coincidan
+    if not col_mapping:
+        raise ValueError(f"Ninguna columna del DF coincide con la plantilla en hoja '{ws.title}'")
+
+    print(f"✅ Hoja '{ws.title}': {len(col_mapping)}/{len(df.columns)} columnas mapeadas")
+
+    # Limpiar datos existentes (mantener solo header)
+    ws.delete_rows(header_row_idx + 1, ws.max_row)
+
+    # Escribir datos del DataFrame
+    for df_row_idx, df_row in df.iterrows():
+        excel_row_idx = header_row_idx + df_row_idx + 1
+
+        for df_col, excel_col_idx in col_mapping.items():
+            cell = ws.cell(row=excel_row_idx, column=excel_col_idx + 1)
+            value = df_row[df_col]
+
+            # Manejar NaN
+            if pd.isna(value):
+                cell.value = None
+            else:
+                cell.value = value
 
 def build_monthly_report_path(run_date: date) -> str:
     ensure_all_paths_exist()

@@ -80,7 +80,7 @@ def generate_monthly_excel_report():
 
     # ========= Export con template (preserva estilos/tabla) =========
     DATASETS = {
-        # "01_monthly_base_table": mbt,  # (opcional) si está en tu template
+        "01_monthly_base_table": mbt,  # (opcional) si está en tu template
         "ETP Summary": df1,
         "Trees by ETP (Summary)": df2_xls,
         "Trees by Canadian COP Raise": t2a_xls,

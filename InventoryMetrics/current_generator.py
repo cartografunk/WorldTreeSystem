@@ -4,7 +4,7 @@ from core.db import get_engine, backup_table
 from core.libs import text
 
 SQL_REGENERATE = """
-DROP TABLE IF EXISTS masterdatabase.inventory_metrics_current;
+DROP TABLE IF EXISTS masterdatabase.inventory_metrics_current CASCADE;
 
 CREATE TABLE masterdatabase.inventory_metrics_current AS
 SELECT
@@ -35,11 +35,22 @@ SELECT
     im.mortality,
     im.planting_date,
     im.type_of_metric,
-    cfi.status AS contract_status,
+    cti.status AS contract_status,
     ROW_NUMBER() OVER (PARTITION BY im.contract_code ORDER BY im.inventory_year DESC) as rn
 FROM masterdatabase.inventory_metrics im
-LEFT JOIN masterdatabase.contract_farmer_information cfi
-    ON im.contract_code = cfi.contract_code;
+LEFT JOIN masterdatabase.contract_tree_information cti
+    ON im.contract_code = cti.contract_code;
+
+-- Recrear la vista que depende de inventory_metrics_current
+CREATE OR REPLACE VIEW masterdatabase.survival_current AS
+SELECT 
+    contract_code,
+    inventory_year,
+    survival,
+    total_trees,
+    mortality
+FROM masterdatabase.inventory_metrics_current
+WHERE rn = 1;
 
 -- Asegura que todos los contratos existan en metrics_current (aunque sean NULL)
 INSERT INTO masterdatabase.inventory_metrics_current (
@@ -79,11 +90,9 @@ SELECT
     NULL,                 -- mortality
     NULL,                 -- planting_date
     NULL,                 -- type_of_metric
-    cfi.status,           -- contract_status
+    cti.status,           -- contract_status
     1                     -- rn
 FROM masterdatabase.contract_tree_information cti
-LEFT JOIN masterdatabase.contract_farmer_information cfi
-    ON cti.contract_code = cfi.contract_code
 LEFT JOIN masterdatabase.inventory_metrics_current imc
     ON cti.contract_code = imc.contract_code
 WHERE imc.contract_code IS NULL;

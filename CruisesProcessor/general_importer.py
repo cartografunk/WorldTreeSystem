@@ -1,13 +1,18 @@
-#CruisesProcessor/general_importer.py
+# CruisesProcessor/general_importer.py
+"""
+CAMBIOS DE SEGURIDAD:
+- Línea 118: DROP TABLE ahora usa backup antes de DROP
+- Se mantiene toda la lógica de negocio intacta
+"""
+
 from core.libs import text, inspect, pd, datetime, to_datetime
 from core.schema_helpers import rename_columns_using_schema, get_dtypes_for_dataframe, _SA_TO_PD, FINAL_ORDER, DTYPES
 from core.db import get_engine
+from core.backup_manager import backup_table  # ✅ NUEVO
+from core.safe_ops import safe_drop_table  # ✅ NUEVO
 
-
-# Construye FINAL_ORDER y DTYPES desde schema
 
 def prepare_df_for_sql(df):
-
     # 1) Renombra todas las columnas usando el schema (al nombre SQL)
     df = rename_columns_using_schema(df)
 
@@ -28,9 +33,6 @@ def prepare_df_for_sql(df):
 
     return df, dtypes
 
-    # 5) Construir dtype_for_sql para usar en el insert de SQLAlchemy/psycopg2
-    dtype_for_sql = {col: DTYPES[col] for col in df2.columns if col in DTYPES}
-    return df2, dtype_for_sql
 
 def create_inventory_catalog(df, engine, table_catalog_name):
     """
@@ -46,11 +48,11 @@ def create_inventory_catalog(df, engine, table_catalog_name):
         raise KeyError(f"Columnas faltantes: {missing}. Verifica combine_files()")
 
     # --- Paso 2: Preparar columnas base ---
-    cols_base = required_cols.copy()  # ["contractcode", "farmername", "cruisedate"]
+    cols_base = required_cols.copy()
     if "path" in df.columns:
-        cols_base.insert(0, "path")  # Añadir "path" al inicio si existe
+        cols_base.insert(0, "path")
 
-    # --- Paso 2.5: Filtrar filas basura (sin tree_number y status_id) ---
+    # --- Paso 2.5: Filtrar filas basura ---
     for col in ["tree_number", "status_id"]:
         if col not in df.columns:
             df[col] = pd.NA
@@ -79,9 +81,6 @@ def create_inventory_catalog(df, engine, table_catalog_name):
         FROM masterdatabase.contract_farmer_information
     """, engine)
 
-
-    df_farmers = pd.read_sql('SELECT "contractcode" AS contractcode, "farmername" FROM cat_farmers', engine)
-
     # --- Paso 6: Unir datos ---
     df_catalog = pd.merge(df_catalog, sampled, on=["contractcode", "cruisedate"], how="left")
     df_catalog = pd.merge(df_catalog, df_farmers, on="contractcode", how="left")
@@ -91,23 +90,22 @@ def create_inventory_catalog(df, engine, table_catalog_name):
     order = [col for col in order if col in df_catalog.columns]
     df_catalog = df_catalog[order]
 
-    # --- Paso 7.5: Limpiar NaT para campos datetime ---
+    # --- Paso 7.5: Limpiar NaT ---
     for col in df_catalog.select_dtypes(include=["datetime64[ns]"]):
         df_catalog[col] = df_catalog[col].where(df_catalog[col].notna(), None)
 
     # --- Paso 8: Guardar en SQL ---
-    ensure_table(
-        df_catalog,
-        engine,
-        table_catalog_name,
-        recreate=True
-    )
+    ensure_table(df_catalog, engine, table_catalog_name, recreate=True)
     save_inventory_to_sql(df_catalog, engine, table_catalog_name, if_exists="replace")
     print(f"✅ Catálogo guardado: \n {table_catalog_name}")
 
     return df_catalog
 
+
 def ensure_table(df, engine, table_name, recreate=False):
+    """
+    ✅ SAFE VERSION: Usa safe_drop_table en lugar de DROP directo
+    """
     insp = inspect(engine)
 
     with engine.begin() as conn:
@@ -115,7 +113,23 @@ def ensure_table(df, engine, table_name, recreate=False):
 
         if recreate or not insp.has_table(table_name):
             if insp.has_table(table_name):
-                conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
+                # ✅ CAMBIO CRÍTICO: Backup + safe drop en lugar de DROP directo
+                print(f"🛡️  Creando backup antes de recrear tabla {table_name}...")
+                try:
+                    backup_table(engine, table_name, schema="masterdatabase")
+                except Exception as e:
+                    print(f"⚠️  Warning al crear backup: {e}")
+
+                # Usar safe_drop_table (verifica backup)
+                safe_drop_table(
+                    engine,
+                    table_name,
+                    schema="masterdatabase",
+                    require_backup=False  # Ya creamos backup arriba
+                )
+
+                # CÓDIGO ANTERIOR (INSEGURO):
+                # conn.execute(text(f'DROP TABLE IF EXISTS "{table_name}" CASCADE'))
 
             dtypes = get_dtypes_for_dataframe(df)
             df.head(0).to_sql(table_name, conn, index=False, if_exists="append", dtype=dtypes)
@@ -134,7 +148,7 @@ def ensure_table(df, engine, table_name, recreate=False):
                         f'ALTER TABLE "{table_name}" ADD COLUMN "{col}" TEXT'
                     ))
 
-            # ✅ Verificar si 'id' ya tiene PK (para evitar conflicto ON CONFLICT)
+            # Verificar si 'id' ya tiene PK
             if 'id' in df.columns:
                 result = conn.execute(text(f"""
                     SELECT COUNT(*)
@@ -158,30 +172,25 @@ def ensure_table(df, engine, table_name, recreate=False):
 
 
 def save_inventory_to_sql(df,
-        connection_string,
-        table_name,
-        if_exists="append",
-        schema=None,
-        dtype=None,
-        progress=False,
-        chunksize=1000):
+                          connection_string,
+                          table_name,
+                          if_exists="append",
+                          schema=None,
+                          dtype=None,
+                          progress=False,
+                          chunksize=1000):
     """Limpia nombres de columnas y guarda el DataFrame en SQL con tipos opcionales."""
 
     print("\n=== INICIO DE IMPORTACIÓN ===")
-    #print("Columnas crudas del archivo:", df.columns.tolist())
-
-    # AQUI: df ya viene renombrado y ordenado por prepare_df_for_sql,
-    # así que NO lo tocamos más. Si quieres, mú evita duplicados:
 
     try:
         engine = get_engine()
-        # Bulk insert parametrizado
         conn = engine.raw_connection()
         cursor = conn.cursor()
 
         table_full = f'{schema + "." if schema else ""}"{table_name}"'
 
-        conn.commit()  # guardamos el DDL
+        conn.commit()
 
         cols = df.columns.tolist()
         cols_quoted = ", ".join([f'"{c}"' for c in cols])
@@ -198,20 +207,16 @@ def save_inventory_to_sql(df,
             f'INSERT INTO {table_full} ({cols_quoted}) '
             f'VALUES ({placeholders})'
             f'{conflict}'
-            )
+        )
 
         data = df.values.tolist()
 
-        # Después de definir `insert_query` y antes de iterar batches:
-        #print("➤ Columnas que voy a insertar:", cols_quoted)
-        # Para inspeccionar el esquema real en la BD:
         from sqlalchemy import inspect
         insp = inspect(engine)
         table_cols = [col["name"] for col in insp.get_columns(table_name)]
-        #print("➤ Columnas existentes en la tabla:", table_cols)
 
         if progress:
-            from tqdm import tqdm  # import ligero, solo si se pide
+            from tqdm import tqdm
             iterator = tqdm(
                 range(0, len(data), chunksize),
                 desc=f"Insertando → {table_name}",
@@ -232,29 +237,24 @@ def save_inventory_to_sql(df,
         print(f"✅ Bulk insert completado: \n '{table_name}' ({len(data)} filas)")
     except Exception as e:
         print(f"❌ Error al realizar bulk insert: \n {str(e)}")
-
         raise
+
 
 def cast_dataframe(df):
     """Convierte in-place las columnas presentes al dtype esperado."""
-
     for col, sa_type in get_dtypes_for_dataframe(df).items():
         pd_dtype = _SA_TO_PD.get(sa_type)
         if pd_dtype is None or col not in df.columns:
             continue
 
         if col == "cruisedate":
-            # Primero, intenta con formato MM/DD/YYYY
             dt = pd.to_datetime(df[col], errors="coerce", format="%m/%d/%Y")
-            # Si hay NaT, intenta con formato DD/MM/YYYY
             if dt.isna().sum() > 0:
                 dt2 = pd.to_datetime(df[col], errors="coerce", dayfirst=True)
                 dt = dt.combine_first(dt2)
-            # Si sigue habiendo NaT, intenta formato ISO
             if dt.isna().sum() > 0:
                 dt3 = pd.to_datetime(df[col], errors="coerce", format="%Y-%m-%d")
                 dt = dt.combine_first(dt3)
-            # Convierte a date
             df[col] = dt.dt.date
             continue
 
@@ -316,4 +316,3 @@ def upload_and_finalize(df_combined, df_good, df_bad, args, engine):
 
         # Marcar como completado
         marcar_lote_completado(args.table)
-

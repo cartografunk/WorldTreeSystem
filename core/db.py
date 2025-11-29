@@ -1,6 +1,7 @@
 # core/db.py
 from core.libs import create_engine, pd, datetime, text
-from core.backup import backup_table as backup_table_util, backup_tables as backup_tables_util
+import core.backup_manager as backup_manager
+
 
 def get_engine():
     """
@@ -33,11 +34,11 @@ def get_table_names(country_code: str = "cr", year: str = "2025", schema: str = 
 
 
 def inspect_tables(
-    engine=None,
-    table_dict: dict = None,
-    country_code: str = "cr",
-    year: str = "2025",
-    schema: str = "public"
+        engine=None,
+        table_dict: dict = None,
+        country_code: str = "cr",
+        year: str = "2025",
+        schema: str = "public"
 ) -> None:
     """
     Inspecciona las tablas pasadas en table_dict (o las por defecto) y despliega
@@ -64,28 +65,36 @@ def inspect_tables(
         except Exception as e:
             print(f"⚠️ Error consultando {sql_tabla}: {e}")
 
-def backup_table(table, schema="masterdatabase"):
-    """
-    Crea un respaldo rápido de la tabla SQL como backup con fecha y hora.
-    Si la tabla no existe, ignora el error.
-    """
-    engine = get_engine()
-    now = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_table = f"{schema}.{table}_bkp_{now}"
-    try:
-        with engine.connect() as conn:
-            conn.execute(text(f"CREATE TABLE {backup_table} AS TABLE {schema}.{table}"))
-        print(f"🛡️  Backup creado: {backup_table}")
-    except Exception as e:
-        print(f"⚠️  No se pudo respaldar {schema}.{table}: {e}")
-
 
 def backup_table(table, schema="masterdatabase"):
-    """Wrapper: usa core.backup.backup_table"""
+    """
+    Wrapper: Creates a backup using the centralized backup_manager.
+
+    This replaces all previous backup_table() implementations.
+    Backups are stored in the 'backups' schema with pattern: <table>_YYYYMMDD_HHMMSS
+    Only the most recent backup is kept per table.
+
+    Args:
+        table: Name of the table to backup
+        schema: Schema containing the table (default: "masterdatabase")
+
+    Returns:
+        Name of the backup table created
+    """
     engine = get_engine()
-    return backup_table_util(engine, table, schema=schema)
+    return backup_manager.backup_table(engine, table, schema=schema)
+
 
 def backup_tables(tables, schema="masterdatabase"):
-    """Wrapper múltiple."""
+    """
+    Wrapper: Creates backups for multiple tables using the centralized backup_manager.
+
+    Args:
+        tables: List of table names to backup
+        schema: Schema containing the tables (default: "masterdatabase")
+
+    Returns:
+        Dictionary with backup results for each table
+    """
     engine = get_engine()
-    return backup_tables_util(engine, tables, schema=schema)
+    return backup_manager.backup_tables(engine, tables, schema=schema)

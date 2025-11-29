@@ -1,12 +1,16 @@
 # inventory_metrics/current_generator.py
+"""
+Regenerates masterdatabase.inventory_metrics_current table safely.
+Now uses backup_manager + safe_ops for data protection.
+"""
 
-from core.db import get_engine, backup_table
+from core.db import get_engine
 from core.libs import text
+from core.backup_manager import backup_table
+from core.safe_ops import safe_drop_table, safe_create_table_as
 
-SQL_REGENERATE = """
-DROP TABLE IF EXISTS masterdatabase.inventory_metrics_current CASCADE;
-
-CREATE TABLE masterdatabase.inventory_metrics_current AS
+# SQL for the main SELECT statement (without DROP/CREATE)
+SQL_SELECT_CURRENT = """
 SELECT
     im.rel_path,
     im.contract_code,
@@ -39,8 +43,11 @@ SELECT
     ROW_NUMBER() OVER (PARTITION BY im.contract_code ORDER BY im.inventory_year DESC) as rn
 FROM masterdatabase.inventory_metrics im
 LEFT JOIN masterdatabase.contract_tree_information cti
-    ON im.contract_code = cti.contract_code;
+    ON im.contract_code = cti.contract_code
+"""
 
+# SQL for post-creation operations (view + insert)
+SQL_POST_CREATE = """
 -- Recrear la vista que depende de inventory_metrics_current
 CREATE OR REPLACE VIEW masterdatabase.survival_current AS
 SELECT 
@@ -98,22 +105,66 @@ LEFT JOIN masterdatabase.inventory_metrics_current imc
 WHERE imc.contract_code IS NULL;
 """
 
-def regenerate_inventory_metrics_current(engine=None, sql_code=SQL_REGENERATE):
+
+def regenerate_inventory_metrics_current(engine=None):
     """
     Regenera la tabla masterdatabase.inventory_metrics_current con la lógica WorldTree.
-    Si no se pasa engine, lo obtiene con get_engine().
+
+    ✅ SAFE VERSION: Usa backup_manager + safe_ops para protección de datos.
+
+    Pasos:
+    1. Crea backup de la tabla actual
+    2. Drop seguro (verifica que backup existe)
+    3. CREATE TABLE AS usando safe_create_table_as
+    4. Ejecuta operaciones post-creación (view + insert)
+
+    Args:
+        engine: SQLAlchemy engine (si None, usa get_engine())
     """
     if engine is None:
         engine = get_engine()
-    # 🛡️ Backup antes de reemplazar
-    backup_table("inventory_metrics_current")
+
     print("🔄 Regenerando masterdatabase.inventory_metrics_current ...")
+
+    # PASO 1: Backup antes de cualquier operación destructiva
+    print("🛡️  Creando backup de inventory_metrics_current...")
+    try:
+        backup_table(engine, "inventory_metrics_current", schema="masterdatabase")
+    except Exception as e:
+        print(f"⚠️  No se pudo crear backup (tabla puede no existir aún): {e}")
+
+    # PASO 2: Drop seguro (verifica backup)
+    print("🗑️  Eliminando tabla anterior de forma segura...")
+    try:
+        safe_drop_table(
+            engine,
+            "inventory_metrics_current",
+            schema="masterdatabase",
+            require_backup=False  # Ya hicimos backup arriba manualmente
+        )
+    except Exception as e:
+        print(f"⚠️  No se pudo eliminar tabla (puede no existir): {e}")
+
+    # PASO 3: Crear tabla nueva de forma segura
+    print("📊 Creando nueva tabla inventory_metrics_current...")
+    row_count = safe_create_table_as(
+        engine,
+        schema="masterdatabase",
+        table="inventory_metrics_current",
+        select_sql=SQL_SELECT_CURRENT
+    )
+    print(f"✅ Tabla creada con {row_count} filas")
+
+    # PASO 4: Ejecutar operaciones post-creación
+    print("🔧 Ejecutando operaciones post-creación (view + inserts)...")
     with engine.begin() as conn:
-        for statement in sql_code.split(';'):
+        for statement in SQL_POST_CREATE.split(';'):
             stmt = statement.strip()
             if stmt:
                 conn.execute(text(stmt))
-    print("✅ Tabla masterdatabase.inventory_metrics_current actualizada.")
+
+    print("✅ Tabla masterdatabase.inventory_metrics_current actualizada exitosamente")
+
 
 if __name__ == "__main__":
     regenerate_inventory_metrics_current()

@@ -1,4 +1,8 @@
 # inventory_metrics/generate.py
+"""
+✅ SAFE VERSION: Usa to_sql_with_backup en lugar de to_sql directo
+Ya tenía backup_table(), ahora usa el wrapper completo
+"""
 
 from tqdm import tqdm
 from InventoryMetrics.processing_metrics import aggregate_contracts
@@ -9,69 +13,12 @@ from InventoryMetrics.generate_helpers import clean_and_fuse_metrics
 from core.libs import re, pd, text, argparse
 from core.db import get_engine
 from core.schema_helpers import get_column
-from core.db import backup_table
-
-# def upsert_metrics(engine, rows):
-#     if not rows:
-#         return
-#
-#     df = pd.DataFrame(rows)
-#
-#     # Asegurar que la tabla tenga la estructura correcta
-#     with engine.begin() as conn:
-#         conn.execute(text("""
-#             CREATE TABLE IF NOT EXISTS masterdatabase.inventory_metrics (
-#                 contract_code TEXT,
-#                 inventory_year INTEGER,
-#                 inventory_date TEXT,
-#                 dbh_mean NUMERIC,
-#                 dbh_std NUMERIC,
-#                 tht_mean NUMERIC,
-#                 tht_std NUMERIC,
-#                 mht_mean NUMERIC,
-#                 mht_std NUMERIC,
-#                 doyle_bf_mean NUMERIC,
-#                 doyle_bf_std NUMERIC,
-#                 doyle_bf_total NUMERIC,
-#                 pkid TEXT PRIMARY KEY
-#             )
-#         """))
-#
-#         for _, row in df.iterrows():
-#             conn.execute(text("""
-#                 INSERT INTO masterdatabase.inventory_metrics (
-#                     contract_code, inventory_year, inventory_date,
-#                     dbh_mean, dbh_std,
-#                     tht_mean, tht_std,
-#                     mht_mean, mht_std,
-#                     doyle_bf_mean, doyle_bf_std, doyle_bf_total
-#                 ) VALUES (
-#                     :pkid, :contract_code, :inventory_year, :inventory_date,
-#                     :dbh_mean, :dbh_std,
-#                     :tht_mean, :tht_std,
-#                     :mht_mean, :mht_std,
-#                     :doyle_bf_mean, :doyle_bf_std, :doyle_bf_total
-#                 )
-#                 ON CONFLICT (pkid) DO UPDATE SET
-#                     contract_code = EXCLUDED.contract_code,
-#                     inventory_year = EXCLUDED.inventory_year,
-#                     inventory_date = EXCLUDED.inventory_date,
-#                     dbh_mean = EXCLUDED.dbh_mean,
-#                     dbh_std = EXCLUDED.dbh_std,
-#                     tht_mean = EXCLUDED.tht_mean,
-#                     tht_std = EXCLUDED.tht_std,
-#                     mht_mean = EXCLUDED.mht_mean,
-#                     mht_std = EXCLUDED.mht_std,
-#                     doyle_bf_mean = EXCLUDED.doyle_bf_mean,
-#                     doyle_bf_std = EXCLUDED.doyle_bf_std,
-#                     doyle_bf_total = EXCLUDED.doyle_bf_total
-#             """), row.to_dict())
+from core.safe_ops import to_sql_with_backup  # ✅ NUEVO: Reemplaza to_sql normal
 
 from InventoryMetrics.generate_helpers import create_cat_inventory_tables
 from InventoryMetrics.inventory_retriever import get_inventory_tables
-
 from InventoryMetrics.planting_times import pretty_tree_age
-# (Asegúrate de tener esta función disponible aquí, o cópiala si hace falta)
+
 
 def main(where="1=1"):
     print("📊 Generando métricas de inventario...")
@@ -137,9 +84,23 @@ def main(where="1=1"):
                 df_final.drop(suffix, axis=1, inplace=True)
     # ---- FIN LIMPIEZA DE SUFIJOS ----
 
-    backup_table("inventory_metrics")
-    df_final.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="replace", index=False)
+    # ✅ CAMBIO CRÍTICO: Usa to_sql_with_backup en lugar de backup_table + to_sql
+    # CÓDIGO ANTERIOR:
+    # backup_table("inventory_metrics")
+    # df_final.to_sql("inventory_metrics", engine, schema="masterdatabase", if_exists="replace", index=False)
+
+    # CÓDIGO NUEVO (SAFE):
+    print("🛡️  Guardando métricas con protección de backup...")
+    to_sql_with_backup(
+        df_final,
+        engine,
+        "inventory_metrics",
+        schema="masterdatabase",
+        if_exists="replace",
+        index=False
+    )
     print("✅ Métricas insertadas en masterdatabase.inventory_metrics")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

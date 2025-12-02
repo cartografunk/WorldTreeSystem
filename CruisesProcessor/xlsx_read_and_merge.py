@@ -77,15 +77,18 @@ def read_metadata_and_input(file_path: str) -> tuple[pd.DataFrame | None, dict]:
 
         df = pd.read_excel(xls, sheet_name=target, dtype=str, na_filter=False)
 
-        # 0️⃣ Limpieza inicial: uniformizar todos los encabezados en “snake case” minimal
-        df.columns = [clean_column_name(c) for c in df.columns]
-
         # 1️⃣  Normaliza dtypes (solo una vez)
         df = cast_dataframe(df)
 
         # 2️⃣  Renombrado global según schema.py
         #     Esto convierte columnas “defecto”→“Defect”, “especie”→“Species”, “plagas”→“Pests”, etc.
+        # ANTES del rename
+        #print(f"🔍 Columnas ANTES de rename_columns_using_schema: {df.columns.tolist()}")
+
         df = rename_columns_using_schema(df)
+
+        # INMEDIATAMENTE DESPUÉS del rename
+        #print(f"🔍 Columnas INMEDIATAMENTE DESPUÉS de rename_columns_using_schema: {df.columns.tolist()}")
         #print(">>> Columnas tras rename_columns_using_schema:", df.columns.tolist())
 
         # 3️⃣  Borrar columnas residuales cat_*_id (si quedaron de corridas anteriores)
@@ -169,10 +172,11 @@ def combine_files(explicit_files=None, base_path=None, filter_func=None):
                 print(f"   ⚠️  Archivo vacío: {file}")
                 continue
 
+            # En xlsx_read_and_merge.py línea ~175
             df = rename_columns_using_schema(df)
 
-            # Validación básica de columnas
-            required_cols = [get_column("tree_number"), get_column("status")]
+            # Validación básica de columnas - PASAR df
+            required_cols = [get_column("tree_number", df), get_column("status", df)]
             missing = [c for c in required_cols if c not in df.columns]
             if missing:
                 print(f"   ❌ Faltan columnas clave: {', '.join(missing)}")

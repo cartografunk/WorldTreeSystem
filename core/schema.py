@@ -89,7 +89,7 @@ COLUMNS = [
   },
   {
     "key": "Status", "sql_name": "status",
-    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion", "TreeStatus", "WT Status"],
+    "aliases": ["Status", "Condicion", "Estado", "Condición", "estado", "condición", "condicion", "TreeStatus", "WT Status", "condicion", "status"],
     "dtype": "TEXT",
     "source": "input",
     "catalog_table": "cat_status",

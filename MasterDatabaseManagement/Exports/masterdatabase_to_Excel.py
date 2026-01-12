@@ -13,7 +13,9 @@ WANTED = [
     ("farmer_personal_information", "FPI"),
     ("contract_allocation",         "CA"),
     ("inventory_metrics_current",   "IMC"),
-    ("survival_current",            "Survival_Current"),
+    ("inventory_metrics",            "IM"),
+    ("contract_replacements", "CR"),
+    ("survival_maindatabase_archive", "SMA")
 ]
 
 # Qué tablas existen realmente en el esquema

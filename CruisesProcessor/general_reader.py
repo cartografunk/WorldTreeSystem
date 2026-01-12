@@ -85,14 +85,30 @@ DROP TABLE inventory_cr_2024b;  -- Borras la prueba
 """
 
 
-def load_batch_config(tabla_destino, path="CruisesProcessor/batch_imports.json"):
-    with open(path, encoding="utf-8") as f:
+from pathlib import Path
+from core.libs import json
+
+BASE_DIR = Path(__file__).resolve().parent
+DEFAULT_BATCH_PATH = BASE_DIR / "batch_imports.json"
+
+def load_batch_config(tabla_destino, path=None):
+    batch_path = Path(path) if path else DEFAULT_BATCH_PATH
+
+    if not batch_path.exists():
+        raise FileNotFoundError(
+            f"batch_imports.json not found at: {batch_path}"
+        )
+
+    with open(batch_path, encoding="utf-8") as f:
         lotes = json.load(f)
 
     for lote in lotes:
         if lote.get("tabla_destino") == tabla_destino:
             return lote
+
     raise ValueError(f"❌ No se encontró lote con tabla_destino={tabla_destino}")
+
+
 
 
 def load_and_prepare_data():

@@ -1,0 +1,2 @@
+rel_path,contract_code,tree_age,inventory_year,inventory_date,tht_mean,tht_std,mht_mean,mht_std,dbh_mean,dbh_std,noncom_dbh_count,doyle_bf_mean,doyle_bf_std,doyle_bf_total,pkid,progress,total_trees,type_of_metric,planting_date,planting_year,survival,mht_pct_of_target,dbh_pct_of_target,projected_dbh,projected_doyle_bf,mortality
+,GT0031,,2024,,9.73,6.53,,,1.54,1.15,287,1.02,1.01,9.17,GT0031 2024,OK,357,inventory,,,0.8039,,,,,0.1961

@@ -1,0 +1,32 @@
+{
+  "country": "GT",
+  "timestamp": "2025-12-01T11:29:49.564188",
+  "total_records": 2226,
+  "issues": {},
+  "summary": {
+    "total_issues": 0,
+    "data_quality_score": 100.0
+  },
+  "excel_format_errors": {
+    "Nota Breve": {
+      "type_counts": {
+        "int": 26,
+        "str": 3
+      },
+      "examples": {
+        "int": [
+          "8",
+          "8",
+          "8"
+        ],
+        "str": [
+          "No se planto en esta zona por la sombra ",
+          "No se planto en esta zona por la sombra ",
+          "No se planto en esta zona por la sombra "
+        ]
+      },
+      "datetime_error_rows": [],
+      "total_datetime_errors": 0
+    }
+  }
+}

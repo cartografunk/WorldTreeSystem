@@ -1,0 +1,106 @@
+{
+  "timestamp": "2025-12-01T11:30:22.859192",
+  "inventory_year": 2024,
+  "total_columns_with_errors": 3,
+  "errors_by_column": {
+    "DAP (cm)": {
+      "type_counts": {
+        "float": 3908,
+        "int": 48,
+        "datetime": 2
+      },
+      "examples": {
+        "float": [
+          "1.811023622047244",
+          "3.543307086614173",
+          "2.165354330708662"
+        ],
+        "int": [
+          "0",
+          "0",
+          "0"
+        ],
+        "datetime": [
+          "1900-01-03 06:25:30.709000",
+          "1900-01-04 11:42:59.528000"
+        ]
+      },
+      "datetime_error_rows": [
+        4197,
+        4239
+      ],
+      "total_datetime_errors": 2,
+      "error_locations": [
+        {
+          "row_index": 4197,
+          "value": "1900-01-03 06:25:30.709000",
+          "country": "CR",
+          "source_file": "20036-CR0040-I1.xlsx",
+          "contract_code": "CR0040"
+        },
+        {
+          "row_index": 4239,
+          "value": "1900-01-04 11:42:59.528000",
+          "country": "CR",
+          "source_file": "20036-CR0040-I1.xlsx",
+          "contract_code": "CR0040"
+        }
+      ]
+    },
+    "Alt. Com. (m)": {
+      "type_counts": {
+        "float": 3588,
+        "int": 54,
+        "datetime": 1
+      },
+      "examples": {
+        "float": [
+          "8.2025",
+          "6.562",
+          "9.843"
+        ],
+        "int": [
+          "0",
+          "0",
+          "0"
+        ],
+        "datetime": [
+          "1900-01-14 18:20:52.800000"
+        ]
+      },
+      "datetime_error_rows": [
+        4193
+      ],
+      "total_datetime_errors": 1,
+      "error_locations": [
+        {
+          "row_index": 4193,
+          "value": "1900-01-14 18:20:52.800000",
+          "country": "CR",
+          "source_file": "20036-CR0040-I1.xlsx",
+          "contract_code": "CR0040"
+        }
+      ]
+    },
+    "Nota Breve": {
+      "type_counts": {
+        "str": 440,
+        "int": 27
+      },
+      "examples": {
+        "str": [
+          "Parcela permanente",
+          "Parcela permanente",
+          "Parcela permanente"
+        ],
+        "int": [
+          "66",
+          "8",
+          "8"
+        ]
+      },
+      "datetime_error_rows": [],
+      "total_datetime_errors": 0
+    }
+  }
+}

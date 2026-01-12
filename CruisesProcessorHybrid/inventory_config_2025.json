@@ -1,0 +1,16 @@
+{
+  "inventory_year": 2025,
+  "input_directories": {
+    "CR": "C:\\Users\\HeyCe\\World Tree Technologies Inc\\Forest Inventory - Documentos\\Costa Rica\\2024_ForestInventoryQ1_25",
+    "GT": "C:\\Users\\HeyCe\\World Tree Technologies Inc\\Forest Inventory - Documentos\\Guatemala\\2024_ForestInventoryQ1_25",
+    "MX": "C:\\Users\\HeyCe\\World Tree Technologies Inc\\Forest Inventory - Documentos\\Mexico\\2024_ForestInventoryQ1_25",
+    "US": "C:\\Users\\HeyCe\\World Tree Technologies Inc\\Forest Inventory - Documentos\\USA\\2024_ForestInventoryQ1_25\\WT Cruises"
+  },
+  "output_directory": "./public",
+  "validated_excel_pattern": "inventory_{country}_{year}.xlsx",
+  "merge_output_filename": "inventory_merge_{year}.xlsx",
+  "notes": {
+    "2024": "Complete inventory - all countries",
+    "2025": "Q1 2025 inventory - CR, GT, MX, US"
+  }
+}
